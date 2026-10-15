@@ -167,7 +167,9 @@ export function BrandImageField({
         )}
       </div>
       <div className="grid min-w-0 flex-1 gap-2">
-        <div className="text-sm font-medium">{label}</div>
+        <label htmlFor={inputId} className="text-sm font-medium">
+          {label}
+        </label>
         <p id={hintId} className="text-sm text-foreground-muted">
           {hint}
         </p>

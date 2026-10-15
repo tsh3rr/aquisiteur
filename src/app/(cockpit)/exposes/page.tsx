@@ -107,9 +107,10 @@ export default async function ExposesPage() {
                         href={`${origin}/x/${row.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label={`Öffnen: ${row.company} (neuer Tab)`}
                         className="text-accent underline-offset-4 hover:underline"
                       >
-                        Öffnen<span className="sr-only"> (neuer Tab): {row.company}</span>
+                        Öffnen
                       </a>
                     )}
                   </td>

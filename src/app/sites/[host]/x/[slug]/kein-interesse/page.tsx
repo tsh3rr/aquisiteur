@@ -1,8 +1,7 @@
-import type { Metadata, Route } from "next";
-import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getDb } from "@/db";
 import { loadPublicExpose } from "@/server/exposes/load";
-import { optOutByExposeSlug } from "@/server/exposes/opt-out";
 import { workspaceForHostParam } from "@/server/sites";
 
 export const metadata: Metadata = {
@@ -31,15 +30,6 @@ export default async function OptOutPage({
   if (!data) notFound();
   const owner = data.settings.profile.displayName ?? data.workspace.name;
 
-  async function confirm() {
-    "use server";
-    const ws = await workspaceForHostParam(host);
-    if (!ws) notFound();
-    await optOutByExposeSlug(getDb(), ws.id, slug);
-    // Public paths are rewritten by the middleware, so they are not typed routes.
-    redirect(`/x/${slug}/kein-interesse?done=1` as Route);
-  }
-
   return (
     <main id="main" className="grid min-h-dvh place-items-center bg-background px-5 py-16">
       <div className="grid max-w-lg gap-5 rounded-2xl border border-border bg-surface p-8 shadow-md">
@@ -57,7 +47,12 @@ export default async function OptOutPage({
               Dann bestätigen Sie bitte kurz. {owner} schickt Ihnen danach keine weiteren Briefe
               oder Nachrichten zu diesen Vorschlägen.
             </p>
-            <form action={confirm} className="flex flex-wrap gap-3">
+            {/* Plain POST (works without JavaScript); see bestaetigen/route.ts. */}
+            <form
+              method="post"
+              action={`/x/${slug}/kein-interesse/bestaetigen`}
+              className="flex flex-wrap gap-3"
+            >
               <button
                 type="submit"
                 className="inline-flex min-h-11 items-center rounded-lg bg-accent px-5 font-semibold text-accent-foreground hover:bg-accent-hover"
