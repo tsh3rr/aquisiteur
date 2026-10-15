@@ -325,7 +325,8 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 - `letters` hat einen eigenen Lebenszyklus: `draft → queued → submitted → printed → posted → (returned | failed | cancelled)`, mit `provider`, `provider_ref`, `cost_cents`, `posted_at` und Zeitstempeln pro Zustand. „Zeit bis zur Öffnung“ rechnet immer ab `posted_at`.
 - Druckoptionen modellieren: Farbe/S-W, Simplex/Duplex, Versandart (Standard, Prio), Umschlagformat, Beilagen.
 - PDFs strikt nach den gängigen Print-API-Vorgaben erzeugen (Adressfeld-Position DIN 5008, Ränder für Frankierzone, eingebettete Schriften, PDF/A-tauglich). Dann funktionieren sie mit jedem Anbieter.
-- Später geplante Adapter: **Pingen**, **LetterXpress**, ein Handschrift-Dienst (z. B. **Pensaki**) für besonders wichtige Prospects.
+- **Erster echter Provider: Pingen** (Stand Oktober 2026). Pingen druckt Briefe an österreichische Empfänger lokal und lässt sie von der Österreichischen Post zustellen (Brief 2–3 Werktage, Premium Brief am nächsten Werktag). Ein Brief mit 1 Blatt S/W kostet ca. 1,43 € netto, ab 500 Briefen/Monat ca. 1,25 € netto. Die API bietet REST mit OAuth2 (Client Credentials), Webhooks für Statusänderungen, eine kostenlose Sandbox, Idempotency-Keys und ein JS-SDK. Die Pingen-Zustände werden auf den Brief-Lebenszyklus gemappt, Webhooks werden signaturgeprüft und idempotent verarbeitet. Vor dem Produktivbetrieb wird ein AV-Vertrag abgeschlossen.
+- Weitere mögliche Adapter: **LetterXpress** (druckt in Deutschland, nach Österreich nur als Auslandsbrief) und ein Handschrift-Dienst (z. B. **Pensaki**) für besonders wichtige Prospects.
 - Automatischer Follow-up-Versand (z. B. „14 Tage nach `posted_at` kein Scan → Follow-up-Brief einreihen“) als Regel vorbereitet; aktiv erst mit einem echten Provider.
 - Zugangsdaten pro Workspace verschlüsselt (siehe §9a), Kosten pro Brief in `usage_events`.
 
@@ -436,7 +437,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
 | **5 – Brief & Auswertung** | Übersichts-, Kampagnen- und Inhalts-Dashboards, Karte, Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
-| **Später** | Print-API-Adapter (Pingen, LetterXpress, Handschrift-Dienst) + automatische Follow-ups, Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
+| **Später** | Print-API-Adapter (zuerst Pingen, danach ggf. LetterXpress und ein Handschrift-Dienst) + automatische Follow-ups, Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
 ---
 
