@@ -48,7 +48,7 @@ Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für 
 5. **Chat**: Eigener Live-Chat im Exposé. Der Owner antwortet aus dem Cockpit (PWA, Push am Handy). Übergabe an WhatsApp jederzeit möglich.
 6. **Exposé-Format**: Strukturiertes JSON gegen ein festes, versioniertes Schema mit Blockbibliothek (siehe §7.2). Claude Code erzeugt diese Dateien, die App rendert sie. Kein freies HTML.
 7. **Benachrichtigungen an den Owner**: Web-Push (PWA) und E-Mail. Telegram als optionaler Kanal vorbereitet.
-8. **Briefversand**: Die App erzeugt pro Prospect ein druckfertiges PDF (DIN A4, DIN-5008-konform, Fenster-Umschlag DL) mit QR-Code und Kurzlink. Der Owner druckt und versendet selbst. Print-API (z. B. Pingen) als spätere Ausbaustufe.
+8. **Briefversand**: Die App erzeugt pro Prospect ein druckfertiges PDF (DIN A4, DIN-5008-konform, Fenster-Umschlag DL) mit QR-Code und Kurzlink. Der Owner druckt und versendet in v1 selbst. Der Versand ist aber von Anfang an über eine austauschbare **Versand-Schnittstelle** gebaut (siehe §7.9), damit Print-APIs wie Pingen oder LetterXpress und Handschrift-Dienste wie Pensaki später nur ein weiterer Adapter sind.
 9. **Sprache**: UI und Exposés auf Deutsch, Code und Kommentare auf Englisch, i18n-fähig angelegt.
 
 ---
@@ -273,6 +273,17 @@ Die Empfehlung nennt den **Kanal, den der Prospect zuletzt angesteuert hat**, pl
 - Sammel-Export für eine ganze Kampagne (ein PDF, Seiten getrennt) und „als versendet markieren“ mit Datum (startet die Messung „Zeit bis zur Öffnung“).
 - Follow-up-Brief (zweiter Touchpoint) mit eigenem Code.
 
+**Versand-Schnittstelle (Print-APIs von Anfang an mitdenken):**
+
+- Interface `LetterDispatchProvider` mit `send(letter) → providerRef`, `getStatus(providerRef)`, `cancel(providerRef)`, `estimateCost(letter)` und einem Webhook-Handler pro Provider.
+- Erster Provider in v1: `manual` (PDF herunterladen, „als versendet markieren“). Er durchläuft dieselben Zustände wie ein echter Provider.
+- `letters` hat einen eigenen Lebenszyklus: `draft → queued → submitted → printed → posted → (returned | failed | cancelled)`, mit `provider`, `provider_ref`, `cost_cents`, `posted_at` und Zeitstempeln pro Zustand. „Zeit bis zur Öffnung“ rechnet immer ab `posted_at`.
+- Druckoptionen modellieren: Farbe/S-W, Simplex/Duplex, Versandart (Standard, Prio), Umschlagformat, Beilagen.
+- PDFs strikt nach den gängigen Print-API-Vorgaben erzeugen (Adressfeld-Position DIN 5008, Ränder für Frankierzone, eingebettete Schriften, PDF/A-tauglich). Dann funktionieren sie mit jedem Anbieter.
+- Später geplante Adapter: **Pingen**, **LetterXpress**, ein Handschrift-Dienst (z. B. **Pensaki**) für besonders wichtige Prospects.
+- Automatischer Follow-up-Versand (z. B. „14 Tage nach `posted_at` kein Scan → Follow-up-Brief einreihen“) als Regel vorbereitet; aktiv erst mit einem echten Provider.
+- Zugangsdaten pro Workspace verschlüsselt (siehe §9a), Kosten pro Brief in `usage_events`.
+
 ---
 
 ## 8. Design & UX
@@ -378,9 +389,9 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 | **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
 | **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
-| **5 – Brief & Auswertung** | Brief-PDF, Sammel-Export, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
+| **5 – Brief & Auswertung** | Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
-| **Später** | Messenger, SMS, Print-API, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
+| **Später** | Print-API-Adapter (Pingen, LetterXpress, Handschrift-Dienst) + automatische Follow-ups, Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
 ---
 
