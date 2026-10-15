@@ -76,5 +76,7 @@ export default defineConfig([
     "drizzle/**",
     "playwright-report/**",
     "test-results/**",
+    ".lighthouseci/**",
+    "lighthouserc.cjs",
   ]),
 ]);

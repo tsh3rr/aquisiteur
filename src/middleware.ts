@@ -15,7 +15,13 @@ import { buildContentSecurityPolicy } from "@/lib/security-headers";
  */
 
 // /api/v1 authenticates with workspace API tokens instead of the session cookie.
-const PUBLIC_COCKPIT_PATHS = ["/login", "/api/auth", "/api/v1", "/manifest.webmanifest"];
+const PUBLIC_COCKPIT_PATHS = [
+  "/login",
+  "/api/auth",
+  "/api/v1",
+  "/manifest.webmanifest",
+  "/robots.txt",
+];
 
 export function middleware(request: NextRequest) {
   const appUrl = process.env.APP_URL;
