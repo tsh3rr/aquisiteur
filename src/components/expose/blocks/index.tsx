@@ -80,15 +80,4 @@ export function Block({ block, context }: { block: ExposeBlock; context: RenderC
   }
 }
 
-/** Title for the table of contents, if the block has one. */
-export function blockTitle(block: ExposeBlock): string | null {
-  switch (block.type) {
-    case "hero":
-    case "cta":
-      return null;
-    case "personal_note":
-      return block.title ?? "Persönliche Nachricht";
-    default:
-      return block.title;
-  }
-}
+export { blockTitle } from "@/domain/expose/outline";
