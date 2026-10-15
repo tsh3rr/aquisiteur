@@ -50,3 +50,27 @@ export function PageHeader({
     </header>
   );
 }
+
+/**
+ * Horizontally scrollable area (wide tables). Focusable so keyboard users
+ * can scroll it (WCAG 2.1.1); the label names it for screen readers.
+ */
+export function ScrollRegion({
+  label,
+  className,
+  ...props
+}: ComponentProps<"div"> & { label: string }) {
+  /* eslint-disable jsx-a11y/no-noninteractive-tabindex -- scroll containers need focus */
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      tabIndex={0}
+      className={cn(
+        "overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+        className,
+      )}
+      {...props}
+    />
+  );
+}

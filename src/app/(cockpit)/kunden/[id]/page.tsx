@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollRegion } from "@/components/ui/misc";
 import { workspaces } from "@/db/schema";
 import { can } from "@/domain/authz";
 import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
@@ -152,14 +153,7 @@ export default async function CustomerPage({
               {realVisits.length === 0 ? (
                 <p className="text-sm text-foreground-muted">Noch keine Besuche.</p>
               ) : (
-                // Scrollable regions must be reachable by keyboard (WCAG 2.1.1).
-                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-                <div
-                  className="overflow-x-auto"
-                  role="region"
-                  aria-label="Besuche, seitlich scrollbar"
-                  tabIndex={0}
-                >
+                <ScrollRegion label="Besuche, seitlich scrollbar">
                   <table className="w-full min-w-[36rem] text-left text-sm">
                     <caption className="sr-only">Besuche von {prospect.companyName}</caption>
                     <thead className="border-b border-border text-foreground-muted">
@@ -210,7 +204,7 @@ export default async function CustomerPage({
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ScrollRegion>
               )}
             </CardContent>
           </Card>
