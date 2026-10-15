@@ -275,14 +275,41 @@ Die Empfehlung nennt den **Kanal, den der Prospect zuletzt angesteuert hat**, pl
 - **Debounce**: Ein Besuch mit 30 Events erzeugt eine Benachrichtigung, keine 30. Updates werden in die bestehende Benachrichtigung gruppiert.
 - Jede Benachrichtigung verlinkt direkt auf die Prospect-Timeline.
 
-### 7.8 Cockpit
+### 7.8 Cockpit (Backend): Dashboards und Kundenverwaltung
 
-- **Startseite „Heute“**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität), Live-Feed, Kennzahlen der Woche.
-- **Prospect-Detail**: Kopf mit Score-Ring und Empfehlung, **Timeline** aller Events in menschenlesbarer Form („Hat den Abschnitt *Vorher/Nachher* 48 s angesehen“), Abschnitts-Heatmap des Exposés (Verweildauer pro Block), Chat, Notizen, Touchpoints mit QR-Download, Brief-PDF, Status.
-- **Session-Replay** (nur wenn Consent vorlag).
-- **Kampagnen-Auswertung**: Funnel (versendet → geöffnet → gelesen → Kontaktversuch → Kontakt → Gewonnen), Vergleich zwischen Kampagnen und Exposé-Varianten.
-- **Einstellungen**: Profil (Foto, Name, Kanäle, Nummern), Benachrichtigungsregeln, Score-Gewichte, Nudge-Konfiguration, Domains, API-Tokens, Datenaufbewahrung.
-- Optimiert für Desktop **und** Handy (der Owner reagiert unterwegs).
+Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, sieht bis ins Detail, was jeder Einzelne getan hat, und behält über Dashboards den Überblick. Es ist genauso wichtig wie das Exposé und bekommt dieselbe Designqualität.
+
+**Dashboards**
+
+- **„Heute“ (Startseite)**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität, mit Ein-Klick-Aktionen), Live-Feed („Jetzt gerade: Café Müller liest *Preise*“), offene Chats, fällige Follow-ups.
+- **Übersichts-Dashboard**: KPI-Kacheln mit Trend gegenüber Vorperiode (versendete Briefe, Öffnungsrate, Ø Zeit bis zur Öffnung, Ø Verweildauer, Kontaktversuche, Kontaktquote, Termine, gewonnene Kunden, Umsatz-Pipeline, Kosten pro Brief und pro Abschluss). Zeitraum frei wählbar, Filter nach Kampagne, Branche, Region, Tag.
+- **Funnel**: versendet → geöffnet → gelesen → Kontaktversuch → Kontakt → Termin → gewonnen, mit Absprungraten pro Stufe, vergleichbar zwischen Kampagnen.
+- **Aktivitätsverlauf**: Scans und Besuche über die Zeit, Heatmap nach Wochentag × Uhrzeit (wann lesen Kunden, wann lohnt sich ein Anruf).
+- **Inhalts-Dashboard**: Welche Exposé-Blöcke werden am längsten gelesen, wo springen Leser ab, welche Nudges und Kanäle funktionieren (Klickrate pro Kanal, Chat vs. WhatsApp vs. Anruf).
+- **Karte**: Prospects auf einer Karte, eingefärbt nach Status/Score (nützlich für lokale Akquise).
+- **Kampagnen-Dashboard** je Kampagne mit denselben Kennzahlen plus Liste aller Prospects der Kampagne.
+- Alle Diagramme barrierefrei (Werte auch als Tabelle abrufbar), Export als CSV.
+
+**Kundenverwaltung**
+
+- **Kundenliste** als leistungsfähige Tabelle: Spalten frei wählbar, sortieren, filtern (Status, Score, Kampagne, Branche, Ort, letzte Aktivität, Tags), gespeicherte Ansichten („Heiße Leads“, „Geöffnet, aber kein Kontakt“), Mehrfachauswahl für Sammelaktionen (Status ändern, taggen, Brief erzeugen, exportieren).
+- **Pipeline-Ansicht** (Kanban) mit Drag & Drop zwischen den Status.
+- **Kunden-Detailseite (360°-Ansicht)**:
+  - Kopf: Firma, Ansprechpartner, Status, Score-Ring mit Erklärung und Handlungsempfehlung, Ein-Klick-Aktionen (Anrufen, WhatsApp, E-Mail, Notiz, Status ändern).
+  - Stammdaten und alle Kontaktdaten, bearbeitbar inline, mehrere Ansprechpartner.
+  - **Timeline** aller Ereignisse in menschenlesbarer Form, filterbar: Brief versendet, gescannt, Abschnitte gelesen („*Vorher/Nachher* 48 s angesehen“), Kanäle angeklickt, Chatnachrichten, Notizen, Statuswechsel, Benachrichtigungen.
+  - **Besuche im Detail**: jede Session mit Gerät, Ort (Stadt), Dauer, Scrolltiefe, gelesenen Abschnitten; Abschnitts-Heatmap auf dem Exposé; Session-Replay, wenn Einwilligung vorlag. Mehrere Besucher derselben Firma werden unterschieden.
+  - Chatverlauf mit Antwortmöglichkeit, Rückrufanfragen, Entwürfe (nur Länge bzw. Inhalt, falls aktiviert).
+  - Exposé-Versionen, Touchpoints mit QR-/Link-Download, Briefe mit Versandstatus.
+  - Notizen (Markdown), Aufgaben/Wiedervorlagen mit Fälligkeit und Erinnerung, Tags, geschätzter Auftragswert.
+  - Datenschutz-Aktionen: Export, Löschen, Sperrvermerk.
+- **Aufgaben & Wiedervorlagen**: eigene Liste aller fälligen Aufgaben über alle Kunden.
+
+**Allgemein**
+
+- Globale Suche und Command Palette (⌘K), Tastaturkürzel für häufige Aktionen.
+- **Einstellungen**: Profil (Foto, Name, Kanäle, Nummern), Benachrichtigungsregeln, Score-Gewichte, Nudge-Konfiguration, Domains, API-Tokens, Datenaufbewahrung, System-/Limit-Übersicht (§5a).
+- Optimiert für Desktop **und** Handy (der Owner reagiert unterwegs); auf dem Handy stehen „Heute“, Chat und Kunden-Detail im Vordergrund.
 
 ### 7.9 Brief-Generator
 
@@ -404,10 +431,10 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 |---|---|---|
 | **0 – Fundament** | Repo-Setup, CI, `src/infra/`-Schnittstellen mit Lint-Regel, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
 | **1 – Exposé-Hosting** | Schema + JSON Schema, CLI `validate/publish`, Blockbibliothek, öffentliches Rendering, Theming, Vorschau, `EXPOSE_AUTHORING.md` | Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße |
-| **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
+| **2 – Links & Tracking** | Kundenliste mit Filtern und gespeicherten Ansichten, Pipeline, Kunden-Detailseite, Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline | Scan erscheint in der Timeline, Bots werden ignoriert |
 | **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
-| **5 – Brief & Auswertung** | Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
+| **5 – Brief & Auswertung** | Übersichts-, Kampagnen- und Inhalts-Dashboards, Karte, Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
 | **Später** | Print-API-Adapter (Pingen, LetterXpress, Handschrift-Dienst) + automatische Follow-ups, Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
