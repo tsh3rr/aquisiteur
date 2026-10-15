@@ -1,6 +1,6 @@
 # Deployment: Cloudflare Workers + Supabase
 
-Schritt-für-Schritt-Anleitung, um Aquisiteur produktiv zu betreiben. Stand: Phase 0 (Fundament).
+Schritt-für-Schritt-Anleitung, um Aquisiteur produktiv zu betreiben. Stand: Phase 1 (Exposé-Hosting).
 Zeitaufwand beim ersten Mal: etwa eine Stunde.
 
 > Kurz gesagt: Supabase liefert die Postgres-Datenbank in Frankfurt, Cloudflare Hyperdrive verbindet
@@ -25,6 +25,7 @@ Browser ──► Cloudflare Worker (Next.js via OpenNext)
 | App           | Cloudflare Workers (Paid Plan) | Cockpit, Exposés, Kurzlinks                               |
 | DB-Verbindung | Cloudflare Hyperdrive          | Pooling, damit der Worker nicht pro Anfrage neu verbindet |
 | E-Mail        | Resend (EU-Region)             | Anmeldelinks, später Benachrichtigungen                   |
+| Dateien       | Cloudflare R2 (Region EU)      | Bilder und Videos der Exposés                             |
 
 ## Voraussetzungen
 
@@ -96,6 +97,16 @@ in `wrangler.jsonc` bei `hyperdrive[0].id` ein (ersetzt `REPLACE_WITH_HYPERDRIVE
 2. Die angezeigten DNS-Einträge (SPF, DKIM) in Cloudflare DNS anlegen und verifizieren lassen.
 3. **API Keys → Create** mit Berechtigung _Sending access_. Den Schlüssel brauchst du in Schritt 6.
 
+## 5b. R2-Bucket für Bilder anlegen
+
+1. Im Cloudflare-Dashboard **R2 → Create bucket**, Name `aquisiteur-assets`, Location **EU**
+   (Jurisdiction „European Union“).
+2. **R2 → Manage API tokens → Create API token** mit _Object Read & Write_, nur für diesen Bucket.
+   Notiere _Access Key ID_, _Secret Access Key_ und den S3-Endpoint
+   (`https://<account-id>.eu.r2.cloudflarestorage.com`).
+
+Der Bucket bleibt privat. Die App liefert die Dateien selbst aus, nur für den passenden Workspace.
+
 ## 6. Konfiguration im Worker hinterlegen
 
 Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
@@ -107,7 +118,10 @@ Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
   "PLATFORM_DOMAIN": "aquisiteur.de",
   "EMAIL_PROVIDER": "resend",
   "EMAIL_FROM": "Aquisiteur <anmeldung@mail.aquisiteur.de>",
-  "SIGNUP_ALLOWLIST": "deine@adresse.de"
+  "SIGNUP_ALLOWLIST": "deine@adresse.de",
+  "STORAGE_PROVIDER": "s3",
+  "S3_ENDPOINT": "https://<account-id>.eu.r2.cloudflarestorage.com",
+  "S3_BUCKET": "aquisiteur-assets"
 }
 ```
 
@@ -117,6 +131,8 @@ Geheimnisse setzt du als Secrets (werden verschlüsselt bei Cloudflare gespeiche
 openssl rand -base64 48 | pnpm wrangler secret put BETTER_AUTH_SECRET
 openssl rand -base64 32 | pnpm wrangler secret put INTEGRATIONS_ENCRYPTION_KEY
 pnpm wrangler secret put RESEND_API_KEY        # Wert aus Schritt 5 einfügen
+pnpm wrangler secret put S3_ACCESS_KEY_ID      # Werte aus Schritt 5b
+pnpm wrangler secret put S3_SECRET_ACCESS_KEY
 ```
 
 `INTEGRATIONS_ENCRYPTION_KEY` gut sichern (Passwortmanager): Ohne ihn lassen sich später gespeicherte
@@ -148,6 +164,21 @@ Das baut die App mit OpenNext und lädt sie als Worker hoch. Danach `https://app
 1. E-Mail-Adresse aus `SIGNUP_ALLOWLIST` eingeben, Anmeldelink aus dem Postfach öffnen.
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
+
+## 9. Erstes Exposé veröffentlichen
+
+1. Im Cockpit **Einstellungen → API-Tokens** einen Token anlegen und kopieren.
+2. Lokal im Repo:
+
+   ```bash
+   export AQUISITEUR_API_TOKEN=aq_…
+   export AQUISITEUR_API_URL=https://app.aquisiteur.de
+   pnpm expose:publish exposes/cafe-mueller
+   ```
+
+3. Die CLI gibt den öffentlichen Link aus, z. B. `https://pixelwerk.aquisiteur.de/x/cafe-mueller-…`.
+
+Wie du eigene Exposés schreibst: [EXPOSE_AUTHORING.md](./EXPOSE_AUTHORING.md).
 
 ## Ohne E-Mail-Versand testen (vor Schritt 5)
 

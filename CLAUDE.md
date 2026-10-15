@@ -19,6 +19,8 @@ pnpm test:e2e            # Playwright + axe; builds, starts on :3100, uses aquis
 pnpm db:generate         # drizzle-kit migration from schema changes
 pnpm db:migrate | db:seed | db:reset
 pnpm user:login <email>   # create account + print one-time sign-in link (no mail needed)
+pnpm expose:validate <dir> | expose:publish <dir>   # exposé CLI (docs/EXPOSE_AUTHORING.md)
+pnpm expose:schema       # regenerate schema/expose.schema.json after changing src/domain/expose/schema.ts
 pnpm tokens:build        # regenerate src/styles/tokens.css from src/design/tokens.ts
 pnpm cf:build            # OpenNext Cloudflare bundle; cf:preview / cf:deploy
 ```
@@ -40,6 +42,10 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 - Permissions via `can()` / `assertCan()` (`src/domain/authz.ts`); limits via `entitlements()`.
 - Nothing workspace-specific in env or code: it belongs in `workspace_settings` (Zod schemas in
   `src/domain/workspace-settings.ts`).
+- Files go through `getInfra().storage` (keys always start with `<workspace_id>/`); `sharp` only in
+  `scripts/` (Workers cannot run it), so images arrive pre-scaled (ADR-0013).
+- Public workspace pages read via the system connection but always scoped to the host's workspace
+  (ADR-0012).
 - Pure logic in `src/domain` (unit-tested, no I/O). Server-only services in `src/server`.
 - Host routing: `src/middleware.ts` (Edge; see ADR-0006). Public workspace pages live under
   `src/app/sites/[host]/`.

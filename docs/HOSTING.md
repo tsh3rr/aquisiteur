@@ -5,14 +5,15 @@ Adapter für die Schnittstellen, die bis dahin nur eine Cloudflare-Implementieru
 
 ## Was heute anbieterneutral ist
 
-| Baustein                                                           | Stand Phase 0                                                                                    | Umzug                                                                 |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Datenbank                                                          | Standard-Postgres, Drizzle-Migrationen als einzige Quelle der Wahrheit                           | `pg_dump` / `pg_restore` zum neuen Anbieter, `DATABASE_URL` umstellen |
-| Auth                                                               | Better Auth, Tabellen in der eigenen DB                                                          | wandert mit der DB mit                                                |
-| DB-Verbindung                                                      | `DatabasePort`: Hyperdrive (`cloudflare`) oder `DATABASE_URL` (`node`)                           | `HOSTING_PROFILE=node`                                                |
-| E-Mail                                                             | `EmailPort`: Resend (anbieterneutral, läuft überall)                                             | nichts zu tun                                                         |
-| Rate Limiting (Auth)                                               | Better Auth mit Postgres-Speicher                                                                | nichts zu tun                                                         |
-| Storage, Queue, Cron, Cache, Realtime, Domains, Push, Briefversand | Schnittstellen in `src/infra/types.ts` deklariert, Implementierung folgt in der jeweiligen Phase | je Port ein Adapter (S3/MinIO, pg-boss, node-cron …)                  |
+| Baustein                                                  | Stand Phase 0                                                                                    | Umzug                                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Datenbank                                                 | Standard-Postgres, Drizzle-Migrationen als einzige Quelle der Wahrheit                           | `pg_dump` / `pg_restore` zum neuen Anbieter, `DATABASE_URL` umstellen                          |
+| Auth                                                      | Better Auth, Tabellen in der eigenen DB                                                          | wandert mit der DB mit                                                                         |
+| DB-Verbindung                                             | `DatabasePort`: Hyperdrive (`cloudflare`) oder `DATABASE_URL` (`node`)                           | `HOSTING_PROFILE=node`                                                                         |
+| E-Mail                                                    | `EmailPort`: Resend (anbieterneutral, läuft überall)                                             | nichts zu tun                                                                                  |
+| Rate Limiting (Auth)                                      | Better Auth mit Postgres-Speicher                                                                | nichts zu tun                                                                                  |
+| Storage (Bilder, Videos)                                  | `StoragePort`: S3-API (Cloudflare R2), lokal ein Verzeichnis                                     | anderes S3 (MinIO, Supabase Storage, Hetzner): `S3_*` umstellen, Dateien mit `rclone` kopieren |
+| Queue, Cron, Cache, Realtime, Domains, Push, Briefversand | Schnittstellen in `src/infra/types.ts` deklariert, Implementierung folgt in der jeweiligen Phase | je Port ein Adapter (pg-boss, node-cron …)                                                     |
 
 Fachcode importiert Anbieter-SDKs nie direkt; die ESLint-Regel in `eslint.config.mjs` erzwingt das
 außerhalb von `src/infra/` (getestet in `tests/unit/infra-boundary.test.ts`).

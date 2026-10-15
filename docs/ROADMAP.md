@@ -28,17 +28,19 @@ Einstellungen → System (sobald es Messwerte gibt, spätestens Phase 6).
 
 Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße.
 
-- [ ] Exposé-Schema (Zod) + `schema/expose.schema.json`
-- [ ] CLI `pnpm expose:validate` / `pnpm expose:publish`, REST `POST /api/exposes` mit API-Token
-- [ ] API-Token-Verwaltung in den Einstellungen
-- [ ] Storage-Port (R2 über S3-API), Bildoptimierung mit `sharp` beim Veröffentlichen
-- [ ] Blockbibliothek (15 Blöcke), öffentliches Rendering, Theming mit Kontrastkorrektur
-- [ ] Exposé-Versionierung, Vorschau im Cockpit (Desktop/Mobil)
-- [ ] CSP-Strategie für gecachte Exposés (ADR-0007)
-- [ ] Zwei Beispiel-Exposés als Seed (Café, Handwerksbetrieb) mit Beispiel-Prospects
-- [ ] `docs/EXPOSE_AUTHORING.md`
-- [ ] Logo und Owner-Foto im Wizard
-- [ ] Lighthouse CI
+- [x] Exposé-Schema (Zod) + `schema/expose.schema.json`
+- [x] CLI `pnpm expose:validate` / `pnpm expose:publish`, REST `/api/v1/assets` + `/api/v1/exposes` mit API-Token
+- [x] API-Token-Verwaltung in den Einstellungen
+- [x] Storage-Port (R2 über S3-API, lokal als Fallback), Bildoptimierung mit `sharp` in der CLI (ADR-0013)
+- [x] Blockbibliothek (15 Blöcke), öffentliches Rendering, Theming mit Kontrastkorrektur
+- [x] Exposé-Versionierung, Vorschau im Cockpit (Desktop/Mobil), offline nehmen
+- [x] CSP-Strategie für Exposés (ADR-0012: pro Anfrage gerendert, Nonce bleibt)
+- [x] Zwei Beispiel-Exposés als Seed (Café, Handwerksbetrieb) mit Beispiel-Prospects
+- [x] `docs/EXPOSE_AUTHORING.md`
+- [x] Logo und Owner-Foto im Wizard und in den Einstellungen
+- [x] Lighthouse CI (ADR-0014: gemessen 93–97 Performance, sonst je 100)
+- [x] Opt-out „Kein Interesse“ mit Bestätigung (ADR-0015)
+- [x] `pnpm user:login`: Account und Anmeldelink ohne E-Mail-Versand
 
 ## Phase 2 · Links & Tracking
 
