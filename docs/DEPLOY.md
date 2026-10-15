@@ -153,18 +153,33 @@ Das baut die App mit OpenNext und lädt sie als Worker hoch. Danach `https://app
 
 Resend ist für einen ersten Test nicht nötig. Die Anmeldung läuft über Better Auth in der eigenen
 Datenbank, nicht über Supabase Auth; ein Nutzer, den du im Supabase-Dashboard anlegst, hilft deshalb
-nicht. Stattdessen schreibt der Log-Modus den Anmeldelink ins Worker-Log:
+nicht.
+
+**Am einfachsten: Account und Anmeldelink per Befehl.** Lokal im Repo, mit dem Connection-String aus
+Schritt 2 und deiner Cockpit-Adresse:
+
+```bash
+DATABASE_URL='<supabase-session-pooler-url>' APP_URL='https://app.aquisiteur.de' \
+  pnpm user:login deine@adresse.de --name "Vorname Nachname"
+```
+
+Der Befehl legt den Account an (falls noch nicht vorhanden) und gibt einen Anmeldelink aus, der
+30 Minuten gilt und nur einmal funktioniert. Link öffnen, Einrichtungs-Assistent durchlaufen, Passkey
+anlegen. Ab dann meldest du dich per Passkey an. Wer den Assistenten überspringen will, hängt
+`--workspace "Agenturname" --slug agenturname` an; Profil und Kanäle trägst du dann in den
+Einstellungen nach. Der Befehl funktioniert jederzeit erneut, z. B. wenn du den Passkey verlierst.
+
+**Alternative: Link im Worker-Log.**
 
 1. In `vars`: `"EMAIL_PROVIDER": "log"` und `"ALLOW_LOG_EMAIL": "1"`, deine Adresse in `SIGNUP_ALLOWLIST`.
    `RESEND_API_KEY` weglassen.
 2. `pnpm cf:deploy`, in einem zweiten Terminal `pnpm wrangler tail`.
-3. Im Cockpit deine Adresse eingeben; der Link erscheint im `tail`-Fenster. Öffnen, Assistent
-   durchlaufen, Passkey anlegen.
-4. Ab dann meldest du dich per Passkey an. Vor dem echten Betrieb auf Resend umstellen und
-   `ALLOW_LOG_EMAIL` entfernen, denn jeder mit Zugriff auf die Logs könnte sonst Anmeldelinks lesen.
+3. Im Cockpit deine Adresse eingeben; der Link erscheint im `tail`-Fenster.
+4. Vor dem echten Betrieb auf Resend umstellen und `ALLOW_LOG_EMAIL` entfernen, denn jeder mit Zugriff
+   auf die Logs könnte sonst Anmeldelinks lesen.
 
-Lokal (`pnpm dev`) ist das der Standard: Der Link steht im Terminal, `pnpm db:seed` legt zusätzlich
-einen Test-Workspace für `SEED_OWNER_EMAIL` an.
+Lokal (`pnpm dev`) steht der Link im Terminal. `pnpm db:seed` legt zusätzlich einen fertigen
+Test-Workspace mit zwei Beispiel-Exposés für `SEED_OWNER_EMAIL` an (nur lokal, nicht gegen Produktion).
 
 ## Updates einspielen
 

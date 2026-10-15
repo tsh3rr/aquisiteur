@@ -18,6 +18,7 @@ pnpm test:db             # DB tests against TEST_DATABASE_URL (wiped each run)
 pnpm test:e2e            # Playwright + axe; builds, starts on :3100, uses aquisiteur_e2e DB
 pnpm db:generate         # drizzle-kit migration from schema changes
 pnpm db:migrate | db:seed | db:reset
+pnpm user:login <email>   # create account + print one-time sign-in link (no mail needed)
 pnpm tokens:build        # regenerate src/styles/tokens.css from src/design/tokens.ts
 pnpm cf:build            # OpenNext Cloudflare bundle; cf:preview / cf:deploy
 ```
