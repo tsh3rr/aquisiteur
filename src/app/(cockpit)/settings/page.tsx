@@ -1,14 +1,15 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Globe } from "lucide-react";
 import type { Metadata } from "next";
 import { serverEnv } from "@/config/env";
-import { domains } from "@/db/schema";
+import { apiTokens, domains } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
 import { can } from "@/domain/authz";
 import { entitlements } from "@/domain/entitlements";
 import { requireCockpit } from "@/server/session";
+import { ApiTokens } from "./api-tokens";
 import { PasskeyManager } from "./passkey-manager";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -28,12 +29,33 @@ export default async function SettingsPage() {
       .from(domains)
       .where(eq(domains.workspaceId, workspace.id)),
   );
+  const canManageTokens = can(actor, "apiTokens.manage", { workspaceId: workspace.id });
+  const tokens = canManageTokens
+    ? await tenant((tx) =>
+        tx
+          .select({
+            id: apiTokens.id,
+            name: apiTokens.name,
+            prefix: apiTokens.prefix,
+            createdAt: apiTokens.createdAt,
+            lastUsedAt: apiTokens.lastUsedAt,
+            expiresAt: apiTokens.expiresAt,
+            revokedAt: apiTokens.revokedAt,
+          })
+          .from(apiTokens)
+          .where(eq(apiTokens.workspaceId, workspace.id))
+          .orderBy(desc(apiTokens.createdAt)),
+      )
+    : [];
   const plan = entitlements({ id: workspace.id });
   const platformHost = `${workspace.slug}.${serverEnv().PLATFORM_DOMAIN}`;
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Einstellungen" description="Workspace, Anmeldung und Domains." />
+      <PageHeader
+        title="Einstellungen"
+        description="Workspace, Anmeldung, Domains und API-Zugang."
+      />
 
       <Card>
         <CardHeader>
@@ -81,6 +103,30 @@ export default async function SettingsPage() {
           <PasskeyManager canManage={can(actor, "workspace.read", { workspaceId: workspace.id })} />
         </CardContent>
       </Card>
+
+      {canManageTokens ? (
+        <Card id="api-tokens">
+          <CardHeader>
+            <CardTitle>API-Tokens</CardTitle>
+            <CardDescription>
+              Für <code className="font-mono">pnpm expose:publish</code> und die REST-API. Ein Token
+              handelt mit Ihren Rechten in diesem Workspace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ApiTokens
+              apiUrl={serverEnv().APP_URL}
+              tokens={tokens.map((row) => ({
+                ...row,
+                createdAt: row.createdAt.toISOString(),
+                lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+                expiresAt: row.expiresAt?.toISOString() ?? null,
+                revokedAt: row.revokedAt?.toISOString() ?? null,
+              }))}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

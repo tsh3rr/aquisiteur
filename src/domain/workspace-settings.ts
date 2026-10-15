@@ -26,7 +26,8 @@ const phone = z
 export const profileSchema = z.object({
   displayName: optionalText(120),
   role: optionalText(120),
-  photoAssetKey: optionalText(500),
+  /** Owner photo shown in exposés (hero, signature, about). Row in `assets`. */
+  photoAssetId: z.uuid().optional(),
 });
 
 export const channelsSchema = z.object({
@@ -56,7 +57,8 @@ export const brandingSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
-  logoAssetKey: optionalText(500),
+  /** Agency logo. Row in `assets`. */
+  logoAssetId: z.uuid().optional(),
 });
 
 export const legalSchema = z.object({

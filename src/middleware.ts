@@ -14,7 +14,8 @@ import { buildContentSecurityPolicy } from "@/lib/security-headers";
  * Also sets a per-request CSP nonce.
  */
 
-const PUBLIC_COCKPIT_PATHS = ["/login", "/api/auth", "/manifest.webmanifest"];
+// /api/v1 authenticates with workspace API tokens instead of the session cookie.
+const PUBLIC_COCKPIT_PATHS = ["/login", "/api/auth", "/api/v1", "/manifest.webmanifest"];
 
 export function middleware(request: NextRequest) {
   const appUrl = process.env.APP_URL;

@@ -19,7 +19,7 @@ export const CONTENT_TYPES: Record<VariantFormat, string> = {
 
 export const MAX_BYTES: Record<AssetKind, number> = {
   image: 5 * 1024 * 1024,
-  video: 60 * 1024 * 1024,
+  video: 30 * 1024 * 1024,
   captions: 512 * 1024,
 };
 

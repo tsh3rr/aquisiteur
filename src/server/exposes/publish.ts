@@ -25,6 +25,7 @@ import {
   type VariantFormat,
 } from "@/domain/expose/asset-files";
 import {
+  ASSET_PATH_PATTERN,
   collectAssetPaths,
   EXPOSE_SCHEMA_VERSION,
   validateExpose,
@@ -37,7 +38,7 @@ export interface PublishVariant {
   format: VariantFormat;
   width: number | null;
   height: number | null;
-  /** Omitted when the server already has the asset (see findKnownAssets). */
+  /** Omitted when only describing an asset the server already stores. */
   data?: Uint8Array;
 }
 
@@ -94,115 +95,123 @@ export async function findKnownAssets(tx: Transaction, workspaceId: string, hash
 }
 
 /**
- * Validates an exposé, stores its assets and creates a new immutable version
- * (§7.2). Must run inside withTenant(); every statement is subject to RLS.
- * The first publish for a prospect key creates the prospect and the exposé;
- * later publishes add versions and never overwrite prospect data edited in
- * the cockpit.
+ * Stores one asset (all its renditions) unless the workspace already has a
+ * file with the same hash. Must run inside withTenant().
  */
-export async function publishExpose(
+export async function storeAsset(
   tx: Transaction,
   storage: StoragePort,
   context: PublishContext,
-  input: { document: unknown; files: PublishFile[] },
-): Promise<PublishResult> {
-  const validation = validateExpose(input.document);
-  if (!validation.ok) throw new PublishError(400, validation.issues);
-  const document = validation.document;
-
-  const filesByPath = new Map(input.files.map((file) => [file.path, file]));
-  const needed = collectAssetPaths(document);
-  const missing = needed.filter((path) => !filesByPath.has(path));
-  if (missing.length > 0) {
-    throw new PublishError(
-      400,
-      missing.map((path) => ({ path, message: "Datei fehlt im Upload." })),
-    );
+  file: PublishFile,
+): Promise<{ assetId: string; created: boolean }> {
+  if (!isSha256(file.sha256)) {
+    throw new PublishError(400, [{ path: file.path, message: "Ungültige sha256-Prüfsumme." }]);
   }
+  if (!ASSET_PATH_PATTERN.test(file.path)) {
+    throw new PublishError(400, [{ path: file.path, message: "Ungültiger Asset-Pfad." }]);
+  }
+  const existing = await findAsset(tx, context.workspaceId, file.sha256);
+  if (existing) return { assetId: existing.id, created: false };
 
-  const neededFiles = needed.map((path) => filesByPath.get(path)!);
-  const known = new Set(
-    await findKnownAssets(
-      tx,
-      context.workspaceId,
-      neededFiles.map((file) => file.sha256),
+  const kind = assetKindForPath(file.path);
+  const issues = checkUpload(file, kind);
+  if (issues.length > 0) throw new PublishError(400, issues);
+
+  await Promise.all(
+    file.variants.map((variant) =>
+      storage.put(
+        variantKey(context.workspaceId, file.sha256, variant.format, variant.width),
+        variant.data!,
+        { contentType: CONTENT_TYPES[variant.format], cacheControl: IMMUTABLE },
+      ),
     ),
   );
-
-  // Validate and store new assets.
-  const issues: ValidationIssue[] = [];
-  const toInsert: (typeof assets.$inferInsert)[] = [];
-  const planned = new Set<string>();
-  for (const file of neededFiles) {
-    if (!isSha256(file.sha256)) {
-      issues.push({ path: file.path, message: "Ungültige sha256-Prüfsumme." });
-      continue;
-    }
-    if (known.has(file.sha256) || planned.has(file.sha256)) continue;
-    const kind = assetKindForPath(file.path);
-    const fileIssues = checkUpload(file, kind);
-    if (fileIssues.length > 0) {
-      issues.push(...fileIssues);
-      continue;
-    }
-    planned.add(file.sha256);
-    const variants: AssetVariant[] = file.variants.map((variant) => ({
-      key: variantKey(context.workspaceId, file.sha256, variant.format, variant.width),
-      format: variant.format,
-      width: variant.width,
-      height: variant.height,
-      bytes: variant.data!.byteLength,
-    }));
-    toInsert.push({
+  const variants: AssetVariant[] = file.variants.map((variant) => ({
+    key: variantKey(context.workspaceId, file.sha256, variant.format, variant.width),
+    format: variant.format,
+    width: variant.width,
+    height: variant.height,
+    bytes: variant.data!.byteLength,
+  }));
+  const bytes = variants.reduce((sum, variant) => sum + variant.bytes, 0);
+  const [inserted] = await tx
+    .insert(assets)
+    .values({
       workspaceId: context.workspaceId,
       sha256: file.sha256,
       kind,
       originalName: file.path.slice("assets/".length),
       width: file.width,
       height: file.height,
-      bytes: variants.reduce((sum, variant) => sum + variant.bytes, 0),
+      bytes,
       variants,
-    });
+    })
+    .onConflictDoNothing()
+    .returning({ id: assets.id });
+  if (!inserted) {
+    const raced = await findAsset(tx, context.workspaceId, file.sha256);
+    if (!raced) throw new Error("asset insert failed");
+    return { assetId: raced.id, created: false };
   }
+  await tx
+    .insert(usageEvents)
+    .values({ workspaceId: context.workspaceId, kind: "storage.bytes", quantity: bytes });
+  return { assetId: inserted.id, created: true };
+}
+
+async function findAsset(tx: Transaction, workspaceId: string, sha256: string) {
+  const [row] = await tx
+    .select({ id: assets.id })
+    .from(assets)
+    .where(and(eq(assets.workspaceId, workspaceId), eq(assets.sha256, sha256)));
+  return row ?? null;
+}
+
+/**
+ * Validates an exposé and creates a new immutable version (§7.2). Every
+ * referenced asset must have been stored before (storeAsset). Must run
+ * inside withTenant(); every statement is subject to RLS. The first publish
+ * for a prospect key creates the prospect and the exposé; later publishes
+ * add versions and never overwrite prospect data edited in the cockpit.
+ */
+export async function publishExpose(
+  tx: Transaction,
+  context: PublishContext,
+  input: { document: unknown; assets: { path: string; sha256: string }[] },
+): Promise<PublishResult> {
+  const validation = validateExpose(input.document);
+  if (!validation.ok) throw new PublishError(400, validation.issues);
+  const document = validation.document;
+
+  const hashByPath = new Map(input.assets.map((asset) => [asset.path, asset.sha256]));
+  const needed = collectAssetPaths(document);
+  const issues: ValidationIssue[] = needed
+    .filter((path) => !hashByPath.has(path))
+    .map((path) => ({ path, message: "Datei fehlt im Upload." }));
   if (issues.length > 0) throw new PublishError(400, issues);
 
-  for (const file of neededFiles) {
-    if (!planned.has(file.sha256)) continue;
-    await Promise.all(
-      file.variants.map((variant) =>
-        storage.put(
-          variantKey(context.workspaceId, file.sha256, variant.format, variant.width),
-          variant.data!,
-          { contentType: CONTENT_TYPES[variant.format], cacheControl: IMMUTABLE },
-        ),
-      ),
-    );
-  }
-  if (toInsert.length > 0) {
-    await tx.insert(assets).values(toInsert).onConflictDoNothing();
-  }
-
+  const hashes = [...new Set(needed.map((path) => hashByPath.get(path)!))].filter(isSha256);
   const assetRows =
-    neededFiles.length === 0
+    hashes.length === 0
       ? []
       : await tx
           .select()
           .from(assets)
-          .where(
-            and(
-              eq(assets.workspaceId, context.workspaceId),
-              inArray(
-                assets.sha256,
-                neededFiles.map((file) => file.sha256),
-              ),
-            ),
-          );
+          .where(and(eq(assets.workspaceId, context.workspaceId), inArray(assets.sha256, hashes)));
   const assetsBySha = new Map(assetRows.map((row) => [row.sha256, row]));
   const manifest: AssetManifest = {};
-  for (const file of neededFiles) {
-    const row = assetsBySha.get(file.sha256);
-    if (!row) throw new Error(`asset ${file.sha256} vanished`);
-    manifest[file.path] = {
+  for (const path of needed) {
+    const row = assetsBySha.get(hashByPath.get(path)!);
+    if (!row) {
+      issues.push({ path, message: "Datei wurde noch nicht hochgeladen." });
+      continue;
+    }
+    const expected = assetKindForPath(path);
+    if (row.kind !== expected) {
+      issues.push({ path, message: `Datei ist kein ${expected}.` });
+      continue;
+    }
+    manifest[path] = {
       assetId: row.id,
       kind: row.kind,
       width: row.width,
@@ -210,6 +219,7 @@ export async function publishExpose(
       variants: row.variants,
     };
   }
+  if (issues.length > 0) throw new PublishError(400, issues);
 
   const prospectId = await upsertProspect(tx, context.workspaceId, document.prospect);
 
@@ -275,17 +285,11 @@ export async function publishExpose(
     .set({ currentVersionId: created.id, title: document.meta.title, unpublishedAt: null })
     .where(eq(exposes.id, expose.id));
 
-  const newBytes = toInsert.reduce((sum, row) => sum + (row.bytes ?? 0), 0);
-  await tx.insert(usageEvents).values([
-    {
-      workspaceId: context.workspaceId,
-      kind: "expose.published",
-      meta: { exposeId: expose.id, version },
-    },
-    ...(newBytes > 0
-      ? [{ workspaceId: context.workspaceId, kind: "storage.bytes", quantity: newBytes }]
-      : []),
-  ]);
+  await tx.insert(usageEvents).values({
+    workspaceId: context.workspaceId,
+    kind: "expose.published",
+    meta: { exposeId: expose.id, version },
+  });
   await tx.insert(auditLog).values({
     workspaceId: context.workspaceId,
     actorUserId: context.userId,

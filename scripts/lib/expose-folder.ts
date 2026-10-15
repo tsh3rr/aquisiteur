@@ -144,7 +144,7 @@ export async function loadExposeFolder(
   return { ok: true, expose: { document, raw, files, warnings } };
 }
 
-async function processImage(
+export async function processImage(
   path: string,
   sha256: string,
   bytes: Buffer,

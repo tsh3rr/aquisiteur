@@ -18,6 +18,9 @@ import { z } from "zod";
  */
 export const EXPOSE_SCHEMA_VERSION = 1;
 
+// Validation messages reach authors and the CLI in German (§4.9).
+z.config(z.locales.de());
+
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().trim().max(max).optional();
 
