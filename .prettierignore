@@ -5,3 +5,4 @@ drizzle/meta/
 .wrangler/
 cloudflare-env.d.ts
 ZIELPROMPT.md
+schema/expose.schema.json

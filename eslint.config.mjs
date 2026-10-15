@@ -29,12 +29,17 @@ export const providerImportRestrictions = {
       message: "Provider SDKs belong in src/infra/. Use a port from '@/infra'.",
     },
     {
+      group: ["sharp"],
+      message: "Images are optimised by the CLI at publish time (scripts/), never at runtime (§5).",
+    },
+    {
       group: [
         "@/infra/*",
         "**/infra/cloudflare/*",
         "**/infra/resend/*",
         "**/infra/portable/*",
         "**/infra/dev/*",
+        "**/infra/s3/*",
       ],
       message: "Import the provider-neutral facade '@/infra' instead of a concrete adapter.",
     },

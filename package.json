@@ -26,10 +26,12 @@
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "tokens:build": "tsx scripts/build-tokens.ts"
+    "tokens:build": "tsx scripts/build-tokens.ts",
+    "expose:schema": "tsx scripts/build-expose-schema.ts"
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.10",
+    "aws4fetch": "1.0.20",
     "better-auth": "1.7.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -62,6 +64,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "sharp": "0.35.5",
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",
     "typescript": "6.0.3",

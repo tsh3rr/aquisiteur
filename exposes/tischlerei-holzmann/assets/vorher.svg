@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <rect width="1600" height="1000" fill="#e5e5e5"/>
+  <rect width="1600" height="56" fill="#3b3b3b"/>
+  <circle cx="40" cy="28" r="9" fill="#ff5f57"/><circle cx="70" cy="28" r="9" fill="#febc2e"/><circle cx="100" cy="28" r="9" fill="#28c840"/>
+  <rect x="160" y="14" width="900" height="28" rx="6" fill="#555"/>
+  <text x="180" y="35" font-family="sans-serif" font-size="18" fill="#ccc">www.tischlerei-holzmann.example</text>
+  <rect x="150" y="90" width="1300" height="880" fill="#fff"/>
+  <rect x="150" y="90" width="1300" height="100" fill="#2f5d3a"/>
+  <text x="190" y="155" font-family="Arial, sans-serif" font-size="40" font-weight="700" fill="#fff">Tischlerei Holzmann GmbH</text>
+  <g font-family="Arial, sans-serif" font-size="18" fill="#2f5d3a"><text x="190" y="230">Home | Firma | Leistungen | Kontakt | Impressum</text></g>
+  <g font-family="Arial, sans-serif" font-size="18" fill="#333">
+    <text x="190" y="290">Die Tischlerei Holzmann GmbH ist ein Meisterbetrieb in Leipzig. Wir fertigen Möbel, Küchen, Treppen,</text>
+    <text x="190" y="318">Fenster und Türen nach Maß. Unsere Leistungen umfassen die Planung, Fertigung und Montage. Wir arbeiten</text>
+    <text x="190" y="346">mit Massivholz und Holzwerkstoffen. Auch Reparaturen und Restaurierungen führen wir durch. Gerne</text>
+    <text x="190" y="374">erstellen wir Ihnen ein individuelles Angebot. Rufen Sie uns an oder schreiben Sie uns eine E-Mail.</text>
+    <text x="190" y="402">Wir sind ein Ausbildungsbetrieb. Unser Team besteht aus 9 Mitarbeitern. Qualität seit 1994.</text>
+  </g>
+  <rect x="190" y="440" width="220" height="150" fill="#9b8b78"/>
+  <path d="M200 580l60-70 40 40 30-30 70 60z" fill="#7d6e5d"/>
+  <g font-family="Arial, sans-serif" font-size="16" fill="#666"><text x="190" y="620">Unsere Werkstatt</text></g>
+  <g font-family="Arial, sans-serif" font-size="16" fill="#333"><text x="190" y="900">Tischlerei Holzmann GmbH · Werkstattweg 3 · 04229 Leipzig · Tel. 0341 4455667 · Fax 0341 4455668</text></g>
+</svg>

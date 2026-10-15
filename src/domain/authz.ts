@@ -16,9 +16,19 @@ export type Action =
   | "domains.manage"
   | "integrations.manage"
   | "apiTokens.manage"
-  | "auditLog.read";
+  | "auditLog.read"
+  | "prospects.read"
+  | "prospects.manage"
+  | "exposes.read"
+  | "exposes.publish"
+  | "exposes.manage";
 
-const memberActions: readonly Action[] = ["workspace.read", "settings.read"];
+const memberActions: readonly Action[] = [
+  "workspace.read",
+  "settings.read",
+  "prospects.read",
+  "exposes.read",
+];
 
 const adminActions: readonly Action[] = [
   ...memberActions,
@@ -29,6 +39,9 @@ const adminActions: readonly Action[] = [
   "integrations.manage",
   "apiTokens.manage",
   "auditLog.read",
+  "prospects.manage",
+  "exposes.publish",
+  "exposes.manage",
 ];
 
 const ownerActions: readonly Action[] = [...adminActions, "workspace.delete", "workspace.export"];

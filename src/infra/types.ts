@@ -45,16 +45,15 @@ export interface RateLimiterPort {
   limit(key: string): Promise<RateLimitResult>;
 }
 
-/** Phase 1: exposé assets. Paths always start with the workspace id. */
+/** Exposé assets and uploads. Keys always start with the workspace id (§9a). */
 export interface StoragePort {
   put(
     key: string,
-    body: ArrayBuffer | Uint8Array | ReadableStream,
-    options?: { contentType?: string; cacheControl?: string },
+    body: Uint8Array,
+    options: { contentType: string; cacheControl?: string },
   ): Promise<void>;
-  get(key: string): Promise<{ body: ReadableStream; contentType: string | null } | null>;
+  get(key: string): Promise<{ body: ReadableStream; contentType: string; size: number } | null>;
   delete(key: string): Promise<void>;
-  publicUrl(key: string): string;
 }
 
 /** Phase 4: notifications, digests, retention, score recomputation. */
@@ -134,4 +133,5 @@ export interface Infra {
   readonly profile: HostingProfile;
   readonly database: DatabasePort;
   readonly email: EmailPort;
+  readonly storage: StoragePort;
 }

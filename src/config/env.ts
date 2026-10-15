@@ -29,6 +29,14 @@ const serverEnvSchema = z.object({
   EMAIL_PROVIDER: z.enum(["log", "resend"]).default("log"),
   EMAIL_FROM: z.string().default("Aquisiteur <noreply@aquisiteur.app>"),
   RESEND_API_KEY: z.string().optional(),
+  /** `local` writes to LOCAL_STORAGE_DIR (dev, tests); `s3` uses any S3 API, in production R2. */
+  STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
+  LOCAL_STORAGE_DIR: z.string().default(".data/storage"),
+  S3_ENDPOINT: z.url().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_REGION: z.string().default("auto"),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
 });

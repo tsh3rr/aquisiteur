@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffedd5"/><stop offset="1" stop-color="#fdba74"/></linearGradient>
+    <linearGradient id="photo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fed7aa"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="1040" cy="140" r="220" fill="#fff7ed" fill-opacity=".45"/>
+  <circle cx="160" cy="820" r="260" fill="#c2410c" fill-opacity=".12"/>
+  <g transform="translate(420 70)">
+    <rect x="-8" y="-8" width="376" height="776" rx="58" fill="#1c1917"/>
+    <rect x="0" y="0" width="360" height="760" rx="50" fill="#fffaf5"/>
+    <rect x="130" y="14" width="100" height="26" rx="13" fill="#1c1917"/>
+    <g font-family="sans-serif">
+      <circle cx="44" cy="84" r="16" fill="#c2410c"/>
+      <text x="70" y="91" font-family="Georgia, serif" font-size="20" font-weight="700" fill="#431407">Café Müller</text>
+      <rect x="20" y="124" width="320" height="250" rx="22" fill="url(#photo)"/>
+      <rect x="60" y="280" width="240" height="70" rx="12" fill="#7c2d12"/>
+      <rect x="76" y="250" width="70" height="36" rx="8" fill="#fbbf24"/><rect x="156" y="246" width="70" height="40" rx="8" fill="#78350f"/><rect x="236" y="252" width="56" height="34" rx="8" fill="#f472b6"/>
+      <rect x="20" y="394" width="214" height="34" rx="17" fill="#dcfce7"/>
+      <circle cx="40" cy="411" r="6" fill="#16a34a"/>
+      <text x="54" y="417" font-size="15" font-weight="600" fill="#14532d">Heute geöffnet bis 18 Uhr</text>
+      <text x="20" y="470" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#431407">Hausgemachter</text>
+      <text x="20" y="506" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#431407">Kuchen seit 1987</text>
+      <text x="20" y="540" font-size="15" fill="#7c2d12">Frühstück, Torten und guter Kaffee.</text>
+      <rect x="20" y="568" width="320" height="56" rx="28" fill="#c2410c"/>
+      <text x="180" y="603" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">Tisch reservieren</text>
+      <rect x="20" y="636" width="320" height="56" rx="28" fill="#fff" stroke="#fdba74" stroke-width="2"/>
+      <text x="180" y="671" font-size="18" font-weight="700" fill="#7c2d12" text-anchor="middle">Zur Speisekarte</text>
+      <text x="180" y="730" font-size="14" fill="#78716c" text-anchor="middle">★ 4,7 · Gottschedstraße 7</text>
+    </g>
+  </g>
+</svg>
