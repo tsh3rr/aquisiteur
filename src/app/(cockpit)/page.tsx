@@ -1,5 +1,8 @@
 import { FileJson, Inbox, MailOpen } from "lucide-react";
+import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
+import { workspaceSettings } from "@/db/schema";
+import { profileSchema } from "@/domain/workspace-settings";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireCockpit } from "@/server/session";
@@ -7,8 +10,15 @@ import { requireCockpit } from "@/server/session";
 export const metadata: Metadata = { title: "Heute" };
 
 export default async function TodayPage() {
-  const { workspace, user } = await requireCockpit();
-  const firstName = (user.name || "").split(" ")[0];
+  const { workspace, user, tenant } = await requireCockpit();
+  const [row] = await tenant((tx) =>
+    tx
+      .select({ profile: workspaceSettings.profile })
+      .from(workspaceSettings)
+      .where(eq(workspaceSettings.workspaceId, workspace.id)),
+  );
+  const displayName = profileSchema.safeParse(row?.profile).data?.displayName || user.name || "";
+  const firstName = displayName.split(" ")[0];
 
   return (
     <div className="grid gap-8">
