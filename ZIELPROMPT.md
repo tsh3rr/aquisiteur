@@ -1,0 +1,371 @@
+# Aquisiteur – Zielprompt
+
+> Dieser Prompt ist für Claude Code geschrieben (funktioniert genauso mit Codex).
+> Ihn komplett lesen, bevor du irgendetwas anlegst. Abschnitt 13 sagt, wie du arbeiten sollst.
+
+---
+
+## 1. Deine Rolle
+
+Du bist Lead Engineer und Product Designer für **Aquisiteur**, eine Web-App, mit der ein Einzelunternehmer (Inhaber einer kleinen Webagentur, im Folgenden „Owner“) Neukunden per **personalisiertem Brief** gewinnt. Du triffst technische Entscheidungen eigenständig im Rahmen dieses Dokuments, begründest Abweichungen kurz und baust in Phasen, die jeweils lauffähig, getestet und deploybar sind.
+
+Qualitätsanspruch: Produktionsreife, nicht Demo. Moderne, mutige, aber ruhige UI. Barrierefrei. Schnell. Datenschutzkonform für Deutschland.
+
+---
+
+## 2. Das Geschäftsmodell in einem Absatz
+
+Der Owner recherchiert ein lokales Unternehmen (z. B. ein Café mit veralteter Website), lässt mit Claude Code ein **Exposé** erstellen (konkrete, personalisierte Verbesserungsvorschläge für Website, Branding, Google-Profil, Social Media, inkl. Vorher/Nachher, Mockups, Preisrahmen) und schickt dem Unternehmen einen **Brief per Post**. Im Brief stehen ein **QR-Code** und ein **kurzer, abtippbarer Link** zur interaktiven Web-Version des Exposés. Aquisiteur hostet dieses Exposé, **erfasst jede Interaktion**, **motiviert den Empfänger an den richtigen Stellen zur Kontaktaufnahme** und **informiert den Owner sofort**, wenn jemand den Brief „öffnet“ oder Kontakt aufnehmen will, inklusive einer Einschätzung, **wie sicher** ein Kontaktversuch stattgefunden hat und **über welchen Kanal** der Owner jetzt reagieren sollte.
+
+Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.** Exposés *erstellt* die App in v1 nicht selbst.
+
+---
+
+## 3. Glossar (verwende diese Begriffe konsistent in Code und UI)
+
+| Begriff | Bedeutung |
+|---|---|
+| **Prospect** | Ein potenzieller Kunde (Unternehmen) mit Ansprechpartner, Adresse, bekannten Kontaktdaten, Notizen, Status. |
+| **Kampagne** | Gruppierung von Prospects (z. B. „Cafés Leipzig Okt 26“) für Auswertung. |
+| **Exposé** | Die personalisierte, interaktive Web-Präsentation für genau einen Prospect. Versioniert. |
+| **Touchpoint** | Ein konkreter Einstieg mit eigener Attribution: QR im Brief, Kurzlink im Brief (abgetippt), Follow-up-Brief, E-Mail, Visitenkarte … Jeder Touchpoint hat einen eigenen Link/Code. |
+| **Visit / Session** | Ein Besuch des Exposés von einem Gerät. Ein Prospect kann mehrere Besucher (Geräte, Personen) haben. |
+| **Event** | Eine einzelne gemessene Interaktion (Abschnitt gesehen, Chat geöffnet, getippt …). |
+| **Kontaktabsicht (Intent)** | Berechnete Wahrscheinlichkeit 0–100 %, dass der Prospect Kontakt aufnehmen wollte oder es getan hat, mit Begründung. |
+| **Nudge** | Eine verhaltensbasierte, dezente Aufforderung zur Kontaktaufnahme im Exposé. |
+| **Cockpit** | Der Admin-Bereich des Owners. |
+
+---
+
+## 4. Getroffene Annahmen (vom Owner bestätigt oder als Standard gesetzt)
+
+Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
+
+1. **Single-User**: Ein Owner. Datenmodell trotzdem mit `workspace_id` auf allen Tabellen, damit spätere Mandantenfähigkeit (Team/SaaS) ohne Migration-Drama möglich ist.
+2. **Hosting**: Vercel (Function-Region `fra1`) + Supabase (Region EU/Frankfurt). Alle personenbezogenen Daten bleiben in der EU.
+3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
+4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
+5. **Chat**: Eigener Live-Chat im Exposé. Der Owner antwortet aus dem Cockpit (PWA, Push am Handy). Übergabe an WhatsApp jederzeit möglich.
+6. **Exposé-Format**: Strukturiertes JSON gegen ein festes, versioniertes Schema mit Blockbibliothek (siehe §7.2). Claude Code erzeugt diese Dateien, die App rendert sie. Kein freies HTML.
+7. **Benachrichtigungen an den Owner**: Web-Push (PWA) und E-Mail. Telegram als optionaler Kanal vorbereitet.
+8. **Briefversand**: Die App erzeugt pro Prospect ein druckfertiges PDF (DIN A4, DIN-5008-konform, Fenster-Umschlag DL) mit QR-Code und Kurzlink. Der Owner druckt und versendet selbst. Print-API (z. B. Pingen) als spätere Ausbaustufe.
+9. **Sprache**: UI und Exposés auf Deutsch, Code und Kommentare auf Englisch, i18n-fähig angelegt.
+
+---
+
+## 5. Tech-Stack
+
+Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktuelle Doku. Wenn eine hier genannte Lib inzwischen eine klar bessere Alternative hat, schlag sie vor.
+
+| Bereich | Wahl | Warum |
+|---|---|---|
+| Framework | **Next.js (App Router)**, React Server Components, Server Actions, TypeScript strict | Ein Repo für Cockpit, öffentliche Exposés und Edge-Redirects |
+| Paketmanager | pnpm | |
+| Datenbank | **Postgres (Supabase)** mit Row Level Security | Realtime für Chat & Live-Feed inklusive |
+| ORM / Migrations | **Drizzle ORM** + drizzle-kit | Typsicher, SQL-nah, schnell |
+| Auth (Cockpit) | **Passkeys** (WebAuthn) + Magic Link als Fallback, z. B. via Better Auth oder Supabase Auth | Kein Passwort, ein Nutzer |
+| Validierung | **Zod** (Schemas teilen zwischen Client, Server, Exposé-Import) | |
+| UI | **Tailwind CSS** (aktuelle Major), **shadcn/ui** auf Radix-Primitives, eigene Design Tokens | Zugängliche Primitives, volle Designkontrolle |
+| Motion | **Motion** (ehem. Framer Motion) + native **View Transitions API**, CSS Scroll-Driven Animations | |
+| Charts | Recharts oder visx, dezent | |
+| Background Jobs | **Inngest** oder Trigger.dev (Benachrichtigungen, Digests, Retention-Löschung, Score-Neuberechnung) | Retries, Zeitpläne, Debounce |
+| E-Mail | **Resend** + React Email | |
+| Push | Web Push (VAPID), PWA mit Service Worker | Owner bekommt Push auf iOS/Android ohne App Store |
+| QR | Lib, die **SVG** erzeugt (z. B. `qrcode`), Fehlerkorrektur Level M–Q, optional Logo in der Mitte | Druckqualität |
+| PDF (Brief) | React-PDF oder serverseitiges HTML→PDF (Playwright/Chromium) | DIN 5008, druckfertig |
+| Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert in Supabase Storage | |
+| Rate Limiting | Upstash Redis oder Postgres-basiert | |
+| Tests | **Vitest** (Unit), **Playwright** (E2E), **axe-core** (A11y in E2E), Lighthouse CI | |
+| Qualität | ESLint + Prettier (oder Biome), Typecheck in CI, GitHub Actions | |
+| Monitoring | Sentry (EU-Region) | |
+
+---
+
+## 6. Architektur
+
+### 6.1 Oberflächen und Domains
+
+- `app.<domain>` → **Cockpit** (geschützt, PWA, `noindex`)
+- `<domain>/<code>` oder `go.<domain>/<code>` → **Kurzlink-Resolver** (Edge/Middleware, < 50 ms), loggt den Scan/Klick und leitet weiter
+- `<domain>/x/<slug>` → **öffentliches Exposé** (`noindex, nofollow`, nicht in Sitemap)
+
+Alles in **einer** Next.js-App, getrennt über Route Groups und Middleware.
+
+### 6.2 Kurzlinks und QR-Codes
+
+- Pro Touchpoint ein eigener Code. Zwei Formen:
+  - **QR-Code** → längerer, nicht erratbarer Token (≥ 10 Zeichen, base62).
+  - **Abtippbarer Kurzlink** → kurz, menschenlesbar, ohne verwechselbare Zeichen (`0/O`, `1/l/I`), z. B. `agentur.de/cafe-mueller` oder `agentur.de/k7m2`. Groß-/Kleinschreibung egal. Bei Tippfehlern: freundliche Seite mit „Meinten Sie …?“ statt 404.
+- Der Resolver erfasst: Zeitpunkt, Touchpoint, grobe Geo-Info (Stadt, aus IP, IP danach verwerfen), Gerätetyp, Browser, ob QR oder getippt. Dann `302` auf das Exposé mit einem kurzlebigen, signierten Parameter, der den Visit dem Touchpoint zuordnet.
+- **Bot- und Prefetch-Filter**: Link-Preview-Crawler, Sicherheits-Scanner, Messenger-Vorschauen und bekannte Bots werden erkannt und als `bot` markiert, lösen aber **keine** Benachrichtigung aus.
+- **Eigene Besuche ausschließen**: Ist der Owner im Cockpit eingeloggt (oder hat er ein „Owner-Gerät“-Flag gesetzt), werden seine Aufrufe als `internal` markiert.
+- QR-Export: SVG und PNG (300 dpi), wahlweise mit Rahmen und Call-to-Action („Scannen Sie für Ihre persönlichen Vorschläge“).
+
+### 6.3 Tracking-Pipeline
+
+- Kleines, eigenes Tracking-Script im Exposé (< 5 KB gzip), **keine Cookies, kein localStorage für Tracking-IDs** ohne Einwilligung. Die Zuordnung zum Prospect ergibt sich aus dem Exposé selbst (es ist personalisiert). Besucher-Unterscheidung innerhalb einer Session über eine In-Memory-ID; über Sessions hinweg nur grob (Gerätetyp + Zeitfenster) oder nach Consent.
+- Events werden gebündelt per `navigator.sendBeacon` / `fetch(keepalive)` an eine Route geschickt, serverseitig mit Zod validiert, rate-limitiert und in eine `events`-Tabelle geschrieben (partitioniert oder mit Index auf `(exposé_id, created_at)`).
+- **Heartbeat** alle 15 s bei sichtbarem Tab (Page Visibility API) für echte Verweildauer.
+- Abschnittsverweildauer über `IntersectionObserver` (Abschnitt gilt als gelesen, wenn ≥ 50 % sichtbar für ≥ 3 s).
+- Aggregation (Sessions, Verweildauer, Scrolltiefe, gelesene Abschnitte) über Jobs oder Postgres-Views, nicht im Client.
+
+### 6.4 Echtzeit
+
+- Supabase Realtime für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller liest Abschnitt *Preise*“), Live-Indikator am Prospect.
+
+---
+
+## 7. Funktionen
+
+### 7.1 Prospects & Kampagnen
+
+- CRUD für Prospects: Firma, Branche, Ansprechpartner (Anrede, Name, Rolle), Postadresse, Website, bekannte Kontaktdaten (Telefon, Mobil, E-Mail, WhatsApp, Social-Profile), Notizen, Tags.
+- **Status-Pipeline** (Kanban + Liste): `Entwurf → Brief versendet → Geöffnet → Interessiert → Kontakt → Termin → Gewonnen / Verloren / Kein Interesse`. Statuswechsel teilweise automatisch (z. B. erster echter Scan → „Geöffnet“).
+- Kampagnen mit Kennzahlen: versendet, geöffnet (%), Ø Verweildauer, Kontaktversuche, Abschlüsse.
+- CSV-Import für Prospects.
+- Globale Suche und Command Palette (⌘K) für alles.
+
+### 7.2 Exposés: Format, Import, Rendering
+
+**Workflow für Claude Code (wichtig, das ist der Hauptweg, wie Exposés entstehen):**
+
+```
+exposes/
+  cafe-mueller/
+    expose.json      # gegen schema validiert
+    assets/          # Bilder, Mockups, Logos, Screenshots
+```
+
+- `pnpm expose:validate <ordner>` → prüft gegen das Zod-Schema, gibt verständliche Fehler aus.
+- `pnpm expose:publish <ordner>` → lädt Assets hoch (Bilder werden zu AVIF/WebP in mehreren Größen optimiert), legt eine neue **Version** an, verknüpft mit dem Prospect. Alternativ authentifizierte REST-Route `POST /api/exposes` mit API-Token.
+- Exportiere das Schema zusätzlich als **JSON Schema** (`schema/expose.schema.json`) und schreibe eine kurze Anleitung `docs/EXPOSE_AUTHORING.md` mit einem vollständigen Beispiel-Exposé, damit ein KI-Agent zuverlässig gültige Exposés erzeugen kann.
+- Versionierung: Alte Versionen bleiben erhalten, Events referenzieren die Version.
+- Vorschau im Cockpit (Desktop/Mobil umschaltbar), ohne Tracking.
+
+**Blockbibliothek (Startumfang):**
+
+| Block | Zweck |
+|---|---|
+| `hero` | Persönliche Begrüßung („Hallo Frau Müller …“), Kernaussage, optional Foto des Owners |
+| `personal_note` | Persönlicher Text des Owners, optional kurzes Video (selbst gehostet, Untertitel Pflicht) |
+| `audit` | Ist-Analyse mit Score-Kacheln (Performance, Mobil, SEO, Google-Profil …), ehrlich und belegbar |
+| `before_after` | Vergleichs-Slider aktuelle Website vs. Mockup (tastaturbedienbar) |
+| `findings` | Liste konkreter Probleme mit Wirkung und Lösung |
+| `proposal` | Vorschläge als Karten, je mit Nutzen |
+| `mockup_gallery` | Galerie mit Lightbox |
+| `brand_preview` | Farben, Typo, Logo-Varianten |
+| `roadmap` | Schritte / Zeitplan |
+| `pricing` | Pakete oder Preisrahmen, interaktiv (Optionen an-/abwählen, Summe live) |
+| `testimonials` | Referenzen |
+| `faq` | Accordion |
+| `about` | Über den Owner / die Agentur |
+| `contact` | Kontaktbereich mit allen Kanälen (siehe 7.4) |
+| `cta` | Zwischen-Call-to-Action |
+
+- Jeder Block hat eine stabile `id`, damit Tracking pro Abschnitt funktioniert.
+- **Theming pro Exposé**: Akzentfarbe und optional Logo des Prospects, damit das Exposé „für ihn gemacht“ wirkt. Kontraste werden automatisch geprüft (WCAG AA), ungenügende Farben werden angepasst.
+
+### 7.3 Exposé-Erlebnis (öffentlich)
+
+- **Mobile first**: Der Einstieg kommt fast immer per QR vom Smartphone. Ziel: **LCP < 1,5 s auf 4G**, CLS ≈ 0, INP < 200 ms, Lighthouse ≥ 95 in allen Kategorien.
+- Statisch vorgerendert/gecacht, nur Tracking und Chat dynamisch.
+- Fortschrittsanzeige / Inhaltsnavigation, sanfte Abschnittsübergänge, respektiert `prefers-reduced-motion`.
+- „Als PDF speichern“ und „Mit Kollegen teilen“ (teilen erzeugt einen eigenen Touchpoint, damit Weiterleitungen sichtbar werden).
+- Gut sichtbarer, aber dezenter Link **„Kein Interesse, bitte nicht mehr kontaktieren“** → setzt Prospect auf „Kein Interesse“, sperrt Follow-ups, benachrichtigt den Owner. (Fairness und rechtliche Absicherung.)
+- Datenschutzhinweis und Impressum im Footer.
+
+### 7.4 Kontaktkanäle und Nudges
+
+**Kanäle im Exposé** (alle mit vorbelegtem Text inkl. Referenz, z. B. „Hallo, ich habe Ihre Vorschläge für Café Müller gesehen … [Ref K7M2]“):
+
+- **Live-Chat** (eigener, siehe 7.5)
+- **WhatsApp** (`https://wa.me/<nummer>?text=…`)
+- **E-Mail** (`mailto:` mit Betreff und Text)
+- **Anrufen** (`tel:`) und **Rückruf anfordern** (Formular: Name, Telefon, Wunschzeit)
+- **Termin buchen** (optional, Einbettung z. B. Cal.com, als Block konfigurierbar)
+- Vorbereitet: Facebook Messenger (`https://m.me/<page>?ref=…`), SMS (`sms:`)
+
+Die Referenz im vorbelegten Text erlaubt dem Owner, eingehende WhatsApp-/Mail-Nachrichten eindeutig einem Prospect zuzuordnen.
+
+**Nudges** (verhaltensbasiert, konfigurierbar, nie aufdringlich):
+
+- Nach Lesen von ≥ 60 % des Exposés **und** ≥ 90 s Verweildauer: kleine, schließbare Einladung („Fragen dazu? Ich antworte meist innerhalb einer Stunde.“) mit Foto des Owners.
+- Nach Interaktion mit `pricing`: kontextbezogene Nachricht („Soll ich Ihnen ein konkretes Angebot für diese Auswahl schicken?“).
+- Bei wiederholtem Besuch: „Schön, dass Sie wieder da sind.“
+- Auf Desktop bei Exit-Intent, auf Mobil nach schnellem Hochscrollen: einmaliger, leiser Hinweis.
+- Sticky Kontaktleiste auf Mobil nach dem ersten Drittel.
+- **Frequenzbegrenzung**: max. ein aktiver Nudge pro Session, nie modal, nie Fokus stehlen, per Tastatur schließbar, Screenreader-Ankündigung über `aria-live="polite"`.
+- „Verfügbar“-Status: wenn der Owner gerade online ist (Cockpit offen oder Status gesetzt), wird das angezeigt.
+- Alle Nudges sind Events (gezeigt, geschlossen, geklickt), damit ihre Wirkung messbar ist.
+
+### 7.5 Live-Chat
+
+- Widget im Exposé, öffnet ein Panel (kein Fullscreen-Takeover auf Desktop, Bottom Sheet auf Mobil).
+- Besucher kann ohne Angabe von Daten schreiben. Nach der ersten Nachricht sanfte Frage nach Rückkanal („Wie erreiche ich Sie, falls Sie das Fenster schließen?“ → E-Mail oder Telefon/WhatsApp).
+- Owner antwortet aus dem Cockpit, auch vom Handy (PWA + Push). Tipp-Indikator in beide Richtungen.
+- **Übergabe**: Owner kann mit einem Klick vorschlagen, auf WhatsApp weiterzumachen.
+- Offline-Modus: Wenn der Owner nicht antwortet, nach 2 min automatische Nachricht mit Erwartung und alternativen Kanälen.
+- **Entwurfserkennung**: Das Widget erfasst, **dass** und **wie viel** getippt wurde (Zeichenanzahl, Zeitpunkt), auch wenn nicht gesendet wird. Den Inhalt eines nicht gesendeten Entwurfs nur speichern, wenn das im Widget transparent angezeigt wird („Ihr Entwurf wird automatisch gespeichert, damit nichts verloren geht“), und dann nur für den Owner sichtbar. Standard: nur Länge speichern, Inhalt-Speicherung per Einstellung aktivierbar.
+
+### 7.6 Kontaktabsicht-Score (Herzstück)
+
+Ziel: Der Owner sieht pro Prospect auf einen Blick **wie sicher** jemand Kontakt aufnehmen wollte oder hat, **warum**, und **was er jetzt tun soll**.
+
+**Berechnung**: Jedes Signal hat eine Einzelwahrscheinlichkeit *p*. Kombination per **Noisy-OR**: `score = 1 − Π(1 − pᵢ)`. Bestätigte Kontakte setzen den Score auf 100 %. Signale verfallen nicht, aber die Anzeige zeigt, wie alt das letzte Signal ist. Gewichte zentral in einer Konfigurationsdatei, im Cockpit anpassbar.
+
+| Signal | p (Startwert) |
+|---|---|
+| Echter Scan/Klick (kein Bot) | 0,05 |
+| Verweildauer ≥ 2 min **oder** ≥ 75 % gelesen | 0,10 |
+| Wiederholter Besuch (anderer Tag) | 0,15 |
+| Exposé weitergeleitet (Share-Touchpoint genutzt) | 0,15 |
+| Kontaktbereich ≥ 5 s angesehen | 0,10 |
+| Hover/Fokus auf Kontakt-Button ≥ 1 s | 0,10 |
+| Pricing interaktiv genutzt | 0,15 |
+| Chat geöffnet | 0,20 |
+| Im Chat ≥ 3 Zeichen getippt, nicht gesendet | 0,40 |
+| Im Chat ≥ 20 Zeichen getippt, nicht gesendet | 0,60 |
+| Rückruf-Formular begonnen | 0,45 |
+| Telefonnummer/E-Mail des Owners kopiert (`copy`-Event) | 0,55 |
+| WhatsApp-, Mail-, Messenger-, SMS- oder Tel-Link geklickt | 0,70 (App kann nicht sehen, ob gesendet wurde) |
+| Termin-Buchung geöffnet | 0,50 |
+| **Chat-Nachricht gesendet / Formular abgeschickt / Termin gebucht** | **1,0 (bestätigt)** |
+
+**Stufen** (Farbe + Text + Icon, nie nur Farbe):
+
+- 0–24 % **Neugierig**
+- 25–49 % **Interessiert**
+- 50–79 % **Wahrscheinlicher Kontaktversuch**
+- 80–99 % **Sehr wahrscheinlicher Kontaktversuch**
+- 100 % **Kontakt bestätigt**
+
+**Erklärung & Handlungsempfehlung** (generiert aus den Signalen, kein LLM nötig):
+
+> „**86 % – sehr wahrscheinlicher Kontaktversuch.** Heute 14:32 auf dem Smartphone den WhatsApp-Button geklickt, vorher 4 min gelesen, Preise angesehen.
+> **Empfehlung:** Prüfe WhatsApp auf eine Nachricht mit *Ref K7M2*. Falls nichts da ist: Frau Müller anrufen, 0341 …, am besten vormittags.“
+
+Die Empfehlung nennt den **Kanal, den der Prospect zuletzt angesteuert hat**, plus die **bekannten Kontaktdaten** aus dem Prospect-Profil und aus dem Chat (falls angegeben), mit Ein-Klick-Aktionen (Anrufen, WhatsApp öffnen, Mail schreiben).
+
+### 7.7 Benachrichtigungen an den Owner
+
+- **Regel-Engine** im Cockpit: Ereignis (erster Scan, wiederholter Besuch, Chat-Nachricht, Score überschreitet Schwelle X, „Kein Interesse“ geklickt …) → Kanal (Push, E-Mail, später Telegram) → Bedingungen (Kampagne, Ruhezeiten, nur werktags).
+- Sinnvolle Standardregeln vorkonfiguriert:
+  - Erster echter Scan → Push sofort
+  - Chat-Nachricht → Push sofort (mit Antwortmöglichkeit aus der Notification, wenn das System es unterstützt)
+  - Score ≥ 50 % → Push + E-Mail sofort
+  - Tägliche Zusammenfassung 8:00 per E-Mail
+- **Debounce**: Ein Besuch mit 30 Events erzeugt eine Benachrichtigung, keine 30. Updates werden in die bestehende Benachrichtigung gruppiert.
+- Jede Benachrichtigung verlinkt direkt auf die Prospect-Timeline.
+
+### 7.8 Cockpit
+
+- **Startseite „Heute“**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität), Live-Feed, Kennzahlen der Woche.
+- **Prospect-Detail**: Kopf mit Score-Ring und Empfehlung, **Timeline** aller Events in menschenlesbarer Form („Hat den Abschnitt *Vorher/Nachher* 48 s angesehen“), Abschnitts-Heatmap des Exposés (Verweildauer pro Block), Chat, Notizen, Touchpoints mit QR-Download, Brief-PDF, Status.
+- **Session-Replay** (nur wenn Consent vorlag).
+- **Kampagnen-Auswertung**: Funnel (versendet → geöffnet → gelesen → Kontaktversuch → Kontakt → Gewonnen), Vergleich zwischen Kampagnen und Exposé-Varianten.
+- **Einstellungen**: Profil (Foto, Name, Kanäle, Nummern), Benachrichtigungsregeln, Score-Gewichte, Nudge-Konfiguration, Domains, API-Tokens, Datenaufbewahrung.
+- Optimiert für Desktop **und** Handy (der Owner reagiert unterwegs).
+
+### 7.9 Brief-Generator
+
+- Pro Prospect ein PDF nach DIN 5008 (Form B), passend für DL-Fensterumschlag: Absender, Anschrift, Datum, Betreff, Brieftext, QR-Code mit kurzer Anleitung, abtippbarer Kurzlink, optional Unterschrift als Bild.
+- Brieftext kommt aus dem Exposé-JSON (Feld `letter`) oder aus einer Vorlage mit Platzhaltern.
+- Sammel-Export für eine ganze Kampagne (ein PDF, Seiten getrennt) und „als versendet markieren“ mit Datum (startet die Messung „Zeit bis zur Öffnung“).
+- Follow-up-Brief (zweiter Touchpoint) mit eigenem Code.
+
+---
+
+## 8. Design & UX
+
+**Haltung**: Modern, an der Kante, aber nie verspielt auf Kosten von Klarheit. Referenzniveau: Linear, Vercel, Raycast, Arc. Das Exposé soll sich anfühlen wie ein hochwertiges, persönliches Magazin, nicht wie eine Landingpage.
+
+- **Design Tokens** (Farben in OKLCH, Abstände, Radien, Schatten, Motion-Dauern) zentral definiert, Light & Dark Mode, `prefers-color-scheme` respektiert, manuell umschaltbar.
+- **Typografie**: Eine variable Sans für UI (z. B. Inter, Geist oder ähnlich), optional eine charakterstarke Display-Schrift für Exposé-Headlines. Selbst gehostet. Fluid Type mit `clamp()`.
+- **Motion** mit Sinn: View Transitions zwischen Cockpit-Seiten, scroll-getriebene Enthüllungen im Exposé, Micro-Interactions bei Buttons und Score-Änderungen. Alles abschaltbar über `prefers-reduced-motion`.
+- **Cockpit**: Dichte, ruhige Oberfläche, Command Palette, Tastaturkürzel, optimistische Updates, Skeletons statt Spinner, leere Zustände mit klarer nächster Aktion.
+- **Exposé**: Viel Weißraum, große Bilder, klare Hierarchie, persönliche Ansprache, sichtbares Gesicht des Owners (Vertrauen).
+- **Barrierefreiheit (Pflicht, WCAG 2.2 AA)**: semantisches HTML, vollständige Tastaturbedienung, sichtbarer Fokus, Kontraste ≥ 4,5:1, Touch-Ziele ≥ 44 px, Screenreader-Labels, keine Information nur über Farbe, Untertitel für Videos, Zoom bis 200 % ohne Layoutbruch. axe-core-Tests in CI, Ziel: 0 Verstöße.
+
+Lege zu Beginn ein kleines **Design-System** an (`/design` Route im Cockpit, nur intern) mit allen Tokens und Komponenten, bevor du Features baust.
+
+---
+
+## 9. Datenschutz & Recht (Deutschland)
+
+Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis an den Owner: das ist keine Rechtsberatung, vor dem Livegang prüfen lassen.)
+
+- **Rechtsgrundlage**: B2B-Briefwerbung und das Tracking im personalisierten Exposé stützen sich auf berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO). Datenschutzerklärung erklärt das transparent, inklusive Tracking und Score.
+- **§ 25 TDDDG**: Nichts auf dem Endgerät speichern oder auslesen (Cookies, localStorage, Fingerprinting), was nicht unbedingt erforderlich ist, ohne Einwilligung. Deshalb cookieless Basis-Tracking. Session-Replay und geräteübergreifende Wiedererkennung nur mit Einwilligung über einen kleinen, ehrlichen Hinweis (kein Dark Pattern, „Ablehnen“ gleichwertig).
+- **IP-Adressen** nur zur Geo-Grobauflösung und Bot-Erkennung im Moment der Anfrage verwenden, nicht speichern (oder gekürzt).
+- **Aufbewahrung**: Rohevents und Replays nach konfigurierbarer Frist automatisch löschen (Standard: 12 Monate Events, 90 Tage Replays). Prospect mit „Kein Interesse“ → personenbezogene Trackingdaten nach 30 Tagen löschen, nur Sperrvermerk behalten.
+- **Betroffenenrechte**: Export und Löschung pro Prospect mit einem Klick.
+- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Vercel, Supabase, Resend, Sentry jeweils EU-Region). Liste in `docs/PRIVACY.md`.
+- Impressum und Datenschutzerklärung als konfigurierbare Seiten.
+- Opt-out-Link im Exposé (§ 7.3) und auf Wunsch im Brief.
+
+---
+
+## 10. Sicherheit
+
+- Exposé-URLs und QR-Tokens nicht erratbar; Kurzlinks rate-limitiert gegen Enumeration.
+- Cockpit nur mit Passkey/Magic Link, Sessions mit kurzer Laufzeit, CSRF-Schutz (Server Actions), sichere Header (CSP, HSTS, Referrer-Policy `strict-origin-when-cross-origin`).
+- RLS auf allen Tabellen, Service-Role nur serverseitig.
+- Event-Ingestion: Schema-Validierung, Größenlimits, Rate-Limits pro IP/Visit.
+- Chat: Spam-Schutz (Honeypot, Rate-Limit), Sanitizing, keine HTML-Ausgabe von Nutzereingaben.
+- Secrets nur über Env-Variablen, `.env.example` gepflegt.
+
+---
+
+## 11. Datenmodell (Vorschlag, verfeinern)
+
+`workspaces`, `users`, `prospects`, `contacts` (Personen am Prospect), `campaigns`, `exposes`, `expose_versions`, `assets`, `touchpoints` (Code, Typ, Kanal, Prospect, Version), `visits` (Touchpoint, Gerät, Geo-Stadt, Bot/Internal-Flags, Start/Ende), `events` (Visit, Typ, Block-ID, Payload JSONB, Zeit), `intent_signals`, `intent_scores` (aktueller Score + Erklärung, materialisiert), `chat_threads`, `chat_messages`, `chat_drafts`, `callback_requests`, `consents`, `notification_rules`, `notifications`, `push_subscriptions`, `letters`, `api_tokens`, `audit_log`.
+
+Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `section_view`, `section_dwell`, `scroll_depth`, `cta_hover`, `cta_click`, `contact_click`, `copy_contact`, `chat_open`, `chat_typing`, `chat_message_sent`, `callback_started`, `callback_submitted`, `pricing_change`, `media_play`, `nudge_shown`, `nudge_dismissed`, `nudge_clicked`, `share`, `pdf_download`, `opt_out`, `consent_given`, `consent_denied` …).
+
+---
+
+## 12. Nicht-Ziele für v1
+
+- Keine KI-Generierung von Exposés in der App (macht Claude Code extern über §7.2).
+- Kein Mehrbenutzer-UI, keine Abrechnung.
+- Kein eigener E-Mail-Versand an Prospects (keine Kaltakquise per E-Mail, rechtlich heikel in DE).
+- Keine nativen Apps, PWA reicht.
+
+---
+
+## 13. So arbeitest du
+
+1. **Erst planen, dann bauen.** Lies dieses Dokument, lege dann an:
+   - `CLAUDE.md` (Projektkonventionen, Befehle, Architekturüberblick für künftige Sessions)
+   - `docs/ARCHITECTURE.md` (Diagramm der Komponenten und Datenflüsse)
+   - `docs/DECISIONS.md` (kurze ADRs zu jeder relevanten Entscheidung)
+   - `docs/ROADMAP.md` (die Phasen unten als Checkliste)
+   Stelle mir danach **gebündelt** deine offenen Fragen, jeweils mit deiner Empfehlung. Bei Kleinigkeiten entscheide selbst und dokumentiere es.
+2. **In Phasen liefern.** Jede Phase endet mit: lauffähig, Tests grün, Lint/Typecheck grün, kurzer Demo-Anleitung, Commit(s) mit klaren Messages. Keine halbfertigen Phasen.
+3. **Seed-Daten**: Lege ein realistisches Beispiel-Prospect mit vollständigem Beispiel-Exposé an, damit jede Phase sofort sichtbar ist.
+4. **Tests**: Unit-Tests für Score-Berechnung, Bot-Filter, Kurzlink-Normalisierung, Schema-Validierung. E2E-Test für den Kernpfad: QR-Link öffnen → Exposé lesen → Chat tippen → Owner sieht Score und Benachrichtigung.
+5. **Keine Abkürzungen** bei Barrierefreiheit, Datenschutz und Sicherheit, auch nicht „erstmal“.
+6. Wenn etwas in diesem Dokument widersprüchlich oder technisch unklug ist: sag es.
+
+### Phasen
+
+| Phase | Inhalt | Fertig, wenn … |
+|---|---|---|
+| **0 – Fundament** | Repo-Setup, CI, Design Tokens, Design-System-Seite, Auth (Passkey), DB-Schema + Migrations, Seed | Owner kann sich einloggen, sieht leeres Cockpit, CI grün |
+| **1 – Exposé-Hosting** | Schema + JSON Schema, CLI `validate/publish`, Blockbibliothek, öffentliches Rendering, Theming, Vorschau, `EXPOSE_AUTHORING.md` | Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße |
+| **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
+| **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
+| **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
+| **5 – Brief & Auswertung** | Brief-PDF, Sammel-Export, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
+| **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
+| **Später** | Messenger, SMS, Print-API, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, Mehrbenutzer | – |
+
+---
+
+## 14. Definition of Done (gesamt)
+
+- Ein Brief mit QR-Code führt in < 1,5 s zu einem schönen, persönlichen, barrierefreien Exposé.
+- Jede relevante Interaktion ist in der Timeline lesbar, Bots und eigene Besuche verfälschen nichts.
+- Der Owner bekommt im richtigen Moment genau eine sinnvolle Benachrichtigung und sieht sofort: **wer, wie sicher, über welchen Kanal, was jetzt tun.**
+- Ein neues Exposé kann von Claude Code in einem Schritt validiert und veröffentlicht werden.
+- Alles datenschutzkonform dokumentiert, getestet, deploybar.
