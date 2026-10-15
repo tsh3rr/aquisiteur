@@ -41,7 +41,7 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 
 Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
 
-1. **Single-User**: Ein Owner. Datenmodell trotzdem mit `workspace_id` auf allen Tabellen, damit spätere Mandantenfähigkeit (Team/SaaS) ohne Migration-Drama möglich ist.
+1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Aquisiteur als SaaS nutzen können, ohne Umbau des Datenmodells.
 2. **Hosting**: Vercel (Function-Region `fra1`) + Supabase (Region EU/Frankfurt). Alle personenbezogenen Daten bleiben in der EU.
 3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
 4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
@@ -305,6 +305,28 @@ Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis 
 
 ---
 
+## 9a. SaaS-Fähigkeit von Tag 1
+
+v1 hat nur einen Nutzer, aber jede Zeile Code wird so geschrieben, als gäbe es schon hundert Workspaces. Was jetzt kaum Aufwand kostet, später aber Monate, wird **jetzt** gemacht:
+
+- **Mandantentrennung**: Jede fachliche Tabelle hat `workspace_id` (NOT NULL, indiziert). RLS-Policies prüfen die Workspace-Mitgliedschaft, nicht „ist eingeloggt“. Ein Test stellt sicher, dass Workspace A niemals Daten von Workspace B sieht (auch über Realtime, Storage und API-Tokens).
+- **Nutzer ≠ Workspace**: Tabellen `workspaces`, `users`, `memberships` (Rolle: `owner`, `admin`, `member`). Ein Nutzer kann mehreren Workspaces angehören. Berechtigungen laufen über eine zentrale `can(user, action, resource)`-Funktion, auch wenn es heute nur `owner` gibt.
+- **Nichts hartkodiert**: Name, Foto, Telefonnummern, WhatsApp, Absenderadresse, Impressum, Datenschutztext, Brief-Vorlagen, Branding, Score-Gewichte und Nudge-Texte gehören zu den **Workspace-Einstellungen**, nicht in Env-Variablen oder Code.
+- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über die Custom-Hostname-Funktion des Hosters.
+- **Storage-Pfade** immer mit Workspace-Präfix (`/{workspace_id}/exposes/...`).
+- **Externe Dienste pro Workspace konfigurierbar**: Absender-Domain für E-Mails, Print-API-Zugang, Messenger-Kanäle. Secrets dieser Integrationen verschlüsselt in der DB (nicht in Env).
+- **Nutzungsmessung**: Eine `usage_events`-Tabelle zählt ab Tag 1 abrechnungsrelevante Dinge (veröffentlichte Exposés, Besuche, versendete Briefe, Speicher). Darauf baut später die Abrechnung.
+- **Pläne & Limits**: Eine zentrale `entitlements(workspace)`-Funktion liefert Feature-Flags und Limits. Heute gibt sie für den Owner „alles unbegrenzt“ zurück, aber jede limitierbare Funktion fragt sie bereits ab.
+- **Billing-Schnittstelle vorbereitet**: Abstraktion für Abos (später Stripe Billing inkl. Steuern/Rechnungen), aber in v1 nicht implementiert.
+- **Onboarding als Flow denken**: Workspace-Anlage (Name, Logo, Kanäle, Domain) als Wizard bauen, den der Owner auch selbst einmal durchläuft. Damit ist der SaaS-Einstieg später schon fertig.
+- **Datenschutz als Plattform**: Später ist jeder Workspace Verantwortlicher und Aquisiteur Auftragsverarbeiter. Datenexport und Löschung deshalb auch **pro Workspace** (nicht nur pro Prospect), Audit-Log pro Workspace, Impressum/Datenschutz pro Workspace.
+- **Plattform-Admin**: Eine minimale, getrennte Rolle `platform_admin` (für den Owner als Betreiber) ist im Modell vorgesehen, UI dafür erst später.
+- **Exposé-CLI/API** authentifiziert per Workspace-API-Token, damit später jeder Kunde seine Exposés per Claude Code/Codex hochladen kann.
+
+Was in v1 bewusst **nicht** gebaut wird: Einladungs-UI, Team-Verwaltung, Abrechnung, Plattform-Admin-UI, öffentliche Registrierung. Alles davon muss sich aber ohne Datenmigration ergänzen lassen.
+
+---
+
 ## 10. Sicherheit
 
 - Exposé-URLs und QR-Tokens nicht erratbar; Kurzlinks rate-limitiert gegen Enumeration.
@@ -318,7 +340,7 @@ Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis 
 
 ## 11. Datenmodell (Vorschlag, verfeinern)
 
-`workspaces`, `users`, `prospects`, `contacts` (Personen am Prospect), `campaigns`, `exposes`, `expose_versions`, `assets`, `touchpoints` (Code, Typ, Kanal, Prospect, Version), `visits` (Touchpoint, Gerät, Geo-Stadt, Bot/Internal-Flags, Start/Ende), `events` (Visit, Typ, Block-ID, Payload JSONB, Zeit), `intent_signals`, `intent_scores` (aktueller Score + Erklärung, materialisiert), `chat_threads`, `chat_messages`, `chat_drafts`, `callback_requests`, `consents`, `notification_rules`, `notifications`, `push_subscriptions`, `letters`, `api_tokens`, `audit_log`.
+`workspaces`, `users`, `memberships`, `domains`, `workspace_settings`, `integrations` (verschlüsselte Secrets), `usage_events`, `prospects`, `contacts` (Personen am Prospect), `campaigns`, `exposes`, `expose_versions`, `assets`, `touchpoints` (Code, Typ, Kanal, Prospect, Version), `visits` (Touchpoint, Gerät, Geo-Stadt, Bot/Internal-Flags, Start/Ende), `events` (Visit, Typ, Block-ID, Payload JSONB, Zeit), `intent_signals`, `intent_scores` (aktueller Score + Erklärung, materialisiert), `chat_threads`, `chat_messages`, `chat_drafts`, `callback_requests`, `consents`, `notification_rules`, `notifications`, `push_subscriptions`, `letters`, `api_tokens`, `audit_log`.
 
 Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `section_view`, `section_dwell`, `scroll_depth`, `cta_hover`, `cta_click`, `contact_click`, `copy_contact`, `chat_open`, `chat_typing`, `chat_message_sent`, `callback_started`, `callback_submitted`, `pricing_change`, `media_play`, `nudge_shown`, `nudge_dismissed`, `nudge_clicked`, `share`, `pdf_download`, `opt_out`, `consent_given`, `consent_denied` …).
 
@@ -327,7 +349,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 ## 12. Nicht-Ziele für v1
 
 - Keine KI-Generierung von Exposés in der App (macht Claude Code extern über §7.2).
-- Kein Mehrbenutzer-UI, keine Abrechnung.
+- Kein Team-/Einladungs-UI, keine Abrechnung, keine öffentliche Registrierung (Architektur dafür steht aber, siehe §9a).
 - Kein eigener E-Mail-Versand an Prospects (keine Kaltakquise per E-Mail, rechtlich heikel in DE).
 - Keine nativen Apps, PWA reicht.
 
@@ -351,14 +373,14 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 
 | Phase | Inhalt | Fertig, wenn … |
 |---|---|---|
-| **0 – Fundament** | Repo-Setup, CI, Design Tokens, Design-System-Seite, Auth (Passkey), DB-Schema + Migrations, Seed | Owner kann sich einloggen, sieht leeres Cockpit, CI grün |
+| **0 – Fundament** | Repo-Setup, CI, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
 | **1 – Exposé-Hosting** | Schema + JSON Schema, CLI `validate/publish`, Blockbibliothek, öffentliches Rendering, Theming, Vorschau, `EXPOSE_AUTHORING.md` | Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße |
 | **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
 | **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
 | **5 – Brief & Auswertung** | Brief-PDF, Sammel-Export, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
-| **Später** | Messenger, SMS, Print-API, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, Mehrbenutzer | – |
+| **Später** | Messenger, SMS, Print-API, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
 ---
 
