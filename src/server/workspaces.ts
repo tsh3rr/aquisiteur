@@ -1,6 +1,7 @@
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 import type { HostTarget } from "@/domain/hostname";
 import { validateSlug, type SlugProblem } from "@/domain/slug";
+import { workspaceSettingsSchema } from "@/domain/workspace-settings";
 import type { Role } from "@/domain/authz";
 import type { Database } from "@/db";
 import { auditLog, domains, memberships, workspaceSettings, workspaces } from "@/db/schema";
@@ -95,4 +96,13 @@ export async function resolveWorkspaceByHost(
     return row ?? null;
   }
   return null;
+}
+
+/** Settings of one workspace by id (system connection; callers scope by host). */
+export async function loadWorkspaceSettings(db: Database, workspaceId: string) {
+  const [row] = await db
+    .select()
+    .from(workspaceSettings)
+    .where(eq(workspaceSettings.workspaceId, workspaceId));
+  return workspaceSettingsSchema.parse(row ?? {});
 }

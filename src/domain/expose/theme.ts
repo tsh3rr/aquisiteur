@@ -74,8 +74,9 @@ export function exposeThemeCss(options: {
   const base = options.accent ? hexToOklch(options.accent) : null;
   const lightAccent = base ? deriveAccent(base, "light") : null;
   const darkAccent = base ? deriveAccent(base, "dark") : null;
-  const lightRule = `color-scheme:light;${declarations(light, lightAccent)}`;
-  const darkRule = `color-scheme:dark;${declarations(dark, darkAccent)}`;
+  // Logos are designed for light backgrounds; in dark mode they sit on a light plate.
+  const lightRule = `color-scheme:light;--expose-logo-plate:transparent;${declarations(light, lightAccent)}`;
+  const darkRule = `color-scheme:dark;--expose-logo-plate:oklch(0.97 0.004 275);${declarations(dark, darkAccent)}`;
   const selector = "[data-expose-theme]";
   switch (options.appearance) {
     case "light":

@@ -46,6 +46,7 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--aq-font-display), Georgia, "Times New Roman", serif;
 
   --radius-sm: var(--aq-radius-sm);
   --radius-md: var(--aq-radius-md);
@@ -113,5 +114,61 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Exposé (§7.3) ------------------------------------------------------ */
+
+[data-expose-theme] {
+  scroll-behavior: smooth;
+}
+
+[data-expose-theme] .font-display {
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+/* Reading progress, driven by scroll position without JavaScript. */
+.expose-progress {
+  transform: scaleX(0);
+}
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .expose-progress {
+      animation: expose-progress linear both;
+      animation-timeline: scroll(root block);
+    }
+    /* Sections fade in as they enter the viewport. */
+    .expose-reveal {
+      animation: expose-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+  }
+}
+
+@keyframes expose-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Movement only: fading would lower text contrast while sections scroll in. */
+@keyframes expose-reveal {
+  from {
+    translate: 0 2rem;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@media print {
+  [data-expose-theme] .expose-reveal {
+    animation: none;
+  }
+  [data-expose-theme] section {
+    break-inside: avoid-page;
   }
 }
