@@ -20,19 +20,35 @@ describe("onboarding schemas", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const errors = fieldErrors(result.error);
-      expect(Object.keys(errors).sort()).toEqual(["channels.email", "channels.phone", "profile.displayName"]);
+      expect(Object.keys(errors).sort()).toEqual([
+        "channels.email",
+        "channels.phone",
+        "profile.displayName",
+      ]);
     }
   });
 
   it("validates German postal codes and custom domains", () => {
     const base = {
-      senderAddress: { company: "Pixelwerk", street: "Karl-Liebknecht-Str. 1", postalCode: "04107", city: "Leipzig" },
+      senderAddress: {
+        company: "Pixelwerk",
+        street: "Karl-Liebknecht-Str. 1",
+        postalCode: "04107",
+        city: "Leipzig",
+      },
     };
-    expect(senderStepSchema.safeParse({ ...base, customDomain: "go.pixelwerk.de" }).success).toBe(true);
+    expect(senderStepSchema.safeParse({ ...base, customDomain: "go.pixelwerk.de" }).success).toBe(
+      true,
+    );
     expect(senderStepSchema.safeParse({ ...base, customDomain: "" }).success).toBe(true);
-    expect(senderStepSchema.safeParse({ ...base, customDomain: "https://pixelwerk.de" }).success).toBe(false);
     expect(
-      senderStepSchema.safeParse({ ...base, senderAddress: { ...base.senderAddress, postalCode: "4107" } }).success,
+      senderStepSchema.safeParse({ ...base, customDomain: "https://pixelwerk.de" }).success,
+    ).toBe(false);
+    expect(
+      senderStepSchema.safeParse({
+        ...base,
+        senderAddress: { ...base.senderAddress, postalCode: "4107" },
+      }).success,
     ).toBe(false);
   });
 });

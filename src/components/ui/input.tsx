@@ -13,5 +13,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return <textarea className={cn(inputClassName, "h-auto min-h-24 py-2.5", className)} {...props} />;
+  return (
+    <textarea className={cn(inputClassName, "h-auto min-h-24 py-2.5", className)} {...props} />
+  );
 }

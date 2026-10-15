@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aquisiteur",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    // Self-reference used by OpenNext for caching and revalidation.
+    { "binding": "WORKER_SELF_REFERENCE", "service": "aquisiteur" },
+  ],
+  "hyperdrive": [
+    {
+      // Supabase Postgres (EU). See docs/DEPLOY.md, step "Hyperdrive".
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur",
+    },
+  ],
+  "vars": {
+    "HOSTING_PROFILE": "cloudflare",
+  },
+  "observability": { "enabled": true },
+}

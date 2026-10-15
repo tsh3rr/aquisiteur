@@ -31,8 +31,8 @@ export default async function WorkspaceSitePage({
       <div className="grid max-w-md gap-2 text-center">
         <h1 className="text-2xl font-semibold">{workspace.name}</h1>
         <p className="text-foreground-muted">
-          Hier erscheinen persönliche Exposés. Haben Sie einen Brief von uns erhalten? Scannen Sie den QR-Code oder
-          tippen Sie den Link aus dem Brief ein.
+          Hier erscheinen persönliche Exposés. Haben Sie einen Brief von uns erhalten? Scannen Sie
+          den QR-Code oder tippen Sie den Link aus dem Brief ein.
         </p>
       </div>
     </main>

@@ -103,14 +103,7 @@ export interface PushPort {
 
 /** Phase 5: printed letters. `manual` is the first provider (§7.9). */
 export type LetterStatus =
-  | "draft"
-  | "queued"
-  | "submitted"
-  | "printed"
-  | "posted"
-  | "returned"
-  | "failed"
-  | "cancelled";
+  "draft" | "queued" | "submitted" | "printed" | "posted" | "returned" | "failed" | "cancelled";
 
 export interface LetterPrintOptions {
   color: boolean;

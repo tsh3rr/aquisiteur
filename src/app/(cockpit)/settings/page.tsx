@@ -13,7 +13,11 @@ import { PasskeyManager } from "./passkey-manager";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
-const statusLabel = { pending: "Einrichtung offen", active: "Aktiv", failed: "Fehlgeschlagen" } as const;
+const statusLabel = {
+  pending: "Einrichtung offen",
+  active: "Aktiv",
+  failed: "Fehlgeschlagen",
+} as const;
 const statusTone = { pending: "warning", active: "success", failed: "danger" } as const;
 
 export default async function SettingsPage() {
@@ -69,8 +73,8 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Passkeys</CardTitle>
           <CardDescription>
-            Melden Sie sich per Fingerabdruck, Gesicht oder Geräte-PIN an. Legen Sie am besten auf Handy und Rechner
-            je einen an.
+            Melden Sie sich per Fingerabdruck, Gesicht oder Geräte-PIN an. Legen Sie am besten auf
+            Handy und Rechner je einen an.
           </CardDescription>
         </CardHeader>
         <CardContent>

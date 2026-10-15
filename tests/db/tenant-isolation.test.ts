@@ -31,9 +31,13 @@ const tenantTables = {
 
 async function seedWorkspaceData(workspaceId: string, tag: string) {
   await db.insert(schema.domains).values({ workspaceId, hostname: `go.${tag}.test` });
-  await db.insert(schema.integrations).values({ workspaceId, kind: "pingen", secretCiphertext: `secret-${tag}` });
+  await db
+    .insert(schema.integrations)
+    .values({ workspaceId, kind: "pingen", secretCiphertext: `secret-${tag}` });
   await db.insert(schema.usageEvents).values({ workspaceId, kind: "visit" });
-  await db.insert(schema.apiTokens).values({ workspaceId, name: tag, prefix: tag, tokenHash: `hash-${tag}` });
+  await db
+    .insert(schema.apiTokens)
+    .values({ workspaceId, name: tag, prefix: tag, tokenHash: `hash-${tag}` });
 }
 
 beforeAll(async () => {
@@ -142,7 +146,9 @@ describe("tenant isolation", () => {
 
   it("lets plain members read but not change memberships or the workspace", async () => {
     await withTenant(db, { userId: carol.id, workspaceId: wsA }, async (tx) => {
-      const members = await tx.select({ userId: schema.memberships.userId }).from(schema.memberships);
+      const members = await tx
+        .select({ userId: schema.memberships.userId })
+        .from(schema.memberships);
       expect(members.map((m) => m.userId).sort()).toEqual([alice.id, carol.id]);
       const promoted = await tx
         .update(schema.memberships)
@@ -174,7 +180,14 @@ describe("tenant isolation", () => {
   });
 
   it("denies the tenant role any access to auth internals", async () => {
-    for (const table of ["sessions", "accounts", "verifications", "passkeys", "rate_limits", "platform_admins"]) {
+    for (const table of [
+      "sessions",
+      "accounts",
+      "verifications",
+      "passkeys",
+      "rate_limits",
+      "platform_admins",
+    ]) {
       const message = await dbError(
         withTenant(db, { userId: alice.id, workspaceId: wsA }, (tx) =>
           tx.execute(sql`select 1 from ${sql.identifier(table)} limit 1`),
@@ -186,7 +199,9 @@ describe("tenant isolation", () => {
 
   it("keeps the audit log append-only for tenants", async () => {
     await withTenant(db, { userId: alice.id, workspaceId: wsA }, (tx) =>
-      tx.insert(schema.auditLog).values({ workspaceId: wsA, actorUserId: alice.id, action: "test.appended" }),
+      tx
+        .insert(schema.auditLog)
+        .values({ workspaceId: wsA, actorUserId: alice.id, action: "test.appended" }),
     );
     expect(
       await dbError(
@@ -196,7 +211,9 @@ describe("tenant isolation", () => {
       ),
     ).toMatch(/permission denied/);
     expect(
-      await dbError(withTenant(db, { userId: alice.id, workspaceId: wsA }, (tx) => tx.delete(schema.auditLog))),
+      await dbError(
+        withTenant(db, { userId: alice.id, workspaceId: wsA }, (tx) => tx.delete(schema.auditLog)),
+      ),
     ).toMatch(/permission denied/);
   });
 });

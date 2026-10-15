@@ -26,7 +26,9 @@ export function Field({ label, hint, error, optional, className, children }: Fie
     <div className={cn("grid gap-1.5", className)}>
       <Label htmlFor={id}>
         {label}
-        {optional ? <span className="ml-1.5 font-normal text-foreground-muted">(optional)</span> : null}
+        {optional ? (
+          <span className="ml-1.5 font-normal text-foreground-muted">(optional)</span>
+        ) : null}
       </Label>
       {hint ? (
         <p id={hintId} className="-mt-0.5 text-sm text-foreground-muted">

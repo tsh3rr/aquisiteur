@@ -12,11 +12,16 @@ export function logEmail(): EmailPort {
       if (process.env.NODE_ENV === "production" && process.env.ALLOW_LOG_EMAIL !== "1") {
         throw new Error("EMAIL_PROVIDER=log is not allowed in production");
       }
-      console.info(`\n[email] to=${message.to}\n[email] subject=${message.subject}\n${message.text}\n`);
+      console.info(
+        `\n[email] to=${message.to}\n[email] subject=${message.subject}\n${message.text}\n`,
+      );
       const file = process.env.EMAIL_LOG_FILE;
       if (file) {
         const { appendFile } = await import("node:fs/promises");
-        await appendFile(file, `${JSON.stringify({ ...message, sentAt: new Date().toISOString() })}\n`);
+        await appendFile(
+          file,
+          `${JSON.stringify({ ...message, sentAt: new Date().toISOString() })}\n`,
+        );
       }
       return { id: null };
     },

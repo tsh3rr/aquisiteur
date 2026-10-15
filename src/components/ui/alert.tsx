@@ -4,9 +4,21 @@ import { cn } from "@/lib/cn";
 
 const tones = {
   info: { icon: Info, className: "bg-accent-soft text-accent-soft-foreground", label: "Hinweis" },
-  success: { icon: CircleCheck, className: "bg-success-soft text-success-foreground", label: "Erfolg" },
-  warning: { icon: TriangleAlert, className: "bg-warning-soft text-warning-foreground", label: "Warnung" },
-  danger: { icon: CircleAlert, className: "bg-danger-soft text-danger-soft-foreground", label: "Fehler" },
+  success: {
+    icon: CircleCheck,
+    className: "bg-success-soft text-success-foreground",
+    label: "Erfolg",
+  },
+  warning: {
+    icon: TriangleAlert,
+    className: "bg-warning-soft text-warning-foreground",
+    label: "Warnung",
+  },
+  danger: {
+    icon: CircleAlert,
+    className: "bg-danger-soft text-danger-soft-foreground",
+    label: "Fehler",
+  },
 } as const;
 
 /** Status message with icon and text (never colour alone, §8). */

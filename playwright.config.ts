@@ -4,7 +4,8 @@ const PORT = 3100;
 export const E2E = {
   baseURL: `http://localhost:${PORT}`,
   databaseUrl:
-    process.env.E2E_DATABASE_URL ?? "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e",
+    process.env.E2E_DATABASE_URL ??
+    "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e",
   mailLog: "test-results/mails.jsonl",
 };
 

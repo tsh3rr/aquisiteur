@@ -132,7 +132,13 @@ export const contrastPairs: ReadonlyArray<{
   { fg: "warning", bg: "surface", min: 3 },
 ];
 
-export const radius = { sm: "0.375rem", md: "0.625rem", lg: "0.875rem", xl: "1.25rem", full: "9999px" };
+export const radius = {
+  sm: "0.375rem",
+  md: "0.625rem",
+  lg: "0.875rem",
+  xl: "1.25rem",
+  full: "9999px",
+};
 
 export const shadow = {
   sm: "0 1px 2px oklch(0.2 0.02 275 / 0.06)",

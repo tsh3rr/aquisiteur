@@ -37,8 +37,12 @@ export default async function DesignSystemPage() {
               <div className="h-14" style={{ background: `var(--aq-${kebab(name)})` }} />
               <div className="grid gap-0.5 p-2.5">
                 <span className="text-sm font-medium">{name}</span>
-                <span className="font-mono text-xs text-foreground-muted">{formatOklch(light[name])}</span>
-                <span className="font-mono text-xs text-foreground-muted">{formatOklch(dark[name])}</span>
+                <span className="font-mono text-xs text-foreground-muted">
+                  {formatOklch(light[name])}
+                </span>
+                <span className="font-mono text-xs text-foreground-muted">
+                  {formatOklch(dark[name])}
+                </span>
               </div>
             </li>
           ))}
@@ -54,10 +58,18 @@ export default async function DesignSystemPage() {
             <caption className="sr-only">Kontrastverhältnisse aller verwendeten Farbpaare</caption>
             <thead className="bg-surface-sunken">
               <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Vordergrund / Hintergrund</th>
-                <th scope="col" className="px-3 py-2 font-medium">Mindestens</th>
-                <th scope="col" className="px-3 py-2 font-medium">Hell</th>
-                <th scope="col" className="px-3 py-2 font-medium">Dunkel</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Vordergrund / Hintergrund
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Mindestens
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Hell
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Dunkel
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -67,8 +79,12 @@ export default async function DesignSystemPage() {
                     {fg} / {bg}
                   </th>
                   <td className="px-3 py-2 tabular-nums">{min}:1</td>
-                  <td className="px-3 py-2 tabular-nums">{contrastRatio(light[fg], light[bg]).toFixed(2)}:1</td>
-                  <td className="px-3 py-2 tabular-nums">{contrastRatio(dark[fg], dark[bg]).toFixed(2)}:1</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {contrastRatio(light[fg], light[bg]).toFixed(2)}:1
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {contrastRatio(dark[fg], dark[bg]).toFixed(2)}:1
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -86,8 +102,14 @@ export default async function DesignSystemPage() {
               .slice()
               .reverse()
               .map((size) => (
-                <p key={size} style={{ fontSize: `var(--aq-text-${size})` }} className="leading-tight">
-                  <span className="mr-3 inline-block w-10 font-mono text-xs text-foreground-muted">{size}</span>
+                <p
+                  key={size}
+                  style={{ fontSize: `var(--aq-text-${size})` }}
+                  className="leading-tight"
+                >
+                  <span className="mr-3 inline-block w-10 font-mono text-xs text-foreground-muted">
+                    {size}
+                  </span>
                   Persönliche Vorschläge für Café Müller
                 </p>
               ))}
@@ -120,7 +142,9 @@ export default async function DesignSystemPage() {
           <Card>
             <CardHeader>
               <CardTitle>Buttons</CardTitle>
-              <CardDescription>Alle Größen halten auf Touch-Geräten mindestens 44 px.</CardDescription>
+              <CardDescription>
+                Alle Größen halten auf Touch-Geräten mindestens 44 px.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
               <Button>

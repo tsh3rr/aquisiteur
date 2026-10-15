@@ -21,7 +21,11 @@ export function LoginForm({ next, linkError }: { next: string; linkError?: strin
   const router = useRouter();
   const [status, setStatus] = useState<Status>(
     linkError
-      ? { kind: "error", message: "Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordern Sie einen neuen an." }
+      ? {
+          kind: "error",
+          message:
+            "Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordern Sie einen neuen an.",
+        }
       : { kind: "idle" },
   );
   const [passkeyBusy, setPasskeyBusy] = useState(false);
@@ -73,7 +77,8 @@ export function LoginForm({ next, linkError }: { next: string; linkError?: strin
     if (result?.error) {
       setStatus({
         kind: "error",
-        message: "Anmeldung mit Passkey abgebrochen oder nicht möglich. Nutzen Sie alternativ den E-Mail-Link.",
+        message:
+          "Anmeldung mit Passkey abgebrochen oder nicht möglich. Nutzen Sie alternativ den E-Mail-Link.",
       });
       return;
     }
@@ -103,8 +108,8 @@ export function LoginForm({ next, linkError }: { next: string; linkError?: strin
           <Alert tone="success">
             <p className="font-medium">Prüfen Sie Ihr Postfach.</p>
             <p>
-              Wenn <strong>{status.email}</strong> freigeschaltet ist, ist ein Anmeldelink unterwegs. Er ist 10
-              Minuten gültig.
+              Wenn <strong>{status.email}</strong> freigeschaltet ist, ist ein Anmeldelink
+              unterwegs. Er ist 10 Minuten gültig.
             </p>
           </Alert>
         ) : (

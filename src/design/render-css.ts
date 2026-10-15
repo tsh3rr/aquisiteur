@@ -1,13 +1,5 @@
 import { formatOklch } from "@/lib/color";
-import {
-  dark,
-  fontSize,
-  light,
-  motion,
-  radius,
-  shadow,
-  type ColorScheme,
-} from "./tokens";
+import { dark, fontSize, light, motion, radius, shadow, type ColorScheme } from "./tokens";
 
 const kebab = (value: string) => value.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 
@@ -31,13 +23,13 @@ export function renderTokensCss(): string {
     ...Object.entries(fontSize).map(([k, v]) => `  --aq-text-${k}: ${v};`),
     "}",
     "",
-    ":root[data-theme=\"dark\"] {",
+    ':root[data-theme="dark"] {',
     "  color-scheme: dark;",
     colorVars(dark, "  "),
     "}",
     "",
     "@media (prefers-color-scheme: dark) {",
-    "  :root:not([data-theme=\"light\"]) {",
+    '  :root:not([data-theme="light"]) {',
     "    color-scheme: dark;",
     colorVars(dark, "    "),
     "  }",

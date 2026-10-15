@@ -187,7 +187,10 @@ export const apiTokens = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("api_tokens_workspace_id_idx").on(t.workspaceId), workspaceIsolation(t.workspaceId)],
+  (t) => [
+    index("api_tokens_workspace_id_idx").on(t.workspaceId),
+    workspaceIsolation(t.workspaceId),
+  ],
 ).enableRLS();
 
 /** Append-only audit trail per workspace (§9a "Datenschutz als Plattform"). */

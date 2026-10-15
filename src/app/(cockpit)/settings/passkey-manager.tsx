@@ -56,7 +56,9 @@ export function PasskeyManager({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="grid gap-4">
-      <div aria-live="polite">{message ? <Alert tone={message.tone}>{message.text}</Alert> : null}</div>
+      <div aria-live="polite">
+        {message ? <Alert tone={message.tone}>{message.text}</Alert> : null}
+      </div>
       <div aria-busy={passkeys === null}>
         {passkeys === null ? (
           <div className="grid gap-2">
@@ -64,7 +66,9 @@ export function PasskeyManager({ canManage }: { canManage: boolean }) {
             <Skeleton className="h-12" />
           </div>
         ) : passkeys.length === 0 ? (
-          <p className="text-sm text-foreground-muted">Noch kein Passkey angelegt. Sie melden sich per E-Mail-Link an.</p>
+          <p className="text-sm text-foreground-muted">
+            Noch kein Passkey angelegt. Sie melden sich per E-Mail-Link an.
+          </p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border">
             {passkeys.map((row) => (

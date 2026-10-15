@@ -40,7 +40,10 @@ describe("classifyHost()", () => {
   });
 
   it("treats other hosts as custom domains", () => {
-    expect(classifyHost("go.agentur.de", prod)).toEqual({ kind: "custom-domain", hostname: "go.agentur.de" });
+    expect(classifyHost("go.agentur.de", prod)).toEqual({
+      kind: "custom-domain",
+      hostname: "go.agentur.de",
+    });
   });
 
   it("rejects bare words and IPs as public hosts", () => {

@@ -38,7 +38,10 @@ export const senderStepSchema = z.object({
   senderAddress: senderAddressSchema.extend({
     company: z.string().trim().min(2, "Bitte den Absendernamen angeben.").max(160),
     street: z.string().trim().min(3, "Bitte Straße und Hausnummer angeben.").max(160),
-    postalCode: z.string().trim().regex(/^\d{5}$/, "Bitte eine fünfstellige PLZ angeben."),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^\d{5}$/, "Bitte eine fünfstellige PLZ angeben."),
     city: z.string().trim().min(2, "Bitte den Ort angeben.").max(120),
   }),
   customDomain: hostname.optional().or(z.literal("").transform(() => undefined)),

@@ -14,7 +14,9 @@ export function normalizeHost(rawHost: string | null | undefined): string | null
   if (!rawHost) return null;
   const host = rawHost.trim().toLowerCase().replace(/\.$/, "");
   // Strip port; IPv6 literals keep their brackets.
-  const withoutPort = host.startsWith("[") ? host.replace(/]:\d+$/, "]") : host.replace(/:\d+$/, "");
+  const withoutPort = host.startsWith("[")
+    ? host.replace(/]:\d+$/, "]")
+    : host.replace(/:\d+$/, "");
   if (!/^(\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/.test(withoutPort)) return null;
   if (withoutPort.length > 253) return null;
   return withoutPort;

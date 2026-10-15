@@ -47,7 +47,11 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
           <p className="truncate text-sm font-medium">{workspace.name}</p>
           <ThemeToggle initial={theme} />
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-10">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-10"
+        >
           {children}
         </main>
       </div>

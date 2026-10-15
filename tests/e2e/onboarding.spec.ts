@@ -31,7 +31,9 @@ test("owner signs in, runs the wizard, registers a passkey and sees the empty co
   await page.getByRole("button", { name: "Weiter" }).click();
 
   // Step 2: validation errors are announced and linked to their fields.
-  await expect(page.getByRole("heading", { name: "Wie Interessenten Sie erreichen" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Wie Interessenten Sie erreichen" }),
+  ).toBeVisible();
   await page.getByLabel("Ihr Name").fill("J");
   await page.getByLabel("Telefon").fill("abc");
   await page.getByRole("button", { name: "Weiter" }).click();
@@ -44,7 +46,9 @@ test("owner signs in, runs the wizard, registers a passkey and sees the empty co
   await page.getByRole("button", { name: "Weiter" }).click();
 
   // Step 3: sender address and optional custom domain.
-  await expect(page.getByRole("heading", { name: "Absender und Adresse Ihrer Exposés" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Absender und Adresse Ihrer Exposés" }),
+  ).toBeVisible();
   await page.getByLabel("Straße und Hausnummer").fill("Karl-Liebknecht-Str. 1");
   await page.getByLabel("PLZ", { exact: true }).fill("04107");
   await page.getByLabel("Ort", { exact: true }).fill("Leipzig");
@@ -110,7 +114,9 @@ test("non-allow-listed emails get the same answer but no mail", async ({ page })
   expect(mailCount("stranger@e2e.test")).toBe(0);
 });
 
-test("the workspace is reachable on its platform subdomain, unknown hosts are not", async ({ request }) => {
+test("the workspace is reachable on its platform subdomain, unknown hosts are not", async ({
+  request,
+}) => {
   const known = await request.get("/", { headers: { host: "pixelwerk-leipzig.localhost:3100" } });
   expect(known.status()).toBe(200);
   expect(await known.text()).toContain("Pixelwerk Leipzig");
@@ -120,14 +126,18 @@ test("the workspace is reachable on its platform subdomain, unknown hosts are no
   expect(unknown.status()).toBe(404);
 
   // Cockpit-only routes are not reachable through a workspace host.
-  const api = await request.get("/api/auth/ok", { headers: { host: "pixelwerk-leipzig.localhost:3100" } });
+  const api = await request.get("/api/auth/ok", {
+    headers: { host: "pixelwerk-leipzig.localhost:3100" },
+  });
   expect(api.status()).toBe(404);
 });
 
 test("cockpit responses carry the security headers", async ({ request }) => {
   const response = await request.get("/login");
   const headers = response.headers();
-  expect(headers["content-security-policy"]).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+  expect(headers["content-security-policy"]).toMatch(
+    /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+  );
   expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["x-frame-options"]).toBe("DENY");

@@ -34,7 +34,10 @@ function formValues(formData: FormData): Record<string, string> {
 }
 
 /** Runs `fn` as tenant for the workspace being onboarded, after a can() check. */
-async function asOnboardingTenant<T>(action: Action, fn: (tx: Transaction, workspaceId: string, userId: string) => Promise<T>) {
+async function asOnboardingTenant<T>(
+  action: Action,
+  fn: (tx: Transaction, workspaceId: string, userId: string) => Promise<T>,
+) {
   const { user, active } = await getWorkspaceContext();
   if (!active) redirect("/onboarding?step=1");
   assertCan({ userId: user.id, role: active.role, workspaceId: active.id }, action, {
@@ -66,27 +69,31 @@ export async function saveWorkspaceStep(_prev: StepState, formData: FormData): P
       path: "/",
     });
   } else {
-    const outcome = await asOnboardingTenant("workspace.update", async (tx, workspaceId, userId) => {
-      try {
-        // Savepoint, so a unique violation does not abort the outer transaction.
-        await tx.transaction((sp) =>
-          sp.update(workspaces).set({ name, slug }).where(eq(workspaces.id, workspaceId)),
-        );
-      } catch (error) {
-        if (isUniqueViolation(error)) return "slug_taken" as const;
-        throw error;
-      }
-      await tx.insert(auditLog).values({
-        workspaceId,
-        actorUserId: userId,
-        action: "workspace.updated",
-        targetType: "workspace",
-        targetId: workspaceId,
-        meta: { fields: ["name", "slug"] },
-      });
-      return "ok" as const;
-    });
-    if (outcome === "slug_taken") return { values, errors: { slug: slugProblemMessages.slug_taken } };
+    const outcome = await asOnboardingTenant(
+      "workspace.update",
+      async (tx, workspaceId, userId) => {
+        try {
+          // Savepoint, so a unique violation does not abort the outer transaction.
+          await tx.transaction((sp) =>
+            sp.update(workspaces).set({ name, slug }).where(eq(workspaces.id, workspaceId)),
+          );
+        } catch (error) {
+          if (isUniqueViolation(error)) return "slug_taken" as const;
+          throw error;
+        }
+        await tx.insert(auditLog).values({
+          workspaceId,
+          actorUserId: userId,
+          action: "workspace.updated",
+          targetType: "workspace",
+          targetId: workspaceId,
+          meta: { fields: ["name", "slug"] },
+        });
+        return "ok" as const;
+      },
+    );
+    if (outcome === "slug_taken")
+      return { values, errors: { slug: slugProblemMessages.slug_taken } };
   }
   redirect("/onboarding?step=2");
 }
@@ -132,7 +139,10 @@ export async function saveSenderStep(_prev: StepState, formData: FormData): Prom
 
   const { customDomain, senderAddress } = parsed.data;
   const platformDomain = serverEnv().PLATFORM_DOMAIN;
-  if (customDomain && (customDomain === platformDomain || customDomain.endsWith(`.${platformDomain}`))) {
+  if (
+    customDomain &&
+    (customDomain === platformDomain || customDomain.endsWith(`.${platformDomain}`))
+  ) {
     return { values, errors: { customDomain: "Plattform-Adressen werden automatisch vergeben." } };
   }
 
@@ -165,7 +175,10 @@ export async function saveSenderStep(_prev: StepState, formData: FormData): Prom
     return own ? ("ok" as const) : ("domain_taken" as const);
   });
   if (outcome === "domain_taken") {
-    return { values, errors: { customDomain: "Diese Domain ist bereits einem anderen Workspace zugeordnet." } };
+    return {
+      values,
+      errors: { customDomain: "Diese Domain ist bereits einem anderen Workspace zugeordnet." },
+    };
   }
   redirect("/onboarding?step=4");
 }

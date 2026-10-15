@@ -44,7 +44,9 @@ function ErrorSummary({ state }: { state: StepState }) {
     <div aria-live="polite">
       {count > 0 ? (
         <Alert tone="danger">
-          {count === 1 ? "Bitte prüfen Sie das markierte Feld." : `Bitte prüfen Sie die ${count} markierten Felder.`}
+          {count === 1
+            ? "Bitte prüfen Sie das markierte Feld."
+            : `Bitte prüfen Sie die ${count} markierten Felder.`}
         </Alert>
       ) : null}
       {state.formError ? <Alert tone="danger">{state.formError}</Alert> : null}
@@ -118,7 +120,12 @@ export function ProfileStep({ defaults }: { defaults: Defaults }) {
           <ErrorSummary state={state} />
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Ihr Name" error={e("profile.displayName")}>
-              <Input name="profile.displayName" required autoComplete="name" defaultValue={v("profile.displayName")} />
+              <Input
+                name="profile.displayName"
+                required
+                autoComplete="name"
+                defaultValue={v("profile.displayName")}
+              />
             </Field>
             <Field label="Rolle" optional error={e("profile.role")}>
               <Input
@@ -130,14 +137,29 @@ export function ProfileStep({ defaults }: { defaults: Defaults }) {
             </Field>
           </div>
           <Field label="E-Mail für Anfragen" error={e("channels.email")}>
-            <Input name="channels.email" type="email" autoComplete="email" defaultValue={v("channels.email")} />
+            <Input
+              name="channels.email"
+              type="email"
+              autoComplete="email"
+              defaultValue={v("channels.email")}
+            />
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Telefon" optional error={e("channels.phone")}>
-              <Input name="channels.phone" type="tel" autoComplete="tel" defaultValue={v("channels.phone")} />
+              <Input
+                name="channels.phone"
+                type="tel"
+                autoComplete="tel"
+                defaultValue={v("channels.phone")}
+              />
             </Field>
             <Field label="Mobil" optional error={e("channels.mobile")}>
-              <Input name="channels.mobile" type="tel" autoComplete="tel" defaultValue={v("channels.mobile")} />
+              <Input
+                name="channels.mobile"
+                type="tel"
+                autoComplete="tel"
+                defaultValue={v("channels.mobile")}
+              />
             </Field>
           </div>
           <Field
@@ -155,7 +177,13 @@ export function ProfileStep({ defaults }: { defaults: Defaults }) {
   );
 }
 
-export function SenderStep({ defaults, platformHost }: { defaults: Defaults; platformHost: string }) {
+export function SenderStep({
+  defaults,
+  platformHost,
+}: {
+  defaults: Defaults;
+  platformHost: string;
+}) {
   const [state, action, pending] = useStep(saveSenderStep);
   const v = (key: string) => value(state, defaults, key);
   const e = (key: string) => state.errors?.[key];
@@ -167,10 +195,18 @@ export function SenderStep({ defaults, platformHost }: { defaults: Defaults; pla
           <fieldset className="grid gap-5">
             <legend className="mb-1 text-sm font-semibold">Absenderadresse für Briefe</legend>
             <Field label="Absender" error={e("senderAddress.company")}>
-              <Input name="senderAddress.company" autoComplete="organization" defaultValue={v("senderAddress.company")} />
+              <Input
+                name="senderAddress.company"
+                autoComplete="organization"
+                defaultValue={v("senderAddress.company")}
+              />
             </Field>
             <Field label="Straße und Hausnummer" error={e("senderAddress.street")}>
-              <Input name="senderAddress.street" autoComplete="street-address" defaultValue={v("senderAddress.street")} />
+              <Input
+                name="senderAddress.street"
+                autoComplete="street-address"
+                defaultValue={v("senderAddress.street")}
+              />
             </Field>
             <div className="grid grid-cols-[8rem_1fr] gap-4">
               <Field label="PLZ" error={e("senderAddress.postalCode")}>
@@ -182,7 +218,11 @@ export function SenderStep({ defaults, platformHost }: { defaults: Defaults; pla
                 />
               </Field>
               <Field label="Ort" error={e("senderAddress.city")}>
-                <Input name="senderAddress.city" autoComplete="address-level2" defaultValue={v("senderAddress.city")} />
+                <Input
+                  name="senderAddress.city"
+                  autoComplete="address-level2"
+                  defaultValue={v("senderAddress.city")}
+                />
               </Field>
             </div>
           </fieldset>
@@ -222,11 +262,14 @@ export function PasskeyStep() {
       <CardContent className="grid gap-5">
         <div aria-live="polite">
           {status === "done" ? (
-            <Alert tone="success">Passkey gespeichert. Ab jetzt reicht ein Fingertipp zur Anmeldung.</Alert>
+            <Alert tone="success">
+              Passkey gespeichert. Ab jetzt reicht ein Fingertipp zur Anmeldung.
+            </Alert>
           ) : null}
           {status === "error" ? (
             <Alert tone="danger">
-              Der Passkey konnte nicht angelegt werden. Sie können es später in den Einstellungen erneut versuchen.
+              Der Passkey konnte nicht angelegt werden. Sie können es später in den Einstellungen
+              erneut versuchen.
             </Alert>
           ) : null}
         </div>
@@ -243,7 +286,12 @@ export function PasskeyStep() {
           }}
           className="flex justify-end"
         >
-          <Button type="submit" variant={status === "done" ? "primary" : "ghost"} size="lg" disabled={finishing}>
+          <Button
+            type="submit"
+            variant={status === "done" ? "primary" : "ghost"}
+            size="lg"
+            disabled={finishing}
+          >
             {status === "done" ? <Check aria-hidden /> : null}
             {status === "done" ? "Zum Cockpit" : "Später einrichten und zum Cockpit"}
           </Button>

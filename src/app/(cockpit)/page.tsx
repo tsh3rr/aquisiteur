@@ -24,7 +24,11 @@ export default async function TodayPage() {
     <div className="grid gap-8">
       <header className="grid gap-1">
         <p className="text-sm text-foreground-muted">
-          {new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
+          {new Intl.DateTimeFormat("de-DE", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          }).format(new Date())}
         </p>
         <h1 className="text-3xl font-semibold">{firstName ? `Hallo ${firstName}.` : "Hallo."}</h1>
       </header>
@@ -44,8 +48,8 @@ export default async function TodayPage() {
             <div className="grid max-w-md gap-1.5">
               <p className="font-medium">Noch ist es ruhig in {workspace.name}.</p>
               <p className="text-sm text-foreground-muted">
-                Sobald jemand den QR-Code Ihres Briefs scannt, erscheint er hier, sortiert danach, wie sicher er
-                Kontakt aufnehmen möchte.
+                Sobald jemand den QR-Code Ihres Briefs scannt, erscheint er hier, sortiert danach,
+                wie sicher er Kontakt aufnehmen möchte.
               </p>
             </div>
           </CardContent>
@@ -64,8 +68,9 @@ export default async function TodayPage() {
                 <div className="grid gap-1">
                   <p className="font-medium">Erstes Exposé veröffentlichen</p>
                   <p className="text-sm text-foreground-muted">
-                    Claude Code erzeugt das Exposé als JSON, <code className="font-mono">pnpm expose:publish</code>{" "}
-                    stellt es online. Kommt in Phase 1.
+                    Claude Code erzeugt das Exposé als JSON,{" "}
+                    <code className="font-mono">pnpm expose:publish</code> stellt es online. Kommt
+                    in Phase 1.
                   </p>
                 </div>
               </CardContent>
@@ -78,7 +83,8 @@ export default async function TodayPage() {
                 <div className="grid gap-1">
                   <p className="font-medium">Prospects anlegen und Brief drucken</p>
                   <p className="text-sm text-foreground-muted">
-                    Kundenliste, Kurzlinks und QR-Codes folgen in Phase 2, der Brief-Generator in Phase 5.
+                    Kundenliste, Kurzlinks und QR-Codes folgen in Phase 2, der Brief-Generator in
+                    Phase 5.
                   </p>
                 </div>
               </CardContent>

@@ -46,7 +46,10 @@ export function ensureContrast(fg: Oklch, bg: Oklch, min = 4.5): Oklch {
   const darker = relativeLuminance(bg) > 0.18;
   let candidate = { ...fg };
   for (let i = 0; i < 100; i++) {
-    candidate = { ...candidate, l: Math.min(1, Math.max(0, candidate.l + (darker ? -0.01 : 0.01))) };
+    candidate = {
+      ...candidate,
+      l: Math.min(1, Math.max(0, candidate.l + (darker ? -0.01 : 0.01))),
+    };
     if (contrastRatio(candidate, bg) >= min) return candidate;
     if (candidate.l === 0 || candidate.l === 1) break;
   }

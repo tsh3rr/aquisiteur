@@ -5,6 +5,9 @@ import { buildContentSecurityPolicy } from "@/lib/security-headers";
 
 /**
  * Edge entry point (§6.1): one app, split by Host header.
+ * Deliberately `middleware.ts` (Edge runtime) rather than Next 16's `proxy.ts`
+ * (Node runtime only): OpenNext supports Edge middleware on Workers, Node
+ * middleware only experimentally. See docs/DECISIONS.md ADR-0006.
  * - APP_URL's host serves the cockpit (session cookie required except on public auth pages).
  * - Every other host is rewritten to /sites/<host>/…, where the workspace is
  *   resolved from the database (platform subdomain or custom domain).
@@ -13,7 +16,7 @@ import { buildContentSecurityPolicy } from "@/lib/security-headers";
 
 const PUBLIC_COCKPIT_PATHS = ["/login", "/api/auth", "/manifest.webmanifest"];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const appUrl = process.env.APP_URL;
   const platformDomain = process.env.PLATFORM_DOMAIN;
   if (!appUrl || !platformDomain) {
@@ -54,7 +57,8 @@ export function proxy(request: NextRequest) {
   } else if (target.kind === "unknown") {
     response = new NextResponse("Unknown host", { status: 404 });
   } else {
-    const host = target.kind === "platform-subdomain" ? `${target.slug}.${platformDomain}` : target.hostname;
+    const host =
+      target.kind === "platform-subdomain" ? `${target.slug}.${platformDomain}` : target.hostname;
     const url = request.nextUrl.clone();
     url.pathname = `/sites/${encodeURIComponent(host)}${pathname === "/" ? "" : pathname}`;
     response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });

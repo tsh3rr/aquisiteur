@@ -26,18 +26,22 @@ export default async function OnboardingPage({
   let settings = workspaceSettingsSchema.parse({});
   let customDomain = "";
   if (active) {
-    const loaded = await withTenant(getDb(), { userId: user.id, workspaceId: active.id }, async (tx) => {
-      const [row] = await tx
-        .select()
-        .from(workspaceSettings)
-        .where(eq(workspaceSettings.workspaceId, active.id));
-      const [domain] = await tx
-        .select({ hostname: domains.hostname })
-        .from(domains)
-        .where(eq(domains.workspaceId, active.id))
-        .limit(1);
-      return { row, domain };
-    });
+    const loaded = await withTenant(
+      getDb(),
+      { userId: user.id, workspaceId: active.id },
+      async (tx) => {
+        const [row] = await tx
+          .select()
+          .from(workspaceSettings)
+          .where(eq(workspaceSettings.workspaceId, active.id));
+        const [domain] = await tx
+          .select({ hostname: domains.hostname })
+          .from(domains)
+          .where(eq(domains.workspaceId, active.id))
+          .limit(1);
+        return { row, domain };
+      },
+    );
     settings = workspaceSettingsSchema.parse(loaded.row ?? {});
     customDomain = loaded.domain?.hostname ?? "";
   }
@@ -57,7 +61,11 @@ export default async function OnboardingPage({
       <nav aria-label="Fortschritt der Einrichtung">
         <ol className="grid grid-cols-4 gap-2">
           {ONBOARDING_STEPS.map((s) => (
-            <li key={s.id} aria-current={s.id === current.id ? "step" : undefined} className="grid gap-2">
+            <li
+              key={s.id}
+              aria-current={s.id === current.id ? "step" : undefined}
+              className="grid gap-2"
+            >
               <span
                 aria-hidden
                 className={

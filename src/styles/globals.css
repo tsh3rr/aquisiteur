@@ -75,7 +75,7 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings: "ss01", "cv11";
   }
   :focus-visible {
@@ -86,7 +86,9 @@
     background: var(--aq-accent-soft);
     color: var(--aq-accent-soft-foreground);
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     text-wrap: balance;
     letter-spacing: -0.02em;
   }

@@ -14,9 +14,20 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path d="M16 6.5v6M13.2 9 16 6.2 18.8 9" fill="none" className="stroke-accent-foreground" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M16 6.5v6M13.2 9 16 6.2 18.8 9"
+          fill="none"
+          className="stroke-accent-foreground"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
-      {compact ? <span className="sr-only">Aquisiteur</span> : <span className="text-lg">Aquisiteur</span>}
+      {compact ? (
+        <span className="sr-only">Aquisiteur</span>
+      ) : (
+        <span className="text-lg">Aquisiteur</span>
+      )}
     </span>
   );
 }
