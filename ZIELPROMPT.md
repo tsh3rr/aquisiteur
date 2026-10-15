@@ -42,7 +42,7 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
 
 1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Aquisiteur als SaaS nutzen können, ohne Umbau des Datenmodells.
-2. **Hosting**: Vercel (Function-Region `fra1`) + Supabase (Region EU/Frankfurt). Alle personenbezogenen Daten bleiben in der EU.
+2. **Hosting**: **Cloudflare Workers** (Next.js über den OpenNext-Adapter `@opennextjs/cloudflare`, Paid Plan) + **Postgres bei Supabase** (Region EU/Frankfurt), angebunden über Cloudflare Hyperdrive. Alle personenbezogenen Daten liegen in der EU-Datenbank. Die App muss **ohne Umbau auf einen anderen Hoster umziehbar** sein (siehe §5a), z. B. auf einen eigenen Server (Hetzner + Coolify) oder Vercel.
 3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
 4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
 5. **Chat**: Eigener Live-Chat im Exposé. Der Owner antwortet aus dem Cockpit (PWA, Push am Handy). Übergabe an WhatsApp jederzeit möglich.
@@ -61,23 +61,41 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 |---|---|---|
 | Framework | **Next.js (App Router)**, React Server Components, Server Actions, TypeScript strict | Ein Repo für Cockpit, öffentliche Exposés und Edge-Redirects |
 | Paketmanager | pnpm | |
-| Datenbank | **Postgres (Supabase)** mit Row Level Security | Realtime für Chat & Live-Feed inklusive |
+| Hosting | **Cloudflare Workers** via OpenNext, statische Assets über Workers Assets, **Cloudflare for SaaS** für Kundendomains | Günstig, schnell an der Edge, ideal für Kurzlinks |
+| Datenbank | **Postgres (Supabase EU)** mit Row Level Security, Zugriff über Hyperdrive | Standard-Postgres, jederzeit umziehbar |
 | ORM / Migrations | **Drizzle ORM** + drizzle-kit | Typsicher, SQL-nah, schnell |
-| Auth (Cockpit) | **Passkeys** (WebAuthn) + Magic Link als Fallback, z. B. via Better Auth oder Supabase Auth | Kein Passwort, ein Nutzer |
+| Auth (Cockpit) | **Passkeys** (WebAuthn) + Magic Link als Fallback, via **Better Auth** (Daten in der eigenen Postgres-DB) | Kein Passwort, kein Anbieter-Lock-in |
 | Validierung | **Zod** (Schemas teilen zwischen Client, Server, Exposé-Import) | |
 | UI | **Tailwind CSS** (aktuelle Major), **shadcn/ui** auf Radix-Primitives, eigene Design Tokens | Zugängliche Primitives, volle Designkontrolle |
 | Motion | **Motion** (ehem. Framer Motion) + native **View Transitions API**, CSS Scroll-Driven Animations | |
 | Charts | Recharts oder visx, dezent | |
-| Background Jobs | **Inngest** oder Trigger.dev (Benachrichtigungen, Digests, Retention-Löschung, Score-Neuberechnung) | Retries, Zeitpläne, Debounce |
+| Background Jobs | **Cloudflare Queues + Cron Triggers** hinter einer eigenen Job-Schnittstelle (Benachrichtigungen, Digests, Retention-Löschung, Score-Neuberechnung) | Retries, Zeitpläne, Debounce; austauschbar gegen z. B. pg-boss oder Inngest |
 | E-Mail | **Resend** + React Email | |
 | Push | Web Push (VAPID), PWA mit Service Worker | Owner bekommt Push auf iOS/Android ohne App Store |
 | QR | Lib, die **SVG** erzeugt (z. B. `qrcode`), Fehlerkorrektur Level M–Q, optional Logo in der Mitte | Druckqualität |
-| PDF (Brief) | React-PDF oder serverseitiges HTML→PDF (Playwright/Chromium) | DIN 5008, druckfertig |
-| Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert in Supabase Storage | |
-| Rate Limiting | Upstash Redis oder Postgres-basiert | |
+| PDF (Brief) | **React-PDF** (läuft überall, kein Chromium nötig) | DIN 5008, druckfertig |
+| Dateien & Bilder | **Cloudflare R2** über die **S3-kompatible API**; Bildoptimierung (AVIF/WebP, mehrere Größen) beim Veröffentlichen per CLI mit `sharp`, nicht zur Laufzeit | Kein Egress, überall nutzbar |
+| Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert in R2 | |
+| Rate Limiting | Cloudflare Rate Limiting Binding hinter eigener Schnittstelle, Fallback Postgres-basiert | |
 | Tests | **Vitest** (Unit), **Playwright** (E2E), **axe-core** (A11y in E2E), Lighthouse CI | |
 | Qualität | ESLint + Prettier (oder Biome), Typecheck in CI, GitHub Actions | |
 | Monitoring | Sentry (EU-Region) | |
+
+---
+
+## 5a. Portabilität: jederzeit umziehen können
+
+Cloudflare ist das Ziel, aber kein Käfig. Wenn Limits, Kosten oder Anforderungen (z. B. ein SaaS-Kunde verlangt Hosting nur in Deutschland) es nötig machen, muss ein Umzug auf einen anderen Hoster **ein Konfigurationswechsel sein, kein Umbau**. Regeln:
+
+- **Anbieterspezifischer Code nur in `src/infra/`**: Für Storage, Queue/Jobs, Cron, Cache/KV, Rate-Limit, Realtime, Domains (TLS für Kundendomains), E-Mail, Push und Briefversand gibt es je eine schmale TypeScript-Schnittstelle mit einer Cloudflare-Implementierung **und** einer Node-Implementierung (z. B. S3/MinIO, pg-boss, node-cron, In-Memory/Redis). Fachcode importiert nie direkt `cloudflare:*`-Bindings oder Anbieter-SDKs.
+- **Zwei Build-Ziele in CI**: Bei jedem Push werden (1) das Cloudflare-Bundle und (2) ein **Docker-Image mit Node** gebaut, und die E2E-Tests laufen gegen das Docker-Image. So ist jederzeit bewiesen, dass die App auch auf Hetzner/Coolify, Railway, Fly.io oder Vercel läuft.
+- **Nur Standard-Postgres**: Drizzle-Migrations als einzige Quelle der Wahrheit, keine Supabase-spezifischen Features außer hinter Adaptern. Die DB muss mit `pg_dump`/`pg_restore` auf jeden Postgres-Anbieter umziehen können.
+- **Auth in der eigenen DB** (Better Auth), damit Nutzerkonten beim Umzug mitkommen.
+- **Dateien über die S3-API**: R2 heute, morgen jeder S3-kompatible Speicher.
+- **Konfiguration nur über Env-Variablen**, dokumentiert in `.env.example`, mit Profilen `cloudflare` und `node`.
+- **Lokale Entwicklung** mit `docker compose` (Postgres, MinIO) plus `wrangler dev` zum Testen der Cloudflare-Variante.
+- **Limits beobachten**: Ein kleiner Bereich im Cockpit (Einstellungen → System) zeigt Requests, CPU-Zeit, DB-Größe und Speicher im Verhältnis zu den Plan-Limits und warnt ab 80 %.
+- `docs/HOSTING.md` beschreibt Schritt für Schritt den Umzug auf einen eigenen Server (Hetzner + Coolify) und auf Vercel.
 
 ---
 
@@ -111,7 +129,7 @@ Alles in **einer** Next.js-App, getrennt über Route Groups und Middleware.
 
 ### 6.4 Echtzeit
 
-- Supabase Realtime für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller liest Abschnitt *Preise*“), Live-Indikator am Prospect.
+- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), erste Implementierung mit Supabase Realtime (Alternative: Durable Objects mit WebSockets), für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller liest Abschnitt *Preise*“), Live-Indikator am Prospect.
 
 ---
 
@@ -310,7 +328,7 @@ Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis 
 - **IP-Adressen** nur zur Geo-Grobauflösung und Bot-Erkennung im Moment der Anfrage verwenden, nicht speichern (oder gekürzt).
 - **Aufbewahrung**: Rohevents und Replays nach konfigurierbarer Frist automatisch löschen (Standard: 12 Monate Events, 90 Tage Replays). Prospect mit „Kein Interesse“ → personenbezogene Trackingdaten nach 30 Tagen löschen, nur Sperrvermerk behalten.
 - **Betroffenenrechte**: Export und Löschung pro Prospect mit einem Klick.
-- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Vercel, Supabase, Resend, Sentry jeweils EU-Region). Liste in `docs/PRIVACY.md`.
+- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Cloudflare, Supabase, Resend, Sentry; jeweils EU-Region bzw. EU-Datenspeicherung, wo verfügbar). Liste in `docs/PRIVACY.md`.
 - Impressum und Datenschutzerklärung als konfigurierbare Seiten.
 - Opt-out-Link im Exposé (§ 7.3) und auf Wunsch im Brief.
 
@@ -323,7 +341,7 @@ v1 hat nur einen Nutzer, aber jede Zeile Code wird so geschrieben, als gäbe es 
 - **Mandantentrennung**: Jede fachliche Tabelle hat `workspace_id` (NOT NULL, indiziert). RLS-Policies prüfen die Workspace-Mitgliedschaft, nicht „ist eingeloggt“. Ein Test stellt sicher, dass Workspace A niemals Daten von Workspace B sieht (auch über Realtime, Storage und API-Tokens).
 - **Nutzer ≠ Workspace**: Tabellen `workspaces`, `users`, `memberships` (Rolle: `owner`, `admin`, `member`). Ein Nutzer kann mehreren Workspaces angehören. Berechtigungen laufen über eine zentrale `can(user, action, resource)`-Funktion, auch wenn es heute nur `owner` gibt.
 - **Nichts hartkodiert**: Name, Foto, Telefonnummern, WhatsApp, Absenderadresse, Impressum, Datenschutztext, Brief-Vorlagen, Branding, Score-Gewichte und Nudge-Texte gehören zu den **Workspace-Einstellungen**, nicht in Env-Variablen oder Code.
-- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über die Custom-Hostname-Funktion des Hosters.
+- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über Cloudflare for SaaS (Custom Hostnames), gekapselt in einer `DomainProvider`-Schnittstelle.
 - **Storage-Pfade** immer mit Workspace-Präfix (`/{workspace_id}/exposes/...`).
 - **Externe Dienste pro Workspace konfigurierbar**: Absender-Domain für E-Mails, Print-API-Zugang, Messenger-Kanäle. Secrets dieser Integrationen verschlüsselt in der DB (nicht in Env).
 - **Nutzungsmessung**: Eine `usage_events`-Tabelle zählt ab Tag 1 abrechnungsrelevante Dinge (veröffentlichte Exposés, Besuche, versendete Briefe, Speicher). Darauf baut später die Abrechnung.
@@ -384,7 +402,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 
 | Phase | Inhalt | Fertig, wenn … |
 |---|---|---|
-| **0 – Fundament** | Repo-Setup, CI, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
+| **0 – Fundament** | Repo-Setup, CI mit beiden Build-Zielen (Cloudflare + Docker/Node), `src/infra/`-Schnittstellen, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
 | **1 – Exposé-Hosting** | Schema + JSON Schema, CLI `validate/publish`, Blockbibliothek, öffentliches Rendering, Theming, Vorschau, `EXPOSE_AUTHORING.md` | Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße |
 | **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
 | **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
