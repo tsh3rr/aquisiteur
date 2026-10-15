@@ -37,6 +37,7 @@ export function classifyHost(
     }
     return { kind: "unknown" };
   }
-  if (host.includes(".") && !host.startsWith("[")) return { kind: "custom-domain", hostname: host };
+  const isIpLiteral = host.startsWith("[") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  if (host.includes(".") && !isIpLiteral) return { kind: "custom-domain", hostname: host };
   return { kind: "unknown" };
 }
