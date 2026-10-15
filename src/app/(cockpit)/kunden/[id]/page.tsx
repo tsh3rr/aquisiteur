@@ -1,0 +1,330 @@
+import { eq } from "drizzle-orm";
+import { ArrowLeft, ExternalLink, Globe, Mail, Phone } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { workspaces } from "@/db/schema";
+import { can } from "@/domain/authz";
+import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
+import { formatDuration } from "@/domain/tracking/timeline";
+import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { loadProspectDetail } from "@/server/prospects/detail";
+import { requireCockpit } from "@/server/session";
+import { touchpointUrls } from "@/server/tracking/touchpoints";
+import { signOwnerLink } from "@/server/tracking/visits";
+import { updateProspectAction, deleteProspectAction } from "../actions";
+import { ProspectForm } from "../prospect-form";
+import { Contacts } from "./contacts";
+import { StatusSelect } from "./status-select";
+import { Timeline } from "./timeline";
+import { Touchpoints } from "./touchpoints";
+
+type Params = Promise<{ id: string }>;
+type Search = Promise<{ bots?: string }>;
+
+export const metadata: Metadata = { title: "Kunde" };
+
+const dateTime = new Intl.DateTimeFormat("de-DE", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Europe/Berlin",
+});
+const DEVICE = {
+  mobile: "Smartphone",
+  tablet: "Tablet",
+  desktop: "Computer",
+  unknown: "Unbekannt",
+};
+const SOURCE = { qr: "QR-Code", typed: "Kurzlink", direct: "Direkt", share: "Weitergeleitet" };
+
+const action =
+  "inline-flex h-11 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-medium shadow-sm hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+
+export default async function CustomerPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
+  const showBots = (await searchParams).bots === "1";
+  const { workspace, actor, tenant } = await requireCockpit();
+  const loaded = await tenant(async (tx) => {
+    const detail = await loadProspectDetail(tx, workspace.id, id, { showBots });
+    const [ws] = await tx
+      .select({ id: workspaces.id, slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspace.id));
+    return detail && ws ? { detail, origin: await workspacePublicOrigin(tx, ws) } : null;
+  });
+  if (!loaded) notFound();
+  const { detail, origin } = loaded;
+  const { prospect } = detail;
+  const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
+  const ownerLink = `${origin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
+  const realVisits = detail.visits.filter((v) => !v.isBot && !v.isInternal && v.confirmedAt);
+
+  return (
+    <div className="grid gap-6">
+      <Link
+        href="/kunden"
+        className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-sm text-foreground-muted hover:text-foreground"
+      >
+        <ArrowLeft aria-hidden className="size-4" />
+        Alle Kunden
+      </Link>
+
+      <header className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold">{prospect.companyName}</h1>
+          <Badge tone={STATUS_TONES[prospect.status]}>{STATUS_LABELS[prospect.status]}</Badge>
+          {prospect.doNotContactAt ? <Badge tone="danger">Nicht mehr kontaktieren</Badge> : null}
+        </div>
+        <p className="text-foreground-muted">
+          {[prospect.industry, [prospect.postalCode, prospect.city].filter(Boolean).join(" ")]
+            .filter(Boolean)
+            .join(" · ") || "Noch keine Stammdaten"}
+          {" · "}
+          {realVisits.length} {realVisits.length === 1 ? "Besuch" : "Besuche"}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {prospect.phone ? (
+            <a href={`tel:${prospect.phone.replace(/\s/g, "")}`} className={action}>
+              <Phone aria-hidden className="size-4" />
+              Anrufen
+            </a>
+          ) : null}
+          {prospect.email ? (
+            <a href={`mailto:${prospect.email}`} className={action}>
+              <Mail aria-hidden className="size-4" />
+              E-Mail
+            </a>
+          ) : null}
+          {prospect.website ? (
+            <a href={prospect.website} target="_blank" rel="noopener noreferrer" className={action}>
+              <Globe aria-hidden className="size-4" />
+              Website<span className="sr-only"> (neuer Tab)</span>
+            </a>
+          ) : null}
+          {detail.expose ? (
+            <Link href={`/exposes/${detail.expose.id}`} className={action}>
+              <ExternalLink aria-hidden className="size-4" />
+              Exposé
+            </Link>
+          ) : null}
+          {canManage ? <StatusSelect id={prospect.id} status={prospect.status} /> : null}
+        </div>
+      </header>
+
+      <div className="grid items-start gap-6 xl:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-3 [&>*]:min-w-0">
+          <Card>
+            <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Timeline</CardTitle>
+              {detail.botCount > 0 ? (
+                <Link
+                  href={showBots ? `/kunden/${id}` : `/kunden/${id}?bots=1`}
+                  className="inline-flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
+                >
+                  {showBots
+                    ? "Bots und Link-Vorschauen ausblenden"
+                    : `${detail.botCount} ${detail.botCount === 1 ? "Bot" : "Bots"} und Link-Vorschauen anzeigen`}
+                </Link>
+              ) : null}
+            </CardHeader>
+            <CardContent>
+              <Timeline entries={detail.timeline} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Besuche im Detail</CardTitle>
+              <CardDescription>
+                Ohne Bots. Ort aus der Netzwerkadresse, die danach verworfen wird.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {realVisits.length === 0 ? (
+                <p className="text-sm text-foreground-muted">Noch keine Besuche.</p>
+              ) : (
+                <div
+                  className="overflow-x-auto"
+                  role="region"
+                  aria-label="Besuche, seitlich scrollbar"
+                  tabIndex={0}
+                >
+                  <table className="w-full min-w-[36rem] text-left text-sm">
+                    <caption className="sr-only">Besuche von {prospect.companyName}</caption>
+                    <thead className="border-b border-border text-foreground-muted">
+                      <tr>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Zeit
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Einstieg
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Gerät
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Ort
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Dauer
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Scroll
+                        </th>
+                        <th scope="col" className="py-2 font-medium">
+                          Gelesen
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {realVisits.map((visit) => (
+                        <tr key={visit.id}>
+                          <td className="py-2 pr-4 whitespace-nowrap">
+                            {dateTime.format(visit.startedAt)}
+                          </td>
+                          <td className="py-2 pr-4">{SOURCE[visit.source]}</td>
+                          <td className="py-2 pr-4">
+                            {DEVICE[visit.device]}
+                            {visit.browser ? (
+                              <span className="text-foreground-muted">, {visit.browser}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-2 pr-4">{visit.city ?? "–"}</td>
+                          <td className="py-2 pr-4 tabular-nums">
+                            {formatDuration(visit.activeSeconds)}
+                          </td>
+                          <td className="py-2 pr-4 tabular-nums">{visit.maxScroll} %</td>
+                          <td className="py-2">{visit.sections.join(", ") || "–"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-2 [&>*]:min-w-0">
+          <Card>
+            <CardHeader>
+              <CardTitle>Links und QR-Codes</CardTitle>
+              <CardDescription>
+                Jeder Link zählt für sich, so sehen Sie, ob Brief, Folgebrief oder Visitenkarte
+                gewirkt hat.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <Touchpoints
+                prospectId={prospect.id}
+                hasExpose={detail.expose !== null}
+                canManage={canManage}
+                qrBase={`/kunden/${prospect.id}/qr`}
+                touchpoints={detail.touchpoints.map((link) => ({
+                  id: link.id,
+                  channel: link.channel,
+                  label: link.label,
+                  ...touchpointUrls(origin, link),
+                  disabled: link.disabledAt !== null,
+                  visits: link.visits,
+                  createdAt: link.createdAt.toISOString(),
+                }))}
+              />
+              <p className="text-sm text-foreground-muted">
+                Ihre eigenen Aufrufe zählen nicht, wenn Sie{" "}
+                <a href={ownerLink} className="text-accent underline underline-offset-4">
+                  dieses Gerät als Ihres markieren
+                </a>
+                . Tun Sie das auf jedem Gerät, mit dem Sie Exposés ansehen.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Ansprechpartner</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Contacts
+                prospectId={prospect.id}
+                canManage={canManage}
+                contacts={detail.contacts.map((contact) => ({
+                  id: contact.id,
+                  name:
+                    [contact.salutation, contact.firstName, contact.lastName]
+                      .filter(Boolean)
+                      .join(" ") ||
+                    (contact.role ?? "Ohne Namen"),
+                  role: contact.firstName || contact.lastName ? contact.role : null,
+                  email: contact.email,
+                  phone: contact.phone,
+                }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Stammdaten</CardTitle>
+              <CardDescription>
+                Schlüssel für die expose.json: <code className="font-mono">{prospect.key}</code>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {canManage ? (
+                <ProspectForm
+                  action={updateProspectAction}
+                  values={prospect}
+                  submitLabel="Speichern"
+                  compact
+                />
+              ) : (
+                <p className="text-sm text-foreground-muted">Nur Lesezugriff.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {canManage ? (
+            <Card className="border-danger/40">
+              <CardHeader>
+                <CardTitle>Kunden löschen</CardTitle>
+                <CardDescription>
+                  Löscht den Kunden mit Exposé, Links, Besuchen und Ereignissen. Das lässt sich
+                  nicht rückgängig machen.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <details>
+                  <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">
+                    Löschen …
+                  </summary>
+                  <form action={deleteProspectAction} className="mt-3 grid gap-3">
+                    <input type="hidden" name="id" value={prospect.id} />
+                    <p className="text-sm">
+                      {prospect.companyName} und alle Daten dazu endgültig löschen?
+                    </p>
+                    <button
+                      type="submit"
+                      className="inline-flex h-11 items-center justify-self-start rounded-md bg-danger px-4 text-sm font-medium text-danger-foreground hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    >
+                      Endgültig löschen
+                    </button>
+                  </form>
+                </details>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

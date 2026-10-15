@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { Globe } from "lucide-react";
 import type { Metadata } from "next";
 import { serverEnv } from "@/config/env";
-import { apiTokens, domains } from "@/db/schema";
+import { apiTokens, domains, workspaces } from "@/db/schema";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
@@ -10,7 +10,9 @@ import { can } from "@/domain/authz";
 import { entitlements } from "@/domain/entitlements";
 import { BrandImageField } from "@/components/cockpit/brand-image-field";
 import { loadBrandImages } from "@/server/brand-images";
+import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { requireCockpit } from "@/server/session";
+import { signOwnerLink } from "@/server/tracking/visits";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { PasskeyManager } from "./passkey-manager";
@@ -54,6 +56,14 @@ export default async function SettingsPage() {
           .orderBy(desc(apiTokens.createdAt)),
       )
     : [];
+  const publicOrigin = await tenant(async (tx) => {
+    const [ws] = await tx
+      .select({ id: workspaces.id, slug: workspaces.slug })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspace.id));
+    return workspacePublicOrigin(tx, ws!);
+  });
+  const ownerLink = `${publicOrigin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
   const plan = entitlements({ id: workspace.id });
   const platformHost = `${workspace.slug}.${serverEnv().PLATFORM_DOMAIN}`;
 
@@ -134,6 +144,31 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <PasskeyManager canManage={can(actor, "workspace.read", { workspaceId: workspace.id })} />
+        </CardContent>
+      </Card>
+
+      <Card id="eigene-besuche">
+        <CardHeader>
+          <CardTitle>Eigene Besuche</CardTitle>
+          <CardDescription>
+            Damit Ihre eigenen Aufrufe von Exposés nicht als Kundenbesuche zählen, markieren Sie
+            jedes Gerät, mit dem Sie Exposés ansehen. Dafür setzt die Exposé-Domain auf diesem Gerät
+            ein Cookie, nur für Sie, nie für Interessenten.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <a
+            href={ownerLink}
+            className="inline-flex h-11 items-center rounded-md border border-border bg-surface px-4 text-sm font-medium shadow-sm hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            Dieses Gerät als meines markieren
+          </a>
+          <a
+            href={`${publicOrigin}/owner-device?entfernen=1`}
+            className="inline-flex h-11 items-center px-2 text-sm text-accent underline-offset-4 hover:underline"
+          >
+            Markierung entfernen
+          </a>
         </CardContent>
       </Card>
 

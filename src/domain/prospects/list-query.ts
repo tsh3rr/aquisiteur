@@ -49,8 +49,8 @@ export function parseListQuery(params: Params): ListQuery {
     .filter(isProspectStatus);
   const activity = one(params, "aktiv");
   const sort = one(params, "sort");
-  const columns = one(params, "spalten")
-    ?.split(",")
+  const columns = all(params, "spalten")
+    .flatMap((value) => value.split(","))
     .filter((c): c is Column => (COLUMNS as readonly string[]).includes(c));
   const tag = one(params, "tag")?.trim().slice(0, 40);
   return {
@@ -62,7 +62,7 @@ export function parseListQuery(params: Params): ListQuery {
     tag: tag || null,
     sort: (SORT_KEYS as readonly string[]).includes(sort ?? "") ? (sort as SortKey) : "activity",
     dir: one(params, "dir") === "asc" ? "asc" : "desc",
-    columns: columns && columns.length > 0 ? columns : DEFAULT_COLUMNS,
+    columns: columns.length > 0 ? COLUMNS.filter((c) => columns.includes(c)) : DEFAULT_COLUMNS,
   };
 }
 

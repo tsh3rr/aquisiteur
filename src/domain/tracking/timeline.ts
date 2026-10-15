@@ -51,6 +51,7 @@ export interface TimelineEntry {
   steps: { at: Date; text: string }[];
   /** Bots, owner visits and visits whose page never loaded. */
   muted: boolean;
+  bot: boolean;
 }
 
 const DEVICE_LABELS = {
@@ -135,7 +136,7 @@ export function describeEvent(event: TimelineEvent, outline: ExposeOutline): str
 }
 
 function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
-  const base = { key: `audit-${index}`, at: audit.createdAt, steps: [], muted: false };
+  const base = { key: `audit-${index}`, at: audit.createdAt, steps: [], muted: false, bot: false };
   switch (audit.action) {
     case "prospect.status_changed": {
       const to = audit.meta.to;
@@ -204,6 +205,7 @@ export function buildTimeline(input: {
       detail: visitDetail(visit) || null,
       steps: steps.get(visit.id) ?? [],
       muted: visit.isBot || visit.isInternal || !visit.confirmedAt,
+      bot: visit.isBot,
     }));
   input.audits.forEach((audit, index) => {
     const entry = auditEntry(audit, index);
