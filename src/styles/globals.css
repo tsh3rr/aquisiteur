@@ -1,0 +1,115 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Dark mode follows data-theme="dark" or the OS preference when no explicit choice exists. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --color-*: initial;
+  --color-background: var(--aq-background);
+  --color-surface: var(--aq-surface);
+  --color-surface-raised: var(--aq-surface-raised);
+  --color-surface-sunken: var(--aq-surface-sunken);
+  --color-foreground: var(--aq-foreground);
+  --color-foreground-muted: var(--aq-foreground-muted);
+  --color-foreground-subtle: var(--aq-foreground-subtle);
+  --color-border: var(--aq-border);
+  --color-border-strong: var(--aq-border-strong);
+  --color-accent: var(--aq-accent);
+  --color-accent-hover: var(--aq-accent-hover);
+  --color-accent-foreground: var(--aq-accent-foreground);
+  --color-accent-soft: var(--aq-accent-soft);
+  --color-accent-soft-foreground: var(--aq-accent-soft-foreground);
+  --color-focus-ring: var(--aq-focus-ring);
+  --color-success: var(--aq-success);
+  --color-success-soft: var(--aq-success-soft);
+  --color-success-foreground: var(--aq-success-foreground);
+  --color-warning: var(--aq-warning);
+  --color-warning-soft: var(--aq-warning-soft);
+  --color-warning-foreground: var(--aq-warning-foreground);
+  --color-danger: var(--aq-danger);
+  --color-danger-hover: var(--aq-danger-hover);
+  --color-danger-foreground: var(--aq-danger-foreground);
+  --color-danger-soft: var(--aq-danger-soft);
+  --color-danger-soft-foreground: var(--aq-danger-soft-foreground);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-sm: var(--aq-radius-sm);
+  --radius-md: var(--aq-radius-md);
+  --radius-lg: var(--aq-radius-lg);
+  --radius-xl: var(--aq-radius-xl);
+
+  --shadow-sm: var(--aq-shadow-sm);
+  --shadow-md: var(--aq-shadow-md);
+  --shadow-lg: var(--aq-shadow-lg);
+
+  --text-xs: var(--aq-text-xs);
+  --text-sm: var(--aq-text-sm);
+  --text-base: var(--aq-text-base);
+  --text-lg: var(--aq-text-lg);
+  --text-xl: var(--aq-text-xl);
+  --text-2xl: var(--aq-text-2xl);
+  --text-3xl: var(--aq-text-3xl);
+  --text-4xl: var(--aq-text-4xl);
+
+  --ease-out: var(--aq-motion-ease-out);
+  --ease-in-out: var(--aq-motion-ease-in-out);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  :focus-visible {
+    outline: 2px solid var(--aq-focus-ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--aq-accent-soft);
+    color: var(--aq-accent-soft-foreground);
+  }
+  h1, h2, h3 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* Cross-document view transitions between cockpit pages (§8). */
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
