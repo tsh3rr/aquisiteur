@@ -87,13 +87,13 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 
 Cloudflare ist das Ziel, aber kein Käfig. Wenn Limits, Kosten oder Anforderungen (z. B. ein SaaS-Kunde verlangt Hosting nur in Deutschland) es nötig machen, muss ein Umzug auf einen anderen Hoster **ein Konfigurationswechsel sein, kein Umbau**. Regeln:
 
-- **Anbieterspezifischer Code nur in `src/infra/`**: Für Storage, Queue/Jobs, Cron, Cache/KV, Rate-Limit, Realtime, Domains (TLS für Kundendomains), E-Mail, Push und Briefversand gibt es je eine schmale TypeScript-Schnittstelle mit einer Cloudflare-Implementierung **und** einer Node-Implementierung (z. B. S3/MinIO, pg-boss, node-cron, In-Memory/Redis). Fachcode importiert nie direkt `cloudflare:*`-Bindings oder Anbieter-SDKs.
-- **Zwei Build-Ziele in CI**: Bei jedem Push werden (1) das Cloudflare-Bundle und (2) ein **Docker-Image mit Node** gebaut, und die E2E-Tests laufen gegen das Docker-Image. So ist jederzeit bewiesen, dass die App auch auf Hetzner/Coolify, Railway, Fly.io oder Vercel läuft.
+- **Anbieterspezifischer Code nur in `src/infra/`**: Für Storage, Queue/Jobs, Cron, Cache/KV, Rate-Limit, Realtime, Domains (TLS für Kundendomains), E-Mail, Push und Briefversand gibt es je eine schmale TypeScript-Schnittstelle. In v1 wird **nur die Cloudflare-Implementierung** gebaut; Alternativen (z. B. S3/MinIO, pg-boss, node-cron) kommen erst, wenn ein Umzug ansteht. Fachcode importiert nie direkt `cloudflare:*`-Bindings oder Anbieter-SDKs; eine ESLint-Regel erzwingt das außerhalb von `src/infra/`.
+- **Kein zweites Deployment-Ziel in v1**: Kein Docker-Image, keine doppelten E2E-Läufe. Die Trennung über `src/infra/` plus Lint-Regel reicht, um einen späteren Umzug klein zu halten.
 - **Nur Standard-Postgres**: Drizzle-Migrations als einzige Quelle der Wahrheit, keine Supabase-spezifischen Features außer hinter Adaptern. Die DB muss mit `pg_dump`/`pg_restore` auf jeden Postgres-Anbieter umziehen können.
 - **Auth in der eigenen DB** (Better Auth), damit Nutzerkonten beim Umzug mitkommen.
 - **Dateien über die S3-API**: R2 heute, morgen jeder S3-kompatible Speicher.
 - **Konfiguration nur über Env-Variablen**, dokumentiert in `.env.example`, mit Profilen `cloudflare` und `node`.
-- **Lokale Entwicklung** mit `docker compose` (Postgres, MinIO) plus `wrangler dev` zum Testen der Cloudflare-Variante.
+- **Lokale Entwicklung** mit `next dev` gegen eine lokale oder Supabase-Dev-Datenbank, `wrangler dev` zum Testen der Cloudflare-Variante.
 - **Limits beobachten**: Ein kleiner Bereich im Cockpit (Einstellungen → System) zeigt Requests, CPU-Zeit, DB-Größe und Speicher im Verhältnis zu den Plan-Limits und warnt ab 80 %.
 - `docs/HOSTING.md` beschreibt Schritt für Schritt den Umzug auf einen eigenen Server (Hetzner + Coolify) und auf Vercel.
 
@@ -402,7 +402,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 
 | Phase | Inhalt | Fertig, wenn … |
 |---|---|---|
-| **0 – Fundament** | Repo-Setup, CI mit beiden Build-Zielen (Cloudflare + Docker/Node), `src/infra/`-Schnittstellen, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
+| **0 – Fundament** | Repo-Setup, CI, `src/infra/`-Schnittstellen mit Lint-Regel, Design Tokens, Design-System-Seite, Auth (Passkey), mandantenfähiges DB-Schema (Workspaces, Memberships, RLS) + Migrations, Host-basiertes Routing, Onboarding-Wizard, Seed | Owner legt per Wizard seinen Workspace an, sieht leeres Cockpit, Isolationstest zwischen zwei Workspaces grün, CI grün |
 | **1 – Exposé-Hosting** | Schema + JSON Schema, CLI `validate/publish`, Blockbibliothek, öffentliches Rendering, Theming, Vorschau, `EXPOSE_AUTHORING.md` | Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0 Verstöße |
 | **2 – Links & Tracking** | Touchpoints, Kurzlinks, QR-Export, Resolver, Bot-/Internal-Filter, Tracking-Script, Event-Ingestion, Timeline im Cockpit | Scan erscheint in der Timeline, Bots werden ignoriert |
 | **3 – Kontakt & Chat** | Kontaktblock mit allen v1-Kanälen, Live-Chat (beide Seiten, Realtime), Rückruf, Entwurfserkennung, Nudges | Chat funktioniert Handy ↔ Cockpit in Echtzeit |
