@@ -149,6 +149,23 @@ Das baut die App mit OpenNext und lädt sie als Worker hoch. Danach `https://app
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
 
+## Ohne E-Mail-Versand testen (vor Schritt 5)
+
+Resend ist für einen ersten Test nicht nötig. Die Anmeldung läuft über Better Auth in der eigenen
+Datenbank, nicht über Supabase Auth; ein Nutzer, den du im Supabase-Dashboard anlegst, hilft deshalb
+nicht. Stattdessen schreibt der Log-Modus den Anmeldelink ins Worker-Log:
+
+1. In `vars`: `"EMAIL_PROVIDER": "log"` und `"ALLOW_LOG_EMAIL": "1"`, deine Adresse in `SIGNUP_ALLOWLIST`.
+   `RESEND_API_KEY` weglassen.
+2. `pnpm cf:deploy`, in einem zweiten Terminal `pnpm wrangler tail`.
+3. Im Cockpit deine Adresse eingeben; der Link erscheint im `tail`-Fenster. Öffnen, Assistent
+   durchlaufen, Passkey anlegen.
+4. Ab dann meldest du dich per Passkey an. Vor dem echten Betrieb auf Resend umstellen und
+   `ALLOW_LOG_EMAIL` entfernen, denn jeder mit Zugriff auf die Logs könnte sonst Anmeldelinks lesen.
+
+Lokal (`pnpm dev`) ist das der Standard: Der Link steht im Terminal, `pnpm db:seed` legt zusätzlich
+einen Test-Workspace für `SEED_OWNER_EMAIL` an.
+
 ## Updates einspielen
 
 ```bash
