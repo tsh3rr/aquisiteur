@@ -3,7 +3,9 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
+import { publishExpose } from "@/server/exposes/publish";
 import { createWorkspace } from "@/server/workspaces";
+import { minimalExpose } from "../support/expose";
 
 /**
  * §9a: "Workspace A never sees data of workspace B." Runs as the real tenant
@@ -27,9 +29,14 @@ const tenantTables = {
   api_tokens: schema.apiTokens,
   audit_log: schema.auditLog,
   memberships: schema.memberships,
+  prospects: schema.prospects,
+  contacts: schema.contacts,
+  exposes: schema.exposes,
+  expose_versions: schema.exposeVersions,
+  assets: schema.assets,
 } satisfies Record<string, PgTable>;
 
-async function seedWorkspaceData(workspaceId: string, tag: string) {
+async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
   await db.insert(schema.domains).values({ workspaceId, hostname: `go.${tag}.test` });
   await db
     .insert(schema.integrations)
@@ -38,6 +45,21 @@ async function seedWorkspaceData(workspaceId: string, tag: string) {
   await db
     .insert(schema.apiTokens)
     .values({ workspaceId, name: tag, prefix: tag, tokenHash: `hash-${tag}` });
+  await db.insert(schema.assets).values({
+    workspaceId,
+    sha256: tag.repeat(64),
+    kind: "image",
+    originalName: `${tag}.png`,
+    bytes: 1,
+    variants: [],
+  });
+  await withTenant(db, { userId, workspaceId }, (tx) =>
+    publishExpose(
+      tx,
+      { workspaceId, userId, source: "seed" },
+      { document: minimalExpose(`kunde-${tag}`, `Kunde ${tag}`), assets: [] },
+    ),
+  );
 }
 
 beforeAll(async () => {
@@ -51,8 +73,8 @@ beforeAll(async () => {
     { workspaceId: wsA, userId: carol.id, role: "member" },
     { workspaceId: wsB, userId: carol.id, role: "member" },
   ]);
-  await seedWorkspaceData(wsA, "a");
-  await seedWorkspaceData(wsB, "b");
+  await seedWorkspaceData(wsA, "a", alice.id);
+  await seedWorkspaceData(wsB, "b", bob.id);
 });
 
 /** Drizzle wraps driver errors; the Postgres message is on `cause`. */
