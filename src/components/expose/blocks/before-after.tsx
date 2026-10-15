@@ -30,7 +30,8 @@ export function BeforeAfterSlider({
           <Picture
             image={after}
             sizes="(min-width: 1024px) 960px, 100vw"
-            imgClassName="h-full object-cover"
+            sizing="h-full w-full"
+            imgClassName="object-cover"
           />
         </div>
         <div

@@ -26,7 +26,8 @@ export function OwnerBadge({
           image={photo}
           sizes={size === "sm" ? "40px" : "56px"}
           className={size === "sm" ? "size-10 shrink-0" : "size-14 shrink-0"}
-          imgClassName="size-full rounded-full object-cover ring-2 ring-surface"
+          sizing="size-full"
+          imgClassName="rounded-full object-cover ring-2 ring-surface"
         />
       ) : null}
       <div className="grid leading-tight">

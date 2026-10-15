@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { clsx } from "clsx";
 import type { ResolvedImage } from "./render-context";
 
 /**
@@ -11,12 +11,15 @@ export function Picture({
   priority = false,
   className,
   imgClassName,
+  sizing = "h-auto w-full",
 }: {
   image: ResolvedImage;
   sizes: string;
   priority?: boolean;
   className?: string;
   imgClassName?: string;
+  /** Width/height utilities; replaces the default instead of merging (no tailwind-merge in client bundles). */
+  sizing?: string;
 }) {
   return (
     <picture className={className}>
@@ -37,7 +40,7 @@ export function Picture({
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "auto"}
         decoding={priority ? "sync" : "async"}
-        className={cn("h-auto w-full", imgClassName)}
+        className={clsx(sizing, imgClassName)}
       />
     </picture>
   );

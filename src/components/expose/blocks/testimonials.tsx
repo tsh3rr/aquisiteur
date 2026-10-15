@@ -27,7 +27,8 @@ export function TestimonialsBlock({
                       image={photo}
                       sizes="48px"
                       className="size-12 shrink-0"
-                      imgClassName="size-full rounded-full object-cover"
+                      sizing="size-full"
+                      imgClassName="rounded-full object-cover"
                     />
                   ) : null}
                   <span className="grid leading-tight">

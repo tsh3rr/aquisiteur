@@ -72,7 +72,8 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
             <Picture
               image={current}
               sizes="92vw"
-              imgClassName="max-h-[80dvh] w-auto mx-auto rounded-lg object-contain"
+              sizing="max-h-[80dvh] w-auto"
+              imgClassName="mx-auto rounded-lg object-contain"
             />
             <figcaption className="text-white text-center">
               {current.caption ?? current.alt}

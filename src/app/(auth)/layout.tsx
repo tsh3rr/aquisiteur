@@ -1,5 +1,9 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
+
+/** The installable app is the cockpit; workspace hosts (exposés) do not link it. */
+export const metadata: Metadata = { manifest: "/manifest.webmanifest" };
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (

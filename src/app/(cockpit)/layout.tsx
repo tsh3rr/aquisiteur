@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { CockpitNav } from "@/components/cockpit/nav";
@@ -6,6 +7,9 @@ import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { parseTheme, THEME_COOKIE } from "@/components/theme/theme";
 import { requireCockpit } from "@/server/session";
+
+/** The installable app is the cockpit; workspace hosts (exposés) do not link it. */
+export const metadata: Metadata = { manifest: "/manifest.webmanifest" };
 
 export default async function CockpitLayout({ children }: { children: ReactNode }) {
   const { user, workspace } = await requireCockpit();

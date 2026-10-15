@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { BlockOf } from "@/domain/expose/schema";
-import { cn } from "@/lib/cn";
+import { clsx } from "clsx";
 import { pricingTotals } from "@/domain/expose/pricing";
 
 const euro = new Intl.NumberFormat("de-DE", {
@@ -35,10 +35,10 @@ export function PricingCalculator({ block }: { block: BlockOf<"pricing"> }) {
           return (
             <label
               key={option.id}
-              className={cn(
-                "flex cursor-pointer items-start gap-4 rounded-xl border bg-surface p-5 shadow-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
+              className={clsx(
+                "flex items-start gap-4 rounded-xl border bg-surface p-5 shadow-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus-ring",
                 checked ? "border-accent" : "border-border hover:border-border-strong",
-                option.required && "cursor-default",
+                option.required ? "cursor-default" : "cursor-pointer",
               )}
             >
               <input
@@ -58,7 +58,7 @@ export function PricingCalculator({ block }: { block: BlockOf<"pricing"> }) {
               />
               <span
                 aria-hidden
-                className={cn(
+                className={clsx(
                   "mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2",
                   checked
                     ? "border-accent bg-accent text-accent-foreground"

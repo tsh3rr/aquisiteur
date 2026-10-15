@@ -63,7 +63,7 @@ export function ExposeView({
               image={{ ...logo, alt: logo.alt || data.prospect.companyName }}
               sizes="200px"
               className="block shrink-0 rounded-md bg-(--expose-logo-plate) px-1.5 py-1"
-              imgClassName="h-9 w-auto"
+              sizing="h-9 w-auto"
               priority
             />
           ) : (

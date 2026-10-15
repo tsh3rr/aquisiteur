@@ -68,7 +68,7 @@ export function ContactBlock({
         )}
         <p className="text-sm text-foreground-muted">
           Ihre Referenz:{" "}
-          <span className="font-mono font-semibold text-foreground">{context.refCode}</span>
+          <span className="font-semibold tracking-wider text-foreground">{context.refCode}</span>
         </p>
       </div>
     </Section>
