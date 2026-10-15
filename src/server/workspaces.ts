@@ -3,7 +3,7 @@ import type { HostTarget } from "@/domain/hostname";
 import { validateSlug, type SlugProblem } from "@/domain/slug";
 import { workspaceSettingsSchema } from "@/domain/workspace-settings";
 import type { Role } from "@/domain/authz";
-import type { Database } from "@/db";
+import type { Database, Transaction } from "@/db";
 import { auditLog, domains, memberships, workspaceSettings, workspaces } from "@/db/schema";
 
 export interface WorkspaceSummary {
@@ -99,7 +99,7 @@ export async function resolveWorkspaceByHost(
 }
 
 /** Settings of one workspace by id (system connection; callers scope by host). */
-export async function loadWorkspaceSettings(db: Database, workspaceId: string) {
+export async function loadWorkspaceSettings(db: Database | Transaction, workspaceId: string) {
   const [row] = await db
     .select()
     .from(workspaceSettings)

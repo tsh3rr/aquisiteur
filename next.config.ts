@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: true,
+  experimental: {
+    // Profile photo and logo arrive as already scaled renditions (brand-image-actions.ts).
+    serverActions: { bodySizeLimit: "8mb" },
+  },
   async headers() {
     return [
       {

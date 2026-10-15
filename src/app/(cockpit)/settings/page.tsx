@@ -8,7 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/ui/misc";
 import { can } from "@/domain/authz";
 import { entitlements } from "@/domain/entitlements";
+import { BrandImageField } from "@/components/cockpit/brand-image-field";
+import { loadBrandImages } from "@/server/brand-images";
 import { requireCockpit } from "@/server/session";
+import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { PasskeyManager } from "./passkey-manager";
 
@@ -28,6 +31,10 @@ export default async function SettingsPage() {
       .select({ hostname: domains.hostname, status: domains.status })
       .from(domains)
       .where(eq(domains.workspaceId, workspace.id)),
+  );
+  const canEditSettings = can(actor, "settings.update", { workspaceId: workspace.id });
+  const brandImages = await tenant(async (tx) =>
+    loadBrandImages(tx, workspace.id, await loadWorkspaceSettings(tx, workspace.id)),
   );
   const canManageTokens = can(actor, "apiTokens.manage", { workspaceId: workspace.id });
   const tokens = canManageTokens
@@ -88,6 +95,32 @@ export default async function SettingsPage() {
               )}
             </dd>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Foto und Logo</CardTitle>
+          <CardDescription>
+            Ihr Foto erscheint in jedem Exposé neben Ihrer persönlichen Nachricht. Das Logo nutzen
+            später Briefe und Ihre Workspace-Seiten.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6">
+          <BrandImageField
+            kind="photo"
+            label="Profilfoto"
+            hint="Quadratisch zugeschnitten. JPG, PNG oder WebP."
+            current={brandImages.photo}
+            canEdit={canEditSettings}
+          />
+          <BrandImageField
+            kind="logo"
+            label="Logo"
+            hint="Am besten SVG oder PNG mit transparentem Hintergrund."
+            current={brandImages.logo}
+            canEdit={canEditSettings}
+          />
         </CardContent>
       </Card>
 

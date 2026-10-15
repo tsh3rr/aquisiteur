@@ -20,7 +20,7 @@ export const assetUploadMetaSchema = z.object({
   variants: z
     .array(
       z.object({
-        format: z.enum(["avif", "webp", "mp4", "webm", "vtt"]),
+        format: z.enum(["avif", "webp", "png", "mp4", "webm", "vtt"]),
         width: dimension,
         height: dimension,
         /** Name of the multipart field carrying the bytes. */

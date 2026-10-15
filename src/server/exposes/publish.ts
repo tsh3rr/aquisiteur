@@ -319,8 +319,8 @@ function checkUpload(file: PublishFile, kind: AssetKind): ValidationIssue[] {
     return issues;
   }
   if (kind === "image") {
-    if (!file.variants.some((variant) => variant.format === "webp")) {
-      add("Bilder brauchen mindestens eine WebP-Variante.");
+    if (!file.variants.some((variant) => variant.format === "webp" || variant.format === "png")) {
+      add("Bilder brauchen mindestens eine WebP- oder PNG-Variante.");
     }
     if (!file.width || !file.height) add("Bildmaße fehlen.");
   }

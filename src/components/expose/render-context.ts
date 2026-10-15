@@ -22,6 +22,8 @@ export interface ResolvedImage {
   height: number;
   avifSrcSet: string;
   webpSrcSet: string;
+  /** PNG renditions, for images uploaded from a browser that cannot encode WebP. */
+  pngSrcSet: string;
   src: string;
 }
 
@@ -38,16 +40,17 @@ export function resolveEntry(
   caption?: string,
 ): ResolvedImage | null {
   if (!entry || entry.kind !== "image" || !entry.width || !entry.height) return null;
-  const set = (format: "avif" | "webp") =>
+  const set = (format: "avif" | "webp" | "png") =>
     entry.variants
       .filter((variant) => variant.format === format && variant.width)
       .sort((a, b) => a.width! - b.width!)
       .map((variant) => `${fileUrl(base, variant.key)} ${variant.width}w`)
       .join(", ");
-  const webp = entry.variants
-    .filter((variant) => variant.format === "webp")
+  const hasWebp = entry.variants.some((variant) => variant.format === "webp");
+  const candidates = entry.variants
+    .filter((variant) => variant.format === (hasWebp ? "webp" : "png"))
     .sort((a, b) => (b.width ?? 0) - (a.width ?? 0));
-  const fallback = webp.find((variant) => (variant.width ?? 0) <= 960) ?? webp[0];
+  const fallback = candidates.find((variant) => (variant.width ?? 0) <= 960) ?? candidates[0];
   if (!fallback) return null;
   return {
     alt,
@@ -56,6 +59,7 @@ export function resolveEntry(
     height: entry.height,
     avifSrcSet: set("avif"),
     webpSrcSet: set("webp"),
+    pngSrcSet: hasWebp ? "" : set("png"),
     src: fileUrl(base, fallback.key),
   };
 }

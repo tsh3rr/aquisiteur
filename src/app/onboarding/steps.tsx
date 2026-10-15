@@ -2,6 +2,7 @@
 
 import { ArrowRight, Check, KeyRound } from "lucide-react";
 import { useActionState, useState } from "react";
+import { BrandImageField } from "@/components/cockpit/brand-image-field";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { slugify } from "@/domain/slug";
 import { authClient } from "@/lib/auth-client";
+import type { BrandImageKind, BrandImagePreview } from "@/server/brand-images";
 import {
   completeOnboarding,
   saveProfileStep,
@@ -109,13 +111,33 @@ export function WorkspaceStep({
   );
 }
 
-export function ProfileStep({ defaults }: { defaults: Defaults }) {
+export function ProfileStep({
+  defaults,
+  images,
+}: {
+  defaults: Defaults;
+  images: Record<BrandImageKind, BrandImagePreview | null>;
+}) {
   const [state, action, pending] = useStep(saveProfileStep);
   const v = (key: string) => value(state, defaults, key);
   const e = (key: string) => state.errors?.[key];
   return (
     <Card>
-      <CardContent>
+      <CardContent className="grid gap-6">
+        <div className="grid gap-6 border-b border-border pb-6 sm:grid-cols-2">
+          <BrandImageField
+            kind="photo"
+            label="Profilfoto"
+            hint="Optional. Erscheint in Ihren Exposés."
+            current={images.photo}
+          />
+          <BrandImageField
+            kind="logo"
+            label="Logo"
+            hint="Optional. Am besten SVG oder PNG."
+            current={images.logo}
+          />
+        </div>
         <form action={action} className="grid gap-5">
           <ErrorSummary state={state} />
           <div className="grid gap-5 sm:grid-cols-2">

@@ -23,10 +23,14 @@ export function Picture({
       {image.avifSrcSet ? (
         <source type="image/avif" srcSet={image.avifSrcSet} sizes={sizes} />
       ) : null}
-      <source type="image/webp" srcSet={image.webpSrcSet} sizes={sizes} />
+      {image.webpSrcSet ? (
+        <source type="image/webp" srcSet={image.webpSrcSet} sizes={sizes} />
+      ) : null}
       {/* Plain <img>: renditions are optimised at publish time (§5), not by next/image. */}
       <img
         src={image.src}
+        srcSet={image.pngSrcSet || undefined}
+        sizes={image.pngSrcSet ? sizes : undefined}
         alt={image.alt}
         width={image.width}
         height={image.height}

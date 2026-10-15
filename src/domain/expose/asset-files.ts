@@ -7,11 +7,12 @@ import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS } from "./schema";
  * cannot smuggle in other content (e.g. HTML or SVG with scripts).
  */
 export type AssetKind = "image" | "video" | "captions";
-export type VariantFormat = "avif" | "webp" | "mp4" | "webm" | "vtt";
+export type VariantFormat = "avif" | "webp" | "png" | "mp4" | "webm" | "vtt";
 
 export const CONTENT_TYPES: Record<VariantFormat, string> = {
   avif: "image/avif",
   webp: "image/webp",
+  png: "image/png",
   mp4: "video/mp4",
   webm: "video/webm",
   vtt: "text/vtt; charset=utf-8",
@@ -37,7 +38,7 @@ export function assetKindForPath(path: string): AssetKind {
 export function allowedFormats(kind: AssetKind): VariantFormat[] {
   switch (kind) {
     case "image":
-      return ["avif", "webp"];
+      return ["avif", "webp", "png"];
     case "video":
       return ["mp4", "webm"];
     case "captions":
@@ -53,6 +54,7 @@ export function sniffFormat(bytes: Uint8Array): VariantFormat | null {
   if (bytes.length >= 12 && ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WEBP") {
     return "webp";
   }
+  if (bytes.length >= 8 && bytes[0] === 0x89 && ascii(bytes, 1, 4) === "PNG") return "png";
   if (bytes.length >= 12 && ascii(bytes, 4, 8) === "ftyp") {
     const brand = ascii(bytes, 8, 12);
     if (brand === "avif" || brand === "avis") return "avif";
@@ -99,7 +101,7 @@ export function variantFileName(format: VariantFormat, width: number | null): st
 export function parseVariantFileName(
   file: string,
 ): { format: VariantFormat; width: number | null } | null {
-  const match = /^(file|\d{2,5})\.(avif|webp|mp4|webm|vtt)$/.exec(file);
+  const match = /^(file|\d{2,5})\.(avif|webp|png|mp4|webm|vtt)$/.exec(file);
   if (!match) return null;
   return {
     format: match[2] as VariantFormat,

@@ -21,7 +21,7 @@ import { apiTokens, workspaces } from "./tenancy";
 /** One responsive rendition of an image, or the stored file itself for video/captions. */
 export interface AssetVariant {
   key: string;
-  format: "avif" | "webp" | "mp4" | "webm" | "vtt";
+  format: "avif" | "webp" | "png" | "mp4" | "webm" | "vtt";
   width: number | null;
   height: number | null;
   bytes: number;

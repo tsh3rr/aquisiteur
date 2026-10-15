@@ -5,9 +5,13 @@ import {
   variantKey,
 } from "@/domain/expose/asset-files";
 import { getInfra } from "@/infra";
-import { requireCockpit } from "@/server/session";
+import { getWorkspaceContext } from "@/server/session";
 
-/** Exposé files for the cockpit preview, scoped to the signed-in workspace. */
+/**
+ * Workspace files for the cockpit (exposé preview, profile photo, logo),
+ * scoped to the signed-in member's active workspace. Also used during
+ * onboarding, so it does not require a finished setup.
+ */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ sha: string; file: string }> },
@@ -15,9 +19,10 @@ export async function GET(
   const { sha, file } = await params;
   const parsed = parseVariantFileName(file);
   if (!isSha256(sha) || !parsed) return new Response("Not found", { status: 404 });
-  const { workspace } = await requireCockpit();
+  const { active } = await getWorkspaceContext();
+  if (!active) return new Response("Not found", { status: 404 });
   const object = await getInfra().storage.get(
-    variantKey(workspace.id, sha, parsed.format, parsed.width),
+    variantKey(active.id, sha, parsed.format, parsed.width),
   );
   if (!object) return new Response("Not found", { status: 404 });
   return new Response(object.body, {

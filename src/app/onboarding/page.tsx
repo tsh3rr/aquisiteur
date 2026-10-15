@@ -6,6 +6,7 @@ import { getDb, withTenant } from "@/db";
 import { domains, workspaceSettings } from "@/db/schema";
 import { ONBOARDING_STEPS, type OnboardingStep } from "@/domain/onboarding";
 import { workspaceSettingsSchema } from "@/domain/workspace-settings";
+import { loadBrandImages, type BrandImagePreview } from "@/server/brand-images";
 import { getWorkspaceContext } from "@/server/session";
 import { PasskeyStep, ProfileStep, SenderStep, WorkspaceStep } from "./steps";
 
@@ -25,6 +26,7 @@ export default async function OnboardingPage({
 
   let settings = workspaceSettingsSchema.parse({});
   let customDomain = "";
+  let brandImages: Record<"photo" | "logo", BrandImagePreview | null> = { photo: null, logo: null };
   if (active) {
     const loaded = await withTenant(
       getDb(),
@@ -39,11 +41,13 @@ export default async function OnboardingPage({
           .from(domains)
           .where(eq(domains.workspaceId, active.id))
           .limit(1);
-        return { row, domain };
+        const parsed = workspaceSettingsSchema.parse(row ?? {});
+        return { row, domain, images: await loadBrandImages(tx, active.id, parsed) };
       },
     );
     settings = workspaceSettingsSchema.parse(loaded.row ?? {});
     customDomain = loaded.domain?.hostname ?? "";
+    brandImages = loaded.images;
   }
 
   const current = ONBOARDING_STEPS.find((s) => s.id === step) ?? ONBOARDING_STEPS[0];
@@ -97,6 +101,7 @@ export default async function OnboardingPage({
       ) : null}
       {step === 2 ? (
         <ProfileStep
+          images={brandImages}
           defaults={{
             "profile.displayName": settings.profile.displayName ?? user.name ?? "",
             "profile.role": settings.profile.role ?? "",
