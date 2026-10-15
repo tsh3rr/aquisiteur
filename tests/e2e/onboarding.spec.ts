@@ -101,8 +101,17 @@ test("owner signs in, runs the wizard, registers a passkey and sees the empty co
   await page.getByRole("button", { name: "Abmelden" }).click();
   await expect(page).toHaveURL(/\/login$/);
   const mailsBefore = mailCount(email);
-  await page.getByRole("button", { name: "Mit Passkey anmelden" }).click();
-  await expect(page.getByRole("heading", { name: "Hallo Jeremiasz." })).toBeVisible();
+  // The login page offers saved passkeys via conditional UI, and the virtual
+  // authenticator may answer that request by itself. Either path signs in.
+  const greeting = page.getByRole("heading", { name: "Hallo Jeremiasz." });
+  const passkeyButton = page.getByRole("button", { name: "Mit Passkey anmelden" });
+  await expect(greeting.or(passkeyButton)).toBeVisible();
+  if (await passkeyButton.isVisible()) {
+    await passkeyButton.click({ timeout: 5_000 }).catch(() => {
+      // Detached because the conditional request already signed in.
+    });
+  }
+  await expect(greeting).toBeVisible();
   expect(mailCount(email)).toBe(mailsBefore);
 });
 

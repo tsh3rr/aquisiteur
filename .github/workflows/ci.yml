@@ -47,7 +47,7 @@ jobs:
           POSTGRES_DB: aquisiteur_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U aquisiteur" --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U aquisiteur -d postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_test
     steps:
@@ -72,7 +72,7 @@ jobs:
           POSTGRES_DB: aquisiteur_e2e
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U aquisiteur" --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U aquisiteur -d postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       E2E_DATABASE_URL: postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e
     steps:
