@@ -36,6 +36,20 @@
       "when": 1792092785759,
       "tag": "0004_expose_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792106737939,
+      "tag": "0005_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792106746560,
+      "tag": "0006_tracking_grants",
+      "breakpoints": true
     }
   ]
 }
