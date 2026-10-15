@@ -152,6 +152,8 @@ export default async function CustomerPage({
               {realVisits.length === 0 ? (
                 <p className="text-sm text-foreground-muted">Noch keine Besuche.</p>
               ) : (
+                // Scrollable regions must be reachable by keyboard (WCAG 2.1.1).
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
                 <div
                   className="overflow-x-auto"
                   role="region"
