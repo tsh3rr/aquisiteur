@@ -33,6 +33,7 @@ import {
   type ValidationIssue,
 } from "@/domain/expose/schema";
 import type { StoragePort } from "@/infra";
+import { ensureLetterTouchpoint } from "../tracking/touchpoints";
 
 export interface PublishVariant {
   format: VariantFormat;
@@ -67,6 +68,8 @@ export interface PublishResult {
   refCode: string;
   prospectId: string;
   createdExpose: boolean;
+  /** Codes printed on the letter (§6.2). */
+  letter: { qrToken: string; shortCode: string | null };
 }
 
 export class PublishError extends Error {
@@ -299,6 +302,13 @@ export async function publishExpose(
     meta: { version, source: context.source, apiTokenId: context.apiTokenId ?? null },
   });
 
+  const letter = await ensureLetterTouchpoint(tx, {
+    workspaceId: context.workspaceId,
+    prospectId,
+    exposeId: expose.id,
+    userId: context.userId,
+  });
+
   return {
     exposeId: expose.id,
     versionId: created.id,
@@ -307,6 +317,7 @@ export async function publishExpose(
     refCode: expose.refCode,
     prospectId,
     createdExpose,
+    letter: { qrToken: letter.qrToken, shortCode: letter.shortCode },
   };
 }
 

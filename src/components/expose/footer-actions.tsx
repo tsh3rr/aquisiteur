@@ -1,19 +1,30 @@
 "use client";
 
 import { Check, Printer, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { shareUrl, track } from "./tracking-client";
 
 /** "Als PDF speichern" (print stylesheet) and "Mit Kollegen teilen" (§7.3). */
 export function FooterActions({ title }: { title: string }) {
   const [copied, setCopied] = useState(false);
+  // Fetched as the finger or pointer approaches, so the share sheet still
+  // opens within the click's user activation (Safari is strict about it).
+  const link = useRef<Promise<string | null> | null>(null);
+  const prepare = () => {
+    link.current ??= shareUrl().catch(() => null);
+  };
   const share = async () => {
-    const url = window.location.href.split("#")[0]!;
+    track({ type: "share" });
+    prepare();
+    // A link of its own makes forwarded reads visible; the page URL is the fallback.
+    const url = (await link.current) ?? window.location.href.split("#")[0]!;
     if (navigator.share) {
       try {
         await navigator.share({ title, url });
         return;
-      } catch {
-        // Cancelled or unsupported payload: fall back to copying.
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        // Unsupported payload or no activation left: fall back to copying.
       }
     }
     await navigator.clipboard.writeText(url);
@@ -27,7 +38,14 @@ export function FooterActions({ title }: { title: string }) {
         <Printer aria-hidden className="size-4" />
         Als PDF speichern
       </button>
-      <button type="button" className={button} onClick={() => void share()}>
+      <button
+        type="button"
+        className={button}
+        onPointerEnter={prepare}
+        onPointerDown={prepare}
+        onFocus={prepare}
+        onClick={() => void share()}
+      >
         {copied ? (
           <Check aria-hidden className="size-4" />
         ) : (

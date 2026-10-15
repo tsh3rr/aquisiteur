@@ -2,6 +2,7 @@ import { List } from "lucide-react";
 import { exposeThemeCss } from "@/domain/expose/theme";
 import { Block, blockTitle } from "./blocks";
 import { displayFont } from "./fonts";
+import { ExposeTracker } from "./expose-tracker";
 import { FooterActions } from "./footer-actions";
 import { ownerName } from "./owner";
 import { Picture } from "./picture";
@@ -9,8 +10,8 @@ import { resolveImage, type RenderContext } from "./render-context";
 import type { ExposeViewData } from "@/server/exposes/load";
 
 /**
- * The exposé page (§7.3): mobile first, magazine-like, no tracking here
- * (phase 2 adds the script for public mode only).
+ * The exposé page (§7.3): mobile first, magazine-like. The tracking script
+ * runs in public mode only, never in the cockpit preview.
  */
 export function ExposeView({
   data,
@@ -47,6 +48,7 @@ export function ExposeView({
       lang={document.meta.lang}
       className={`${displayFont.variable} min-h-dvh bg-background text-foreground`}
     >
+      {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}
       <style nonce={nonce}>
         {exposeThemeCss({ accent, appearance: document.theme.appearance })}
       </style>

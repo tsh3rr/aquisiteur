@@ -16,6 +16,7 @@ export function CtaBlock({ block }: { block: BlockOf<"cta"> }) {
         {block.text ? <p className="text-lg">{block.text}</p> : null}
         <a
           href={`#${block.target}`}
+          data-cta
           className="mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl bg-accent px-5 font-semibold text-accent-foreground shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           {block.label}

@@ -29,6 +29,7 @@ export const RESERVED_CODES = new Set([
   "favicon.ico",
   "icon.svg",
   "owner-device",
+  "nicht-gefunden",
 ]);
 
 const QR_TOKEN = /^[0-9A-Za-z]{12,40}$/;

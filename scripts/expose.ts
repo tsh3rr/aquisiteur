@@ -136,6 +136,8 @@ async function publish(dir: string): Promise<number> {
     dim(`(${uploaded} neue Dateien, Ref ${result.refCode})`),
   );
   console.info(`  Öffentlich: ${result.url}`);
+  if (result.shortUrl) console.info(`  Kurzlink:   ${result.shortUrl}`);
+  if (result.qrUrl) console.info(`  QR-Link:    ${result.qrUrl}`);
   console.info(`  Cockpit:    ${result.previewUrl}`);
   return 0;
 }

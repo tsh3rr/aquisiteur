@@ -49,4 +49,8 @@ export interface PublishResponse {
   previewUrl: string;
   refCode: string;
   createdExpose: boolean;
+  /** Short link for the letter, typed by hand (absent from older servers). */
+  shortUrl?: string | null;
+  /** Long link behind the QR code. */
+  qrUrl?: string;
 }

@@ -6,6 +6,7 @@ import { publishRequestSchema, type PublishResponse } from "@/domain/expose/wire
 import { apiError, authenticateApiRequest } from "@/server/api-auth";
 import { publishExpose, PublishError } from "@/server/exposes/publish";
 import { exposePath, workspacePublicOrigin } from "@/server/exposes/urls";
+import { touchpointUrls } from "@/server/tracking/touchpoints";
 
 /**
  * POST /api/v1/exposes: publish a new version (§7.2). Used by
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       previewUrl: `${serverEnv().APP_URL}/exposes/${result.published.exposeId}`,
       refCode: result.published.refCode,
       createdExpose: result.published.createdExpose,
+      ...touchpointUrls(result.origin, result.published.letter),
     };
     return Response.json(body, {
       status: result.published.createdExpose ? 201 : 200,
