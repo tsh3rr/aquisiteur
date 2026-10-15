@@ -25,7 +25,7 @@ export function ExposeView({
 }) {
   const context: RenderContext = {
     mode,
-    assetBase: mode === "public" ? "/assets" : "/exposes/assets",
+    assetBase: mode === "public" ? "/assets" : "/preview/assets",
     manifest: data.manifest,
     settings: data.settings,
     ownerPhoto: data.ownerPhoto,

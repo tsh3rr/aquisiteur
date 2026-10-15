@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [...staticSecurityHeaders, ...(isHttps ? [hstsHeader] : [])],
       },
+      {
+        // The exposé preview is framed by the cockpit (CSP frame-ancestors 'self').
+        source: "/preview/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
     ];
   },
 };

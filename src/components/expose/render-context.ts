@@ -6,7 +6,7 @@ import type { WorkspaceSettings } from "@/domain/workspace-settings";
 export interface RenderContext {
   mode: "public" | "preview";
   /** URL prefix the asset files are served from on the current host. */
-  assetBase: "/assets" | "/exposes/assets";
+  assetBase: "/assets" | "/preview/assets";
   manifest: AssetManifest;
   settings: WorkspaceSettings;
   ownerPhoto: ManifestEntry | null;

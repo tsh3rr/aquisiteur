@@ -29,6 +29,7 @@ export function middleware(request: NextRequest) {
     nonce,
     isDev: process.env.NODE_ENV === "development",
     upgradeInsecure: appUrl.startsWith("https:"),
+    allowSameOriginFraming: request.nextUrl.pathname.startsWith("/preview/"),
   });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);

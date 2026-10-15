@@ -6,6 +6,8 @@ export function buildContentSecurityPolicy(options: {
   nonce: string;
   isDev: boolean;
   upgradeInsecure: boolean;
+  /** Only the cockpit preview may be framed, and only by the cockpit itself. */
+  allowSameOriginFraming?: boolean;
 }): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -20,7 +22,7 @@ export function buildContentSecurityPolicy(options: {
     "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'"],
     "connect-src": ["'self'", ...(options.isDev ? ["ws:"] : [])],
-    "frame-ancestors": ["'none'"],
+    "frame-ancestors": [options.allowSameOriginFraming ? "'self'" : "'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],
     "object-src": ["'none'"],

@@ -1,6 +1,6 @@
 "use client";
 
-import { Palette, Settings, Sun } from "lucide-react";
+import { FileText, Palette, Settings, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 
 const items: { href: Route; label: string; icon: typeof Sun }[] = [
   { href: "/", label: "Heute", icon: Sun },
+  { href: "/exposes", label: "Exposés", icon: FileText },
   { href: "/settings", label: "Einstellungen", icon: Settings },
   { href: "/design", label: "Design-System", icon: Palette },
 ];
@@ -18,7 +19,7 @@ export function CockpitNav({ orientation }: { orientation: "vertical" | "horizon
 
   return (
     <nav aria-label="Hauptnavigation" className={orientation === "vertical" ? "px-3" : ""}>
-      <ul className={orientation === "vertical" ? "grid gap-0.5" : "grid grid-cols-3"}>
+      <ul className={orientation === "vertical" ? "grid gap-0.5" : "grid grid-cols-4"}>
         {items.map(({ href, label, icon: Icon }) => (
           <li key={href}>
             <Link
