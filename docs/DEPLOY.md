@@ -22,7 +22,7 @@ Browser ──► Cloudflare Worker (Next.js via OpenNext)
 | Was           | Wo                             | Wofür                                                     |
 | ------------- | ------------------------------ | --------------------------------------------------------- |
 | Datenbank     | Supabase, Region **Frankfurt** | Alle Daten inkl. Logins (Better Auth)                     |
-| App           | Cloudflare Workers (Paid Plan) | Cockpit, Exposés, Kurzlinks                               |
+| App           | Cloudflare Workers             | Cockpit, Exposés, Kurzlinks                               |
 | DB-Verbindung | Cloudflare Hyperdrive          | Pooling, damit der Worker nicht pro Anfrage neu verbindet |
 | E-Mail        | Resend (EU-Region)             | Anmeldelinks, später Benachrichtigungen                   |
 | Dateien       | Cloudflare R2 (Region EU)      | Bilder und Videos der Exposés                             |
@@ -30,7 +30,7 @@ Browser ──► Cloudflare Worker (Next.js via OpenNext)
 ## Voraussetzungen
 
 - Node.js 22 oder neuer und pnpm 10 (`corepack enable` aktiviert pnpm)
-- Ein Cloudflare-Konto mit **Workers Paid** (5 $/Monat) und deiner Domain als Zone in Cloudflare
+- Ein Cloudflare-Konto mit deiner Domain als Zone in Cloudflare; zum Testen reicht der Free-Plan, für den Betrieb **Workers Paid** (5 $/Monat, siehe Kosten)
 - Ein Supabase-Konto
 - Ein Resend-Konto (kostenloser Plan reicht für den Anfang)
 - Lokal ein Klon des Repos: `git clone https://github.com/tsh3rr/aquisiteur && cd aquisiteur && pnpm install`
@@ -301,6 +301,13 @@ Live-Logs: `pnpm wrangler tail`.
 | Hyperdrive              | im Workers-Paid-Plan enthalten                                                      |
 | Supabase                | Free-Tarif reicht zum Start; Pro 25 $/Monat für tägliche Backups und kein Pausieren |
 | Resend                  | Free bis 3.000 Mails/Monat                                                          |
+
+**Ohne Workers Paid starten:** Der Worker passt mit 2,6 MB in die 3-MB-Grenze des Free-Plans
+(ADR-0035), und Hyperdrive gibt es dort ebenfalls (mit kleineren Kontingenten). Zum Ausprobieren reicht
+das. Die Grenze von 10 ms CPU pro Anfrage kann bei Exposés, dem Cockpit oder der Anmeldung überschritten
+werden; dann bricht die Anfrage mit einem Fehler ab. Sobald echte Briefe rausgehen oder solche Fehler in
+den Worker-Logs auftauchen, auf Workers Paid wechseln (im Dashboard unter **Workers & Pages → Plans**,
+ohne neues Deployment).
 
 Hinweis: Supabase pausiert Free-Projekte nach einer Woche ohne Aktivität. Für den echten Betrieb ist
 der Pro-Tarif sinnvoll (Backups, kein Pausieren).

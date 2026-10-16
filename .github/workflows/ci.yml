@@ -159,3 +159,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm cf:build
+      # Workers Free allows 3 MB compressed (ADR-0035); keep a margin so the free plan stays usable.
+      - name: Worker size within the free plan
+        run: |
+          pnpm exec wrangler deploy --dry-run --outdir dist-worker > /dev/null
+          size=$(gzip -9 -c dist-worker/worker.js | wc -c)
+          echo "Worker gzip: $((size / 1024)) KiB (limit 2900 KiB)"
+          test "$size" -le $((2900 * 1024))

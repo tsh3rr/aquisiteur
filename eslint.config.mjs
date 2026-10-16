@@ -71,6 +71,7 @@ export default defineConfig([
   globalIgnores([
     ".next/**",
     ".open-next/**",
+    "dist-worker/**",
     ".wrangler/**",
     "node_modules/**",
     "next-env.d.ts",

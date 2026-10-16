@@ -310,3 +310,13 @@ Jedes Mitglied aktiviert Push auf seinen Geräten selbst (`push_subscriptions`, 
 Benachrichtigung geht an alle Geräte des Workspaces. Auf dem iPhone funktioniert Push nur aus der zum
 Home-Bildschirm hinzugefügten App; die Einstellungen sagen das. Der Service Worker (`/sw.js`) macht nur
 Benachrichtigungen, kein Caching.
+
+## ADR-0035 · Worker passt in den Free-Plan von Cloudflare (2026-10-16)
+
+Mit Turbopack war der Worker komprimiert 3,8 MB groß, weil jede Route eigene Kopien von Better Auth,
+Drizzle und dem Resend-SDK bekam. Der Free-Plan erlaubt 3 MB. `next build --webpack` legt gemeinsamen
+Code zusammen, und Resend läuft jetzt über `fetch` statt über das SDK: zusammen 2,6 MB, ohne ein Feature
+wegzulassen. Die CI prüft im Job „Cloudflare bundle“, dass es unter 2.900 KiB bleibt. Lokal bleibt
+`next dev` bei Turbopack. Offen bleibt die CPU-Grenze des Free-Plans (10 ms pro Anfrage): Seiten, die
+auf dem Server gerendert werden, können sie überschreiten. Der Free-Plan taugt daher zum Testen und
+für wenig Verkehr; für den Betrieb bleibt Workers Paid empfohlen.
