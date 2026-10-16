@@ -28,6 +28,7 @@ import { ProspectForm } from "../prospect-form";
 import { Contacts } from "./contacts";
 import { ProspectLetters } from "./letters";
 import { StatusSelect } from "./status-select";
+import { SectionHeatList } from "./section-heat";
 import { Timeline } from "./timeline";
 import { Touchpoints } from "./touchpoints";
 
@@ -193,7 +194,7 @@ export default async function CustomerPage({
               ) : null}
             </CardHeader>
             <CardContent>
-              <Timeline entries={detail.timeline} />
+              <Timeline entries={detail.timeline} prospectId={id} replays={detail.replays} />
             </CardContent>
           </Card>
 
@@ -263,6 +264,20 @@ export default async function CustomerPage({
               )}
             </CardContent>
           </Card>
+
+          {detail.sections.some((section) => section.seconds > 0) ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Abschnitte im Exposé</CardTitle>
+                <CardDescription>
+                  Lesezeit pro Abschnitt über alle echten Besuche, in der Reihenfolge des Exposés.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SectionHeatList sections={detail.sections} />
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-2 [&>*]:min-w-0">

@@ -5,6 +5,7 @@ import { displayFont } from "./fonts";
 import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
 import { ContactLayerLazy } from "./contact-layer-lazy";
 import { ExposeTracker } from "./expose-tracker";
+import { ReplayConsent } from "./replay-consent";
 import { FooterActions } from "./footer-actions";
 import { ownerName } from "./owner";
 import { Picture } from "./picture";
@@ -55,6 +56,9 @@ export function ExposeView({
       className={`${displayFont.variable} min-h-dvh bg-background text-foreground`}
     >
       {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}
+      {mode === "public" && data.settings.replay.enabled && links.privacy ? (
+        <ReplayConsent privacyHref={links.privacy} />
+      ) : null}
       <style nonce={nonce}>
         {exposeThemeCss({ accent, appearance: document.theme.appearance })}
       </style>

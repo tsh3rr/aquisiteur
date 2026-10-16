@@ -4,8 +4,9 @@ import { z } from "zod";
  * Events the exposé reports (§6.3, §11). One central, typed list; the
  * ingestion validates every batch against it and drops anything else.
  * Phase 2 sends the reading events, phase 3 chat, callback and nudges;
- * consent follows. `chat_message_sent` and `callback_submitted` are written
- * by the server when the message or request is stored, never by the script.
+ * consent (phase 5). `chat_message_sent`, `callback_submitted` and the
+ * `consent_*` events are written by the server when the message, request or
+ * decision is stored, never by the script.
  */
 const blockId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
 const nudgeId = z.enum(["read_invite", "pricing", "returning", "exit_intent"]);
@@ -80,7 +81,13 @@ export const EVENT_SCHEMAS = {
 } as const;
 
 /** Server-side only: stored with the chat message or callback request. */
-export const SERVER_EVENT_TYPES = ["chat_message_sent", "callback_submitted"] as const;
+export const SERVER_EVENT_TYPES = [
+  "chat_message_sent",
+  "callback_submitted",
+  "consent_given",
+  "consent_denied",
+  "consent_withdrawn",
+] as const;
 export type ServerEventType = (typeof SERVER_EVENT_TYPES)[number];
 
 export type EventType = keyof typeof EVENT_SCHEMAS;

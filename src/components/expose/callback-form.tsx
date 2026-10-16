@@ -97,6 +97,7 @@ export function CallbackOption({
           </p>
         ) : (
           <form
+            data-replay-block
             noValidate
             className="grid gap-4 rounded-xl border border-border p-4 sm:grid-cols-2"
             onSubmit={(event) => {

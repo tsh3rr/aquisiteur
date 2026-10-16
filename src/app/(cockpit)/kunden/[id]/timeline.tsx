@@ -1,4 +1,6 @@
-import { Bot, Eye, FileText, Flag, Link2, Mail } from "lucide-react";
+import { Bot, Eye, FileText, Flag, Link2, Mail, PlayCircle } from "lucide-react";
+import Link from "next/link";
+import { formatSeconds } from "@/domain/analytics/format";
 import type { TimelineEntry, TimelineKind } from "@/domain/tracking/timeline";
 import { cn } from "@/lib/cn";
 
@@ -24,7 +26,16 @@ const timeFormat = new Intl.DateTimeFormat("de-DE", {
 });
 
 /** The readable history of a prospect (§7.8), grouped by day, newest first. */
-export function Timeline({ entries }: { entries: TimelineEntry[] }) {
+export function Timeline({
+  entries,
+  prospectId,
+  replays = {},
+}: {
+  entries: TimelineEntry[];
+  prospectId: string;
+  /** Recording per visit id, when the visitor consented. */
+  replays?: Record<string, { id: string; durationMs: number }>;
+}) {
   if (entries.length === 0) {
     return (
       <p className="text-sm text-foreground-muted">
@@ -46,6 +57,9 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
           <ol className="grid gap-3 border-l border-border pl-5">
             {list.map((entry) => {
               const Icon = entry.bot ? Bot : ICONS[entry.kind];
+              const replay = entry.key.startsWith("visit-")
+                ? replays[entry.key.slice("visit-".length)]
+                : undefined;
               return (
                 <li
                   key={entry.key}
@@ -68,6 +82,17 @@ export function Timeline({ entries }: { entries: TimelineEntry[] }) {
                   </p>
                   {entry.detail ? (
                     <p className="text-sm text-foreground-muted">{entry.detail}</p>
+                  ) : null}
+                  {replay ? (
+                    <p>
+                      <Link
+                        href={`/kunden/${prospectId}/aufzeichnung/${replay.id}`}
+                        className="inline-flex min-h-11 items-center gap-1.5 text-sm text-accent underline-offset-4 hover:underline"
+                      >
+                        <PlayCircle aria-hidden className="size-4" />
+                        Aufzeichnung ansehen ({formatSeconds(replay.durationMs / 1000)})
+                      </Link>
+                    </p>
                   ) : null}
                   {entry.steps.length > 0 ? (
                     <ul className="mt-1 grid gap-1 text-sm">

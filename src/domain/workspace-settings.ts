@@ -137,6 +137,14 @@ export const letterSettingsSchema = z.object({
   costCents: z.number().int().min(0).max(10_000).default(110),
 });
 
+/**
+ * Session replay (§6.3): off by default. When on, the exposé asks each
+ * visitor with a small notice; only a „Ja“ starts a recording.
+ */
+export const replaySettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+});
+
 /** An IANA time zone the runtime knows, e.g. "Europe/Berlin". */
 export const timezoneSchema = z.string().refine((zone) => {
   try {
@@ -164,6 +172,7 @@ export const workspaceSettingsSchema = z.object({
   scoreWeights: scoreWeightsSchema.prefault({}),
   notifications: notificationSettingsSchema.prefault({}),
   letter: letterSettingsSchema.prefault({}),
+  replay: replaySettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 365, replaysDays: 90, optOutTrackingDays: 30 }),
 });
 
@@ -175,3 +184,4 @@ export type ChatSettings = z.infer<typeof chatSettingsSchema>;
 export type NudgeSettings = z.infer<typeof nudgeSettingsSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 export type LetterSettings = z.infer<typeof letterSettingsSchema>;
+export type ReplaySettings = z.infer<typeof replaySettingsSchema>;

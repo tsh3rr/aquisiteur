@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { classifyHost } from "@/domain/hostname";
 import {
   buildContentSecurityPolicy,
-  MAP_TILE_ORIGIN,
+  pageAssetSources,
   realtimeConnectSrc,
 } from "@/lib/security-headers";
 
@@ -42,7 +42,7 @@ export function middleware(request: NextRequest) {
     isDev: process.env.NODE_ENV === "development",
     upgradeInsecure: appUrl.startsWith("https:"),
     allowSameOriginFraming: request.nextUrl.pathname.startsWith("/preview/"),
-    imgSrc: request.nextUrl.pathname.startsWith("/auswertung/karte") ? [MAP_TILE_ORIGIN] : [],
+    ...pageAssetSources(request.nextUrl.pathname),
     connectSrc: realtimeConnectSrc({
       REALTIME_PROVIDER: process.env.REALTIME_PROVIDER,
       SUPABASE_URL: process.env.SUPABASE_URL,

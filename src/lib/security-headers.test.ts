@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildContentSecurityPolicy, realtimeConnectSrc } from "./security-headers";
+import {
+  buildContentSecurityPolicy,
+  pageAssetSources,
+  realtimeConnectSrc,
+} from "./security-headers";
 
 describe("buildContentSecurityPolicy()", () => {
   it("locks production down to self + nonce", () => {
@@ -34,5 +38,24 @@ describe("buildContentSecurityPolicy()", () => {
       connectSrc,
     });
     expect(csp).toContain("connect-src 'self' wss://abcd.supabase.co;");
+  });
+
+  it("opens image and font sources only on the pages that need them", () => {
+    expect(pageAssetSources("/auswertung/karte")).toEqual({
+      imgSrc: ["https://tile.openstreetmap.org"],
+      fontSrc: [],
+    });
+    expect(pageAssetSources("/kunden/abc/aufzeichnung/def")).toEqual({
+      imgSrc: ["https:"],
+      fontSrc: ["https:"],
+    });
+    expect(pageAssetSources("/kunden/abc")).toEqual({ imgSrc: [], fontSrc: [] });
+    const csp = buildContentSecurityPolicy({
+      nonce: "n",
+      isDev: false,
+      upgradeInsecure: false,
+      ...pageAssetSources("/auswertung/karte"),
+    });
+    expect(csp).toContain("img-src 'self' data: blob: https://tile.openstreetmap.org;");
   });
 });

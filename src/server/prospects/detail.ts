@@ -1,4 +1,5 @@
 import "server-only";
+import { listReplays } from "@/server/tracking/replay";
 import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import {
@@ -15,6 +16,7 @@ import {
 import type { ExposeDocument } from "@/domain/expose/schema";
 import { exposeOutline } from "@/domain/expose/outline";
 import { listCallbacks, listThreads, unsentDrafts } from "@/server/chat/owner";
+import { sectionHeat } from "@/domain/tracking/section-heat";
 import { buildTimeline, type TimelineAudit, type TimelineVisit } from "@/domain/tracking/timeline";
 import { realVisit } from "./list";
 
@@ -169,6 +171,13 @@ export async function loadProspectDetail(
     showBots: options.showBots,
   });
 
+  const realVisits = new Set(
+    visitRows
+      .filter((visit) => visit.confirmedAt && !visit.isBot && !visit.isInternal)
+      .map((visit) => visit.id),
+  );
+  const replays = await listReplays(tx, workspaceId, prospectId);
+
   // Sections read per visit, for the visits table.
   const readSections = new Map<string, string[]>();
   for (const event of eventRows) {
@@ -201,6 +210,14 @@ export async function loadProspectDetail(
     timeline,
     threads,
     callbacks,
+    sections: sectionHeat(
+      outline,
+      eventRows.map((row) => ({ ...row, payload: (row.payload ?? {}) as Record<string, unknown> })),
+      realVisits,
+    ),
+    replays: Object.fromEntries(
+      replays.map((replay) => [replay.visitId, { id: replay.id, durationMs: replay.durationMs }]),
+    ),
   };
 }
 

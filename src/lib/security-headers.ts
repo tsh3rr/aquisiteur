@@ -12,6 +12,8 @@ export function buildContentSecurityPolicy(options: {
   connectSrc?: string[];
   /** Extra image origins, e.g. the map tiles on the map dashboard. */
   imgSrc?: string[];
+  /** Extra font origins, e.g. the exposé's fonts inside a session replay. */
+  fontSrc?: string[];
 }): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -24,7 +26,7 @@ export function buildContentSecurityPolicy(options: {
     // Next.js and Radix inject inline style attributes; styles cannot execute code.
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:", ...(options.imgSrc ?? [])],
-    "font-src": ["'self'"],
+    "font-src": ["'self'", ...(options.fontSrc ?? [])],
     "connect-src": ["'self'", ...(options.connectSrc ?? []), ...(options.isDev ? ["ws:"] : [])],
     "frame-ancestors": [options.allowSameOriginFraming ? "'self'" : "'none'"],
     "form-action": ["'self'"],
@@ -70,3 +72,15 @@ export function realtimeConnectSrc(env: {
 /** OpenStreetMap raster tiles for the map dashboard (§7.8, ADR-0039). */
 export const MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 export const MAP_TILE_ORIGIN = "https://tile.openstreetmap.org";
+
+/**
+ * Extra image and font sources per cockpit page: map tiles on the map,
+ * the exposé's own images and fonts inside a session replay.
+ */
+export function pageAssetSources(pathname: string): { imgSrc: string[]; fontSrc: string[] } {
+  if (pathname.startsWith("/auswertung/karte")) return { imgSrc: [MAP_TILE_ORIGIN], fontSrc: [] };
+  if (/^\/kunden\/[^/]+\/aufzeichnung\//.test(pathname)) {
+    return { imgSrc: ["https:"], fontSrc: ["https:"] };
+  }
+  return { imgSrc: [], fontSrc: [] };
+}

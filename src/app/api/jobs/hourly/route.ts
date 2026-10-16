@@ -2,11 +2,12 @@ import { serverEnv } from "@/config/env";
 import { getDb } from "@/db";
 import { geocodePending } from "@/server/geocoding";
 import { runDigests } from "@/server/notifications/digest";
+import { purgeExpiredReplays } from "@/server/tracking/replay";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Hourly jobs: daily digest (§7.7), map positions (§7.8). Called by the Cloudflare cron trigger
+ * Hourly jobs: daily digest (§7.7), replay retention (§9), map positions (§7.8). Called by the Cloudflare cron trigger
  * (worker.mjs) or any scheduler with `Authorization: Bearer $CRON_SECRET`.
  * Idempotent: running it twice in an hour sends nothing twice.
  */
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   }
   const db = getDb();
   const digests = await runDigests(db);
+  const replaysPurged = await purgeExpiredReplays(db);
   const geocoding = await geocodePending(db);
-  return Response.json({ digests, geocoding });
+  return Response.json({ digests, replaysPurged, geocoding });
 }

@@ -249,6 +249,7 @@ export function ChatPanel(props: ChatPanelProps) {
       aria-labelledby="aq-chat-title"
       ref={panel}
       hidden={!open}
+      data-replay-block
       className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border border-border bg-background shadow-2xl md:inset-x-auto md:right-4 md:bottom-4 md:h-[min(36rem,calc(100dvh-2rem))] md:w-[24rem] md:rounded-2xl"
     >
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">

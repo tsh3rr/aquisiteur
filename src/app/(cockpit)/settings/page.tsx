@@ -23,6 +23,7 @@ import { LetterSettingsForm } from "./letter-settings";
 import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
 import { PushDevices } from "./push-device";
+import { ReplaySettingsForm } from "./replay-settings";
 import { ScoreSettingsForm } from "./score-settings";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -228,6 +229,23 @@ export default async function SettingsPage() {
           <ScoreSettingsForm
             weights={resolveWeights(settings.scoreWeights)}
             timezone={settings.notifications.timezone}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="aufzeichnung">
+        <CardHeader>
+          <CardTitle>Sitzungsaufzeichnung</CardTitle>
+          <CardDescription>
+            Sehen Sie sich an, wie ein Kunde Ihr Exposé gelesen hat: Scrollen, Klicks, Pausen. Nur
+            mit seiner ausdrücklichen Erlaubnis.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReplaySettingsForm
+            enabled={settings.replay.enabled}
+            retentionDays={settings.retention.replaysDays}
             canEdit={canEditSettings}
           />
         </CardContent>

@@ -31,7 +31,14 @@ export function privacyMarkdown(settings: WorkspaceSettings, workspaceName: stri
     `**Verantwortlich** für diese Seite ist ${controller} (siehe Impressum).${contact}`,
     "**Worum es geht.** Sie haben von uns per Post persönliche Vorschläge für Ihr Unternehmen erhalten. Diese Seite zeigt sie Ihnen. Wir stützen die Verarbeitung auf unser berechtigtes Interesse, Ihnen ein passendes Angebot zu machen (Art. 6 Abs. 1 lit. f DSGVO).",
     "**Welche Daten wir verarbeiten.** Firmenname, Anschrift und Ansprechpartner, wie sie öffentlich zugänglich sind. Beim Aufruf dieser Seite verarbeitet unser Hosting-Dienstleister technisch notwendige Daten (z. B. IP-Adresse) nur für die Auslieferung. Wir speichern keine Cookies und lesen nichts von Ihrem Gerät aus.",
+    settings.replay.enabled
+      ? "**Aufzeichnung nur mit Ihrer Erlaubnis.** Auf der Seite fragen wir, ob wir aufzeichnen dürfen, wie Sie scrollen und klicken. Nur wenn Sie zustimmen (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG), entsteht eine Aufzeichnung dieses Besuchs; Eingaben in Feldern und der Chat werden nicht aufgezeichnet. Ihr Browser merkt sich nur Ihre Entscheidung, damit wir nicht erneut fragen. Sie können jederzeit über „Aufzeichnung beenden“ widerrufen; die Aufzeichnung wird dann gelöscht, sonst spätestens nach " +
+        String(settings.retention.replaysDays) +
+        " Tagen."
+      : null,
     "**Dienstleister.** Hosting über Cloudflare, Datenbank bei Supabase in Frankfurt (EU). Mit beiden bestehen Verträge zur Auftragsverarbeitung.",
     "**Ihre Rechte.** Sie können Auskunft, Berichtigung, Löschung und Einschränkung verlangen und der Verarbeitung widersprechen. Über den Link „Kein Interesse“ am Ende des Exposés widersprechen Sie mit einem Klick; wir kontaktieren Sie dann nicht mehr. Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
