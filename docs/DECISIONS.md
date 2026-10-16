@@ -495,10 +495,12 @@ Hetzner Typen und Preise ändert.
 Akzentfarbe und Logo allein ließen jedes Exposé wie dasselbe Magazin aussehen. `theme.style` wählt
 deshalb einen von drei Stilen: `editorial` (bisheriges Aussehen, Standard), `bold` (Neo-Brutalismus:
 keine Rundungen, 2-px-Linien, harte versetzte Schatten, Anton in Versalien) und `soft` (große Radien,
-weiche Schatten, cremige Flächen, Nunito auch im Fließtext). Das Feld ist optional, deshalb bleibt
+weiche Schatten, cremige Flächen, Nunito in den Überschriften). Das Feld ist optional, deshalb bleibt
 `schemaVersion` 1. Die Flächen- und Textfarben jedes Stils kommen aus `styleScheme()` in
 `src/domain/expose/theme.ts`, damit die Akzentkorrektur gegen die richtigen Flächen rechnet; ein
 Unit-Test prüft alle `contrastPairs` je Stil in hell und dunkel. Formen, Schatten und Schrift setzt
 `globals.css` unter `[data-expose-style]`. Die beiden zusätzlichen Schriften (19 KB und 39 KB) werden
-nicht vorgeladen und nur von Exposés im jeweiligen Stil geladen. Bewusst kein freies CSS oder freie
+nicht vorgeladen und nur von Exposés im jeweiligen Stil geladen. Sie gelten nur für Überschriften:
+Nunito auch im Fließtext ließ beim späten Nachladen den ganzen Text umbrechen und das Heldenbild
+springen (CLS 0,06 in Lighthouse CI, Grenze 0,02). Bewusst kein freies CSS oder freie
 Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und schnell.

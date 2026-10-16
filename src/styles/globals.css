@@ -257,7 +257,6 @@
     0 2px 4px oklch(0.3 0.03 165 / 0.04), 0 16px 40px -12px oklch(0.3 0.03 165 / 0.18);
   --aq-shadow-lg:
     0 4px 8px oklch(0.3 0.03 165 / 0.05), 0 30px 60px -20px oklch(0.3 0.03 165 / 0.24);
-  font-family: var(--aq-font-display), ui-rounded, system-ui, sans-serif;
 }
 
 [data-expose-style="soft"] .rounded-2xl {

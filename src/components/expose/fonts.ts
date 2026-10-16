@@ -20,7 +20,7 @@ const boldFont = localFont({
   fallback: ["Impact", "Arial Narrow", "sans-serif"],
 });
 
-/** Rounded variable sans of the "soft" style (~39 KB, headlines and body). */
+/** Rounded variable sans for the headlines of the "soft" style (~39 KB). */
 const softFont = localFont({
   src: "../../../node_modules/@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2",
   variable: "--aq-font-display",
