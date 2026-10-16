@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { workspaceForHostParam } from "@/server/sites";
 import { OWNER_COOKIE, isOwnerDevice } from "./visits";
 
 /** Same-origin check for public POSTs: a foreign Origin header is refused. */
@@ -31,3 +32,26 @@ export async function ownerDeviceFor(workspaceId: string): Promise<boolean> {
 }
 
 export const noStore = { "cache-control": "no-store" } as const;
+
+/**
+ * Shared frame of the exposé's POST routes: same-site only, workspace from
+ * the host, JSON body. The handler gets the workspace id and the body.
+ */
+export async function publicPost(
+  request: Request,
+  params: Promise<{ host: string }>,
+  handler: (workspaceId: string, body: unknown) => Promise<Response>,
+): Promise<Response> {
+  if (isCrossSite(request)) return new Response("Forbidden", { status: 403 });
+  const workspace = await workspaceForHostParam((await params).host);
+  if (!workspace) return new Response("Not found", { status: 404 });
+  return handler(workspace.id, await readJson(request));
+}
+
+export function json(body: unknown, status = 200): Response {
+  return Response.json(body, { status, headers: noStore });
+}
+
+export function empty(status: number): Response {
+  return new Response(null, { status, headers: noStore });
+}

@@ -1,5 +1,7 @@
 import type { RealtimeSubscription } from "./types";
 
+export type { RealtimeSubscription };
+
 /**
  * Browser side of the RealtimePort (§6.4): listens on one topic, whatever
  * the provider. The only file under src/infra/ that client components may

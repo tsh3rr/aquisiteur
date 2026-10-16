@@ -1,0 +1,43 @@
+/**
+ * Events on the realtime topics (§6.4), shared by the publishers on the
+ * server and the listeners in the cockpit and the exposé.
+ */
+export type ChatAuthor = "visitor" | "owner" | "system";
+export type ChatMessageKind = "text" | "handover" | "offline";
+
+/** A chat message as both sides see it. No user ids, no visit ids. */
+export interface ChatMessageView {
+  id: string;
+  threadId: string;
+  author: ChatAuthor;
+  kind: ChatMessageKind;
+  body: string;
+  /** ISO timestamp. */
+  createdAt: string;
+}
+
+export type RealtimeEvent =
+  | { event: "chat.message"; payload: { message: ChatMessageView; prospectId: string } }
+  | {
+      event: "chat.typing";
+      payload: {
+        threadId: string | null;
+        prospectId: string;
+        author: "visitor" | "owner";
+        length: number;
+      };
+    }
+  /** Contact details or status of a thread changed. */
+  | { event: "chat.thread"; payload: { threadId: string; prospectId: string } }
+  | { event: "callback.created"; payload: { id: string; prospectId: string; name: string } };
+
+export type RealtimeEventName = RealtimeEvent["event"];
+
+/** Narrows an incoming event; anything unknown is dropped by the caller. */
+export function isRealtimeEvent<N extends RealtimeEventName>(
+  name: N,
+  event: string,
+  payload: unknown,
+): payload is Extract<RealtimeEvent, { event: N }>["payload"] {
+  return event === name && typeof payload === "object" && payload !== null;
+}

@@ -21,13 +21,16 @@ export type Action =
   | "prospects.manage"
   | "exposes.read"
   | "exposes.publish"
-  | "exposes.manage";
+  | "exposes.manage"
+  | "chat.reply";
 
 const memberActions: readonly Action[] = [
   "workspace.read",
   "settings.read",
   "prospects.read",
   "exposes.read",
+  // Anyone in the workspace may answer a waiting visitor (§7.5).
+  "chat.reply",
 ];
 
 const adminActions: readonly Action[] = [

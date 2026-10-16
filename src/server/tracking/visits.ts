@@ -1,8 +1,8 @@
 import "server-only";
-import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
-import { auditLog, events, exposes, prospects, touchpoints, visits } from "@/db/schema";
+import { events, exposes, touchpoints, visits } from "@/db/schema";
 import {
   eventBatchSchema,
   parseEvents,
@@ -16,6 +16,8 @@ import {
 } from "@/domain/tracking/short-links";
 import { signToken, verifyToken } from "@/domain/tracking/signed-token";
 import { detectBot, geoFromHeaders, parseUserAgent } from "@/domain/tracking/user-agent";
+import { workspaceAvailable } from "@/server/chat/presence";
+import { advanceStatus } from "@/server/prospects/auto-status";
 import { hitRateLimit } from "./rate-limit";
 import { createTouchpoint } from "./touchpoints";
 
@@ -174,37 +176,18 @@ export async function ticketForVisit(visitId: string) {
   return signToken(secret(), "ticket", visitId, TICKET_TTL);
 }
 
-/**
- * First real visit moves the prospect from „Entwurf“/„Brief versendet“ to
- * „Geöffnet“ (§7.1). Later statuses were set by the owner and stay.
- */
-async function markOpened(
-  tx: Transaction,
-  workspaceId: string,
-  prospectId: string,
-  visitId: string,
-) {
-  const [prospect] = await tx
-    .select({ status: prospects.status })
-    .from(prospects)
-    .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)))
-    .for("update");
-  if (!prospect || (prospect.status !== "draft" && prospect.status !== "letter_sent")) return;
-  await tx
-    .update(prospects)
-    .set({ status: "opened" })
-    .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)));
-  await tx.insert(auditLog).values({
-    workspaceId,
-    actorUserId: null,
-    action: "prospect.status_changed",
-    targetType: "prospect",
-    targetId: prospectId,
-    meta: { from: prospect.status, to: "opened", via: "visit", visitId },
-  });
-}
+export type StartResult =
+  | {
+      token: string;
+      /** An earlier real visit of this prospect exists (for the greeting nudge). */
+      returning: boolean;
+      /** Someone of the workspace is reachable right now (§7.4). */
+      available: boolean;
+    }
+  | { error: "invalid" | "not_found" | "limited" };
 
-export type StartResult = { token: string } | { error: "invalid" | "not_found" | "limited" };
+/** Visits of the same prospect that started at least this long before count as a return. */
+const RETURN_GAP_MS = 30 * 60 * 1000;
 
 /**
  * The exposé's script reports in (§6.3): a real browser rendered the page.
@@ -289,12 +272,39 @@ export async function startVisit(
       .update(visits)
       .set({ eventCount: sql`${visits.eventCount} + 1` })
       .where(and(eq(visits.workspaceId, input.workspaceId), eq(visits.id, current.id)));
-    if (!current.quiet) await markOpened(tx, input.workspaceId, expose.prospectId, current.id);
-    return { token: await signToken(secret(), "visit", current.id, VISIT_TTL) };
+    if (!current.quiet) {
+      await advanceStatus(tx, {
+        workspaceId: input.workspaceId,
+        prospectId: expose.prospectId,
+        to: "opened",
+        via: "visit",
+        meta: { visitId: current.id },
+      });
+    }
+    const [earlier] = await tx
+      .select({ id: visits.id })
+      .from(visits)
+      .where(
+        and(
+          eq(visits.workspaceId, input.workspaceId),
+          eq(visits.prospectId, expose.prospectId),
+          isNotNull(visits.confirmedAt),
+          eq(visits.isBot, false),
+          eq(visits.isInternal, false),
+          lt(visits.startedAt, new Date(Date.now() - RETURN_GAP_MS)),
+        ),
+      )
+      .limit(1);
+    return {
+      token: await signToken(secret(), "visit", current.id, VISIT_TTL),
+      returning: Boolean(earlier),
+      available: await workspaceAvailable(db, input.workspaceId),
+    };
   });
 }
 
-async function visitForToken(db: Database, workspaceId: string, token: string) {
+/** The visit behind an exposé's visit token, scoped to the host's workspace. */
+export async function visitForToken(db: Database, workspaceId: string, token: string) {
   const visitId = await verifyToken(secret(), "visit", token);
   if (!visitId || !/^[0-9a-f-]{36}$/.test(visitId)) return null;
   const [visit] = await db
@@ -304,6 +314,7 @@ async function visitForToken(db: Database, workspaceId: string, token: string) {
       prospectId: visits.prospectId,
       startedAt: visits.startedAt,
       confirmedAt: visits.confirmedAt,
+      quiet: sql<boolean>`${visits.isBot} or ${visits.isInternal}`,
     })
     .from(visits)
     .where(and(eq(visits.workspaceId, workspaceId), eq(visits.id, visitId)));
