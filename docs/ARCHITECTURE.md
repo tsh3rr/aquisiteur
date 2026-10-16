@@ -73,6 +73,18 @@ flowchart LR
 Die öffentlichen Routen laufen auf der System-Verbindung, jede Abfrage ist auf den Workspace des Hosts
 eingeschränkt. Mitglieder lesen Visits und Events nur (RLS, `GRANT SELECT`).
 
+## Kontakt und Chat (Phase 3)
+
+1. **Besucher**: `ContactLayer` (nur öffentlich) zeigt Launcher, höchstens einen Nudge pro Seitenaufruf
+   (`pickNudge`) und auf dem Handy die Kontaktleiste. Das Chat-Panel lädt erst bei Bedarf.
+2. **Schreiben** immer über die App: `/t/chat`, `/t/chat/typing`, `/t/chat/read`, `/t/chat/contact`,
+   `/t/chat/offline`, `/t/callback` (System-Verbindung, auf den Workspace des Hosts beschränkt).
+   Cockpit-Antworten sind Server Actions über `withTenant` (`chat.reply`).
+3. **Zustellen**: nach dem Commit `publish()` an `ws-<workspace>` und `chat-<thread>` über
+   `RealtimePort` (ADR-0020). Lokal SSE (`/api/live`, `/t/live`), in Produktion Supabase Broadcast.
+   Ereignisse sind nur Hinweise; Clients laden den Stand danach von der App.
+4. **Cockpit**: `LiveProvider` hält eine Verbindung pro Tab und schickt den Präsenz-Heartbeat.
+
 ## Mandantentrennung (§9a)
 
 ```
@@ -120,7 +132,7 @@ Weitere Tabellen (Prospects, Exposés, Touchpoints, Events …) kommen mit ihren
 | `StoragePort`            | 1     | R2 über S3-API                         |
 | `RateLimiterPort`        | 2     | Cloudflare Rate Limiting Binding       |
 | `CachePort`              | 2     | Workers KV                             |
-| `RealtimePort`           | 3     | Supabase Realtime oder Durable Objects |
+| `RealtimePort`           | 3     | Supabase Broadcast, Dev: SSE           |
 | `JobQueuePort`           | 4     | Cloudflare Queues + Cron Triggers      |
 | `PushPort`               | 4     | Web Push (VAPID)                       |
 | `LetterDispatchProvider` | 5     | `manual`, danach Pingen                |

@@ -107,6 +107,15 @@ in `wrangler.jsonc` bei `hyperdrive[0].id` ein (ersetzt `REPLACE_WITH_HYPERDRIVE
 
 Der Bucket bleibt privat. Die App liefert die Dateien selbst aus, nur für den passenden Workspace.
 
+## 5c. Supabase Realtime für den Chat
+
+Der Live-Chat braucht auf Cloudflare Supabase Realtime (ADR-0020); ohne bricht die App beim Start ab.
+
+1. Im Supabase-Projekt **Project Settings → API Keys**: _Publishable key_ (`sb_publishable_…`) und
+   _Secret key_ (`sb_secret_…`) notieren. Die Projekt-URL steht unter **Data API**.
+2. **Realtime → Settings**: „Allow public access“ muss an sein (Standard). Die App nutzt öffentliche
+   Broadcast-Kanäle mit nicht erratbaren Namen, keine Datenbank-Änderungen über Realtime.
+
 ## 6. Konfiguration im Worker hinterlegen
 
 Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
@@ -121,7 +130,10 @@ Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
   "SIGNUP_ALLOWLIST": "deine@adresse.de",
   "STORAGE_PROVIDER": "s3",
   "S3_ENDPOINT": "https://<account-id>.eu.r2.cloudflarestorage.com",
-  "S3_BUCKET": "aquisiteur-assets"
+  "S3_BUCKET": "aquisiteur-assets",
+  "REALTIME_PROVIDER": "supabase",
+  "SUPABASE_URL": "https://<projekt>.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_…"
 }
 ```
 
@@ -133,6 +145,7 @@ openssl rand -base64 32 | pnpm wrangler secret put INTEGRATIONS_ENCRYPTION_KEY
 pnpm wrangler secret put RESEND_API_KEY        # Wert aus Schritt 5 einfügen
 pnpm wrangler secret put S3_ACCESS_KEY_ID      # Werte aus Schritt 5b
 pnpm wrangler secret put S3_SECRET_ACCESS_KEY
+pnpm wrangler secret put SUPABASE_SECRET_KEY   # Wert aus Schritt 5c
 ```
 
 `INTEGRATIONS_ENCRYPTION_KEY` gut sichern (Passwortmanager): Ohne ihn lassen sich später gespeicherte

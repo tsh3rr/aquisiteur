@@ -52,7 +52,11 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 ## Phase 3 · Kontakt & Chat
 
-- [ ] Kontaktblock mit allen v1-Kanälen, Live-Chat (Realtime-Port), Rückruf, Entwurfserkennung, Nudges
+- [x] Kontaktblock mit allen v1-Kanälen (Chat, WhatsApp, Telefon, Rückruf, E-Mail, Termin, Messenger, SMS)
+- [x] Live-Chat Handy ↔ Cockpit über den Realtime-Port (ADR-0020), Tippanzeige, Rückkanal, WhatsApp-Übergabe
+- [x] Rückrufwunsch, Abwesenheitsnotiz (ADR-0022), Verfügbarkeit (ADR-0026)
+- [x] Entwurfserkennung (ADR-0023), Nudges (max. einer pro Seitenaufruf), Sticky-Kontaktleiste mobil
+- [x] Status „Kontakt“ automatisch (ADR-0024), Chats und Rückrufe in „Heute“ und auf der Kundenseite
 
 ## Phase 4 · Intent & Benachrichtigung
 

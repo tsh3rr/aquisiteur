@@ -112,7 +112,7 @@ Jeder Baustein hat eine `id` (Kleinbuchstaben und Bindestriche, eindeutig im Exp
 | `testimonials`   | `title*`, `items*` (`quote*`, `author*`, `role`, `company`, `photo`)                                                                                                | Stimmen anderer Kunden. Nur echte Zitate mit Zustimmung.             |
 | `faq`            | `title*`, `items*` (`question*`, `answer*`)                                                                                                                         | Häufige Fragen, aufklappbar.                                         |
 | `about`          | `title*`, `body*`, `image`, `facts` (`label*`, `value*`)                                                                                                            | Über Sie bzw. Ihre Agentur.                                          |
-| `contact`        | `title*`, `channels` (whatsapp, phone, email; Reihenfolge zählt), `message`, `intro`                                                                                | Kontaktwege. Nummern kommen aus den Einstellungen.                   |
+| `contact`        | `title*`, `channels` (chat, whatsapp, phone, callback, email, booking, messenger, sms; Reihenfolge zählt), `message`, `intro`                                       | Kontaktwege. Nummern kommen aus den Einstellungen.                   |
 | `cta`            | `headline*`, `label*`, `target*` (id eines anderen Bausteins), `text`                                                                                               | Hervorgehobener Sprung, z. B. zum Kontakt.                           |
 
 Icons für `proposal`: `website`, `mobile`, `search`, `map`, `social`, `brand`, `photo`, `speed`,
@@ -121,6 +121,10 @@ Icons für `proposal`: `website`, `mobile`, `search`, `map`, `social`, `brand`, 
 Name, Foto, Telefonnummern und WhatsApp kommen aus **Einstellungen → Profil und Kanäle**, nicht aus dem
 Exposé. Bei WhatsApp und E-Mail hängt das Exposé automatisch `[Ref XXXX]` an die vorausgefüllte
 Nachricht, damit Sie Antworten zuordnen können.
+
+Ohne `channels` zeigt der Block Chat, WhatsApp, Telefon, Rückruf, E-Mail und Termin, soweit in den
+Einstellungen hinterlegt. Messenger und SMS erscheinen nur, wenn Sie sie ausdrücklich aufführen. Chat,
+Abwesenheitsnotiz und Nudges stellen Sie unter **Einstellungen → Kontakt und Chat** ein.
 
 ## Prüfen und veröffentlichen
 

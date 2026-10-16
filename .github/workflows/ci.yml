@@ -135,12 +135,16 @@ jobs:
         run: |
           urls=$(psql "$DATABASE_URL" -Atc "select 'http://pixelwerk.localhost:3000/x/' || slug from exposes order by slug" | tr '\n' ' ')
           echo "LHCI_URLS=$urls" >> "$GITHUB_ENV"
+          # Warm the Node server (first render compiles routes and fills caches) so a
+          # cold run does not drag the median; Workers in production stay warm (ADR-0014).
+          for url in $urls; do for i in 1 2 3; do curl -sf -o /dev/null "$url"; done; done
       - run: npx -y @lhci/cli@0.15.1 autorun
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lighthouse
           path: .lighthouseci/
+          include-hidden-files: true
           retention-days: 7
 
   cloudflare:

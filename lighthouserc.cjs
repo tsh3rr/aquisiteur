@@ -7,7 +7,7 @@ module.exports = {
   ci: {
     collect: {
       url: (process.env.LHCI_URLS ?? "").split(" ").filter(Boolean),
-      numberOfRuns: 3,
+      numberOfRuns: 5,
       settings: {
         chromeFlags: "--no-sandbox --headless=new",
         skipAudits: ["is-crawlable"],

@@ -199,3 +199,60 @@ Exposé-Hosts und betrifft nur den Owner, nie Interessenten.
 Antippen des Buttons vorab geladen wird, damit das Teilen-Menü auf iOS noch in der Nutzergeste öffnet.
 Besuche über diesen Link heißen in der Timeline „Weitergeleiteten Link geöffnet“. So wird sichtbar, wenn
 ein Exposé intern weitergereicht wird.
+
+## ADR-0020 · Realtime-Port: SSE im Speicher lokal, Supabase Broadcast in Produktion (2026-10-16)
+
+Chat, Tippanzeige und Cockpit-Hinweise laufen über `RealtimePort` mit zwei Themen: `ws-<workspace>`
+(Cockpit) und `chat-<thread>` (Besucher). Browser hören nur zu, geschrieben wird immer über die
+App-Routen (Validierung, RLS, Audit). Lokal und in Tests liefert der `memory`-Adapter Server-Sent
+Events aus dem eigenen Prozess. Auf Cloudflare ist das unmöglich (kein gemeinsamer Speicher zwischen
+Isolates), dort ist `REALTIME_PROVIDER=supabase` Pflicht: Der Server sendet per REST-Broadcast mit dem
+Secret Key, Browser verbinden sich per WebSocket mit dem Publishable Key. Kanalnamen tragen einen HMAC
+des Themas, den nur die App vergibt (signierte Tokens, 12 h Cockpit, 3 Tage Chat). Ohne SDK: ein
+kleiner Phoenix-Client in `src/infra/realtime-client.ts`, der einzige erlaubte `@/infra/*`-Import im
+Browser. Durable Objects bleiben eine spätere Alternative hinter demselben Port.
+
+## ADR-0021 · Chat-Verlauf nur im Tab (sessionStorage) (2026-10-16)
+
+Interessenten bleiben anonym und ohne Cookie. Der Token eines Chat-Verlaufs liegt in
+`sessionStorage` unter `aq-chat:<slug>`: Ein Neuladen behält das Gespräch, ein neuer Tab oder ein
+anderes Gerät beginnt neu. Damit Antworten trotzdem ankommen, fragt das Widget nach der ersten
+Nachricht freiwillig nach einem Rückkanal (WhatsApp, SMS, Anruf, E-Mail).
+
+## ADR-0022 · Abwesenheitsnotiz: Browser stößt an, Server entscheidet (2026-10-16)
+
+Ohne Job-Queue (kommt in Phase 4) fragt das Widget nach zwei Minuten ohne Antwort `/t/chat/offline`
+an. Der Server prüft mit `offlineNoticeDue`, ob seit der letzten Besuchernachricht weder der Owner
+geantwortet hat noch schon eine Notiz ging. So kommt pro unbeantwortetem Abschnitt höchstens eine Notiz,
+auch bei mehreren Tabs.
+
+## ADR-0023 · Entwurfserkennung speichert standardmäßig nur die Länge (2026-10-16)
+
+Getippte, nicht gesendete Nachrichten sind ein starkes Signal, aber auch heikel. Standardmäßig wird
+nur die Zeichenzahl gespeichert („Hat 140 Zeichen geschrieben, nicht gesendet“). Den Inhalt speichert
+die App nur, wenn der Workspace `chat.storeDraftContent` einschaltet; das Widget zeigt dann einen
+sichtbaren Hinweis unter dem Eingabefeld.
+
+## ADR-0024 · Status „Kontakt“ automatisch, nie zurück (2026-10-16)
+
+Eine Chat-Nachricht oder ein Rückrufwunsch setzt den Kunden auf „Kontakt“ (`advanceStatus`), ein echter
+Besuch auf „Geöffnet“. Der Status rückt nur vor, nie zurück, und jede Änderung landet mit Auslöser im
+Audit-Log.
+
+## ADR-0025 · Terminbuchung als Link statt Einbettung (2026-10-16)
+
+Der Kanal `booking` ist ein Link auf die Buchungsseite des Owners (Cal.com, Calendly …). Ein
+eingebettetes Widget würde Drittanbieter-Skripte und -Cookies auf jedes Exposé bringen und die
+Performance-Grenze (ADR-0014) sprengen.
+
+## ADR-0026 · Verfügbarkeit über Präsenz-Heartbeat (2026-10-16)
+
+Ein offenes Cockpit meldet alle 60 s Präsenz (`member_presence`), gültig 3 Minuten. „Automatisch“
+zeigt Besuchern „verfügbar“, solange ein Mitglied online ist; „Verfügbar“ und „Abwesend“ überschreiben
+das. Der Launcher zeigt den Status mit Text, nicht nur mit Farbe.
+
+## ADR-0027 · Lighthouse-CI: Server vorwärmen, Median aus fünf Läufen (2026-10-16)
+
+Der erste Lauf gegen einen frisch gestarteten Node-Server misst das Kompilieren der Route mit (0,71 statt
+0,88–0,96). In Produktion auf Workers gibt es diesen Kaltstart pro Exposé nicht. Die CI ruft jede URL
+deshalb vorher dreimal ab und nimmt den Median aus fünf statt drei Läufen. Die Grenze bleibt 90.

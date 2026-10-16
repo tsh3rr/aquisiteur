@@ -42,6 +42,8 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 - Public tracking (`src/server/tracking/visits.ts`, routes under `src/app/sites/[host]/`) runs on the
   system connection and must scope every query to the host's workspace; tenants only read `visits` and
   `events`. Event types live in `src/domain/tracking/events.ts` (one central list).
+- Realtime: write through app routes/actions, then `publish()` (`src/server/realtime.ts`); browsers only
+  listen via `@/infra/realtime-client` (the one `@/infra/*` import allowed outside infra, ADR-0020).
 - Permissions via `can()` / `assertCan()` (`src/domain/authz.ts`); limits via `entitlements()`.
 - Nothing workspace-specific in env or code: it belongs in `workspace_settings` (Zod schemas in
   `src/domain/workspace-settings.ts`).

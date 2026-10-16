@@ -3,7 +3,7 @@
 > Keine Rechtsberatung. Vor dem Livegang von einer Fachperson prüfen lassen. Dieses Dokument wird mit
 > jeder Phase ergänzt und ist in Phase 6 vollständig.
 
-## Stand Phase 2
+## Stand Phase 3
 
 | Thema                     | Umsetzung                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -24,11 +24,22 @@
 | Widerspruch (Opt-out)     | Link „Kein Interesse“ in jedem Exposé; nach Bestätigung `status = no_interest` und `do_not_contact_at` am Prospect, Eintrag im Audit-Log. Keine IP, kein Cookie.                                                                                                                                                                                                                |
 | API-Tokens                | Nur als SHA-256-Hash gespeichert, einmalig angezeigt, ablaufend oder widerrufbar, handeln mit den Rechten ihres Erstellers.                                                                                                                                                                                                                                                     |
 
+Neu in Phase 3:
+
+| Thema         | Umsetzung                                                                                                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat          | Interessenten schreiben anonym. Nachrichten liegen pro Workspace mit RLS in Postgres. Der Token des Verlaufs liegt nur in `sessionStorage` dieses Tabs (kein Cookie, endet mit dem Tab). |
+| Rückkanal     | Name, Nummer oder E-Mail nur, wenn die Person sie im Chat freiwillig angibt.                                                                                                             |
+| Entwürfe      | Standardmäßig nur die Länge getippter, nicht gesendeter Nachrichten. Inhalt nur bei `chat.storeDraftContent`, dann mit sichtbarem Hinweis im Widget.                                     |
+| Rückrufwunsch | Name, Telefonnummer, Wunschzeit und optionale Nachricht. Spam-Schutz per Honeypot-Feld, keine IP.                                                                                        |
+| Präsenz       | Letzter Heartbeat je Mitglied (`member_presence`), nur für die Anzeige „verfügbar“.                                                                                                      |
+| Realtime      | In Produktion Supabase Realtime (EU). Übertragen werden Nachrichtentext und Tippanzeige; gespeichert wird bei Supabase dabei nichts zusätzlich. Kanalnamen sind nicht erratbar (HMAC).   |
+
 ## Auftragsverarbeiter
 
 | Dienst           | Zweck                                             | Region               | AVV                                     |
 | ---------------- | ------------------------------------------------- | -------------------- | --------------------------------------- |
-| Supabase         | Datenbank                                         | EU (Frankfurt)       | DPA im Dashboard abschließen            |
+| Supabase         | Datenbank, Realtime (Chat)                        | EU (Frankfurt)       | DPA im Dashboard abschließen            |
 | Cloudflare       | Hosting, Hyperdrive, R2 (Dateien), später Queues  | global, R2 in EU     | DPA ist Teil der Self-Serve-Bedingungen |
 | Resend           | E-Mail-Versand (Anmeldelinks, Benachrichtigungen) | EU (Irland)          | DPA im Dashboard                        |
 | Pingen (später)  | Briefdruck und Versand                            | Schweiz / Österreich | AV-Vertrag vor Produktivbetrieb         |
