@@ -123,6 +123,7 @@ describe("intent score and notifications", () => {
         .map((r) => [r.trigger, r.threshold, r.channels])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     ).toEqual([
+      ["callback", null, ["push"]],
       ["chat_message", null, ["push"]],
       ["daily_digest", 8, ["email"]],
       ["first_visit", null, ["push"]],
@@ -297,7 +298,7 @@ describe("intent score and notifications", () => {
           workspaceId: wsJ,
           userId: jana.id,
           rule: {
-            trigger: "callback",
+            trigger: "opt_out",
             threshold: null,
             channels: ["push", "email"],
             enabled: true,
@@ -308,10 +309,10 @@ describe("intent score and notifications", () => {
         }),
       ).toBe(true);
       const rules = await listRules(tx, wsJ);
-      const callback = rules.find((rule) => rule.trigger === "callback")!;
-      expect(callback).toMatchObject({ quietFrom: "22:00", weekdaysOnly: true });
-      await deleteRule(tx, { workspaceId: wsJ, userId: jana.id, id: callback.id });
-      expect((await listRules(tx, wsJ)).some((rule) => rule.trigger === "callback")).toBe(false);
+      const optOut = rules.find((rule) => rule.trigger === "opt_out")!;
+      expect(optOut).toMatchObject({ quietFrom: "22:00", weekdaysOnly: true });
+      await deleteRule(tx, { workspaceId: wsJ, userId: jana.id, id: optOut.id });
+      expect((await listRules(tx, wsJ)).some((rule) => rule.trigger === "opt_out")).toBe(false);
 
       expect(await unreadNotificationCount(tx, wsJ)).toBeGreaterThan(0);
       await markNotificationsRead(tx, wsJ);
