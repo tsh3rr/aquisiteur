@@ -19,6 +19,7 @@ import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { ContactSettingsForm } from "./contact-settings";
+import { RetentionForm, WorkspaceDataActions } from "./data-settings";
 import { LetterSettingsForm } from "./letter-settings";
 import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
@@ -248,6 +249,22 @@ export default async function SettingsPage() {
             retentionDays={settings.retention.replaysDays}
             canEdit={canEditSettings}
           />
+        </CardContent>
+      </Card>
+
+      <Card id="daten">
+        <CardHeader>
+          <CardTitle>Daten und Aufbewahrung</CardTitle>
+          <CardDescription>
+            Ein stündlicher Lauf löscht alte Daten automatisch. Besuche selbst bleiben als Zählung
+            für die Auswertung; sie enthalten keine IP-Adressen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8">
+          <RetentionForm retention={settings.retention} canEdit={canEditSettings} />
+          {can(actor, "workspace.export", { workspaceId: workspace.id }) ? (
+            <WorkspaceDataActions slug={workspace.slug} />
+          ) : null}
         </CardContent>
       </Card>
 

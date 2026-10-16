@@ -1,12 +1,21 @@
 import "server-only";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { auditLog, contacts, exposes, prospects, savedViews, touchpoints } from "@/db/schema";
+import {
+  auditLog,
+  contacts,
+  exposes,
+  prospects,
+  savedViews,
+  sessionReplays,
+  touchpoints,
+} from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import { randomCode } from "@/domain/codes";
 import type { ProspectForm } from "@/domain/prospects/schema";
 import type { ProspectStatus } from "@/domain/prospects/status";
 import { slugify } from "@/domain/slug";
+import { deleteReplayFiles } from "../retention";
 import { createTouchpoint } from "../tracking/touchpoints";
 
 /** Sets the status of one or many prospects; logs each actual change. */
@@ -114,10 +123,38 @@ export async function updateProspect(
 }
 
 /**
+ * Sperrvermerk (§7.8 Datenschutz-Aktionen): blocks letters and follow-ups.
+ * Set by hand here or by the prospect's own opt-out; retention then deletes
+ * the tracking data after the configured period and keeps only this marker.
+ */
+export async function setDoNotContact(tx: Transaction, actor: Actor, id: string, blocked: boolean) {
+  const updated = await tx
+    .update(prospects)
+    .set({ doNotContactAt: blocked ? new Date() : null })
+    .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
+    .returning({ id: prospects.id });
+  if (updated.length === 0) return false;
+  await tx.insert(auditLog).values({
+    workspaceId: actor.workspaceId,
+    actorUserId: actor.userId,
+    action: blocked ? "prospect.blocked" : "prospect.unblocked",
+    targetType: "prospect",
+    targetId: id,
+  });
+  return true;
+}
+
+/**
  * Removes a prospect with everything that hangs off it (contacts, exposé,
  * links, visits, events). Data subject deletion (§9) uses the same path.
  */
 export async function deleteProspect(tx: Transaction, actor: Actor, id: string) {
+  const replays = await tx
+    .select({ id: sessionReplays.id })
+    .from(sessionReplays)
+    .where(
+      and(eq(sessionReplays.workspaceId, actor.workspaceId), eq(sessionReplays.prospectId, id)),
+    );
   const deleted = await tx
     .delete(prospects)
     .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
@@ -130,6 +167,11 @@ export async function deleteProspect(tx: Transaction, actor: Actor, id: string) 
     targetType: "prospect",
     targetId: id,
   });
+  // Recording chunks live in storage, outside the cascade.
+  await deleteReplayFiles(
+    actor.workspaceId,
+    replays.map((r) => r.id),
+  );
   return true;
 }
 

@@ -54,6 +54,8 @@ export interface StoragePort {
   ): Promise<void>;
   get(key: string): Promise<{ body: ReadableStream; contentType: string; size: number } | null>;
   delete(key: string): Promise<void>;
+  /** Removes every object under `prefix` (must end in "/"); returns how many. */
+  deletePrefix(prefix: string): Promise<number>;
 }
 
 /** Phase 4: notifications, digests, retention, score recomputation. */

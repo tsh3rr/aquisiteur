@@ -44,5 +44,16 @@ export function localStorage(root: string): StoragePort {
       await fs.rm(file, { force: true });
       await fs.rm(metaPath(file), { force: true });
     },
+    async deletePrefix(prefix) {
+      if (!prefix.endsWith("/")) throw new Error(`Storage prefix must end in "/": ${prefix}`);
+      const fs = await import("node:fs/promises");
+      const dir = await resolve(prefix.slice(0, -1));
+      const entries = await fs
+        .readdir(dir, { recursive: true, withFileTypes: true })
+        .catch(() => []);
+      const count = entries.filter((e) => e.isFile() && !e.name.endsWith(".meta.json")).length;
+      await fs.rm(dir, { recursive: true, force: true });
+      return count;
+    },
   };
 }

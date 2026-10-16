@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { ArrowLeft, ExternalLink, Globe, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Ban, Download, ExternalLink, Globe, Mail, Phone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,9 +21,10 @@ import { formatRelative } from "@/lib/relative-time";
 import { CallbackList } from "../../chat/callbacks";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { requireCockpit } from "@/server/session";
+import { loadWorkspaceSettings } from "@/server/workspaces";
 import { touchpointUrls } from "@/server/tracking/touchpoints";
 import { signOwnerLink } from "@/server/tracking/visits";
-import { updateProspectAction, deleteProspectAction } from "../actions";
+import { deleteProspectAction, setDoNotContactAction, updateProspectAction } from "../actions";
 import { ProspectForm } from "../prospect-form";
 import { Contacts } from "./contacts";
 import { ProspectLetters } from "./letters";
@@ -42,6 +43,7 @@ const dateTime = new Intl.DateTimeFormat("de-DE", {
   timeStyle: "short",
   timeZone: "Europe/Berlin",
 });
+const day = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "Europe/Berlin" });
 const DEVICE = {
   mobile: "Smartphone",
   tablet: "Tablet",
@@ -77,10 +79,12 @@ export default async function CustomerPage({
       intent: await loadIntent(tx, workspace.id, id),
       campaigns: await listCampaigns(tx, workspace.id),
       letters: await listLetters(tx, workspace.id, { prospectId: id }, 20),
+      settings: await loadWorkspaceSettings(tx, workspace.id),
     };
   });
   if (!loaded) notFound();
-  const { detail, origin, intent, campaigns, letters } = loaded;
+  const { detail, origin, intent, campaigns, letters, settings } = loaded;
+  const optOutDays = settings.retention.optOutTrackingDays;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const ownerLink = `${origin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
@@ -421,23 +425,64 @@ export default async function CustomerPage({
           </Card>
 
           {canManage ? (
-            <Card className="border-danger/40">
+            <Card id="datenschutz">
               <CardHeader>
-                <CardTitle>Kunden löschen</CardTitle>
+                <CardTitle>Datenschutz</CardTitle>
                 <CardDescription>
-                  Löscht den Kunden mit Exposé, Links, Besuchen und Ereignissen. Das lässt sich
-                  nicht rückgängig machen.
+                  Auskunft, Sperrvermerk und Löschung für diesen Kunden (DSGVO Art. 15, 17, 21).
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid gap-5">
+                <div className="grid gap-1">
+                  <a
+                    href={`/kunden/${prospect.id}/export`}
+                    download
+                    className={`${action} justify-self-start`}
+                  >
+                    <Download aria-hidden className="size-4" />
+                    Daten exportieren
+                  </a>
+                  <p className="text-sm text-foreground-muted">
+                    Alle gespeicherten Daten als JSON-Datei, z. B. für eine Auskunftsanfrage.
+                  </p>
+                </div>
+
+                <form action={setDoNotContactAction} className="grid gap-2">
+                  <input type="hidden" name="id" value={prospect.id} />
+                  <input type="hidden" name="blocked" value={prospect.doNotContactAt ? "0" : "1"} />
+                  <p className="text-sm">
+                    {prospect.doNotContactAt ? (
+                      <>
+                        <span className="font-medium">
+                          Sperrvermerk seit {day.format(prospect.doNotContactAt)}.
+                        </span>{" "}
+                        {prospect.trackingPurgedAt
+                          ? `Die Besuchsdaten wurden am ${day.format(prospect.trackingPurgedAt)} gelöscht; nur der Sperrvermerk bleibt.`
+                          : `Keine Briefe mehr. Die Besuchsdaten werden am ${day.format(
+                              new Date(
+                                prospect.doNotContactAt.getTime() + optOutDays * 24 * 3600 * 1000,
+                              ),
+                            )} gelöscht; nur der Sperrvermerk bleibt.`}
+                      </>
+                    ) : (
+                      "Ein Sperrvermerk verhindert weitere Briefe. Die Besuchsdaten werden danach automatisch gelöscht, der Vermerk bleibt."
+                    )}
+                  </p>
+                  <button type="submit" className={`${action} justify-self-start`}>
+                    <Ban aria-hidden className="size-4" />
+                    {prospect.doNotContactAt ? "Sperrvermerk aufheben" : "Sperrvermerk setzen"}
+                  </button>
+                </form>
+
                 <details>
                   <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">
-                    Löschen …
+                    Kunden löschen …
                   </summary>
                   <form action={deleteProspectAction} className="mt-3 grid gap-3">
                     <input type="hidden" name="id" value={prospect.id} />
                     <p className="text-sm">
-                      {prospect.companyName} und alle Daten dazu endgültig löschen?
+                      {prospect.companyName} mit Exposé, Links, Besuchen, Aufzeichnungen und Chats
+                      endgültig löschen? Das lässt sich nicht rückgängig machen.
                     </p>
                     <button
                       type="submit"

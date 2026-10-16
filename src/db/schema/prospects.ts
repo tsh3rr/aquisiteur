@@ -90,6 +90,11 @@ export const prospects = pgTable(
     status: prospectStatus("status").notNull().default("draft"),
     /** Set by "Kein Interesse" (§7.3): blocks follow-ups for good. */
     doNotContactAt: timestamp("do_not_contact_at", { withTimezone: true }),
+    /**
+     * Set when retention removed this prospect's tracking data after an
+     * opt-out (§9); only the block marker (`doNotContactAt`) stays.
+     */
+    trackingPurgedAt: timestamp("tracking_purged_at", { withTimezone: true }),
     estimatedValueCents: integer("estimated_value_cents"),
     /** Null: no campaign. Cleared by hand before a campaign is deleted. */
     campaignId: uuid("campaign_id"),

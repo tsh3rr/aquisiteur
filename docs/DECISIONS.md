@@ -396,3 +396,19 @@ komplett ausgeblendet. Die Aufzeichnung geht in Stücken an `/t/replay`, wird gz
 Widerruf über „Aufzeichnung läuft · beenden“ löscht sie sofort, der stündliche Job nach
 `retention.replaysDays` (Standard 90 Tage). Das Cockpit spielt Aufzeichnungen mit dem rrweb-Replayer in
 einem Frame ohne Skripte ab.
+
+## ADR-0043 · Aufbewahrung, Sperrvermerk und Datenexport (2026-10-16)
+
+Der stündliche Job löscht pro Workspace Rohereignisse (`events`) nach `retention.eventsDays` (Standard
+365). Besuche bleiben als Zählung für die Auswertung; sie enthalten keine IP-Adresse. Ein Sperrvermerk
+(`doNotContactAt`, per „Kein Interesse“ im Exposé oder von Hand auf der Kundenseite) sperrt Briefe; nach
+`retention.optOutTrackingDays` (Standard 30) löscht der Job Besuche, Ereignisse, Einwilligungen,
+Aufzeichnungen samt Dateien und den Score und setzt `trackingPurgedAt`. Chats und Rückrufwünsche bleiben
+als Schriftverkehr, nur ohne Verweis auf den gelöschten Besuch. Außerdem entfernt der Job abgelaufene
+Anmeldelinks, Sitzungen und Rate-Limit-Zähler. Export pro Kunde und pro Workspace sind JSON-Dateien aus
+allen Tabellen mit `workspace_id`, als Tenant gelesen; Token-Hashes und verschlüsselte Zugangsdaten
+fehlen. Der Workspace-Export wird tabellenweise gestreamt. Das Löschen eines Workspace (nur Owner,
+Bestätigung durch Eingabe des Kurznamens) entfernt zuerst alle Dateien unter `<workspace_id>/`
+(`StoragePort.deletePrefix`), dann die Zeile; alles andere folgt per Cascade. Es läuft auf der
+System-Verbindung wie das Anlegen. Auch beim Löschen eines Kunden werden die Aufzeichnungsdateien jetzt
+mit entfernt.

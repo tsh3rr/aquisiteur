@@ -18,6 +18,7 @@ import {
   addTouchpoint,
   createProspect,
   deleteProspect,
+  setDoNotContact,
   deleteView,
   removeContact,
   saveView,
@@ -111,6 +112,15 @@ export async function updateProspectAction(_: FormState, formData: FormData): Pr
   if (!found) return { ok: false, message: "Kunde nicht gefunden." };
   revalidateCustomers(id.data);
   return { ok: true, message: "Gespeichert." };
+}
+
+/** Sets or lifts the block marker (Sperrvermerk) on the customer page. */
+export async function setDoNotContactAction(formData: FormData): Promise<void> {
+  const { actor, tenant } = await manager();
+  const id = z.uuid().parse(formData.get("id"));
+  const blocked = formData.get("blocked") === "1";
+  await tenant((tx) => setDoNotContact(tx, actor, id, blocked));
+  revalidateCustomers(id);
 }
 
 export async function deleteProspectAction(formData: FormData): Promise<void> {

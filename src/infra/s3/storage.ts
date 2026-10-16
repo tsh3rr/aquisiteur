@@ -55,5 +55,33 @@ export function s3Storage(config: {
         throw new Error(`Storage DELETE ${key} failed: ${response.status}`);
       }
     },
+    async deletePrefix(prefix) {
+      if (!prefix.endsWith("/")) throw new Error(`Storage prefix must end in "/": ${prefix}`);
+      let removed = 0;
+      let token: string | undefined;
+      do {
+        const query = new URLSearchParams({ "list-type": "2", prefix, "max-keys": "1000" });
+        if (token) query.set("continuation-token", token);
+        const response = await client.fetch(`${base}?${query}`, { method: "GET" });
+        if (!response.ok) throw new Error(`Storage LIST ${prefix} failed: ${response.status}`);
+        const xml = await response.text();
+        const keys = [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map((m) => decodeXml(m[1]!));
+        for (const key of keys) await this.delete(key);
+        removed += keys.length;
+        token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+          ? decodeXml(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] ?? "")
+          : undefined;
+      } while (token);
+      return removed;
+    },
   };
+}
+
+function decodeXml(text: string): string {
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 }

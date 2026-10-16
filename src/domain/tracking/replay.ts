@@ -50,8 +50,12 @@ export const replayChunkSchema = z.object({
 });
 
 /** Storage key of chunk `n`; always below the workspace's prefix. */
+export function replayFolder(workspaceId: string, replayId: string) {
+  return `${workspaceId}/replays/${replayId}/`;
+}
+
 export function replayChunkKey(workspaceId: string, replayId: string, n: number) {
-  return `${workspaceId}/replays/${replayId}/${String(n).padStart(4, "0")}.json.gz`;
+  return `${replayFolder(workspaceId, replayId)}${String(n).padStart(4, "0")}.json.gz`;
 }
 
 /** Milliseconds between the first and the last event of all chunks so far. */
