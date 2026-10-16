@@ -2,11 +2,13 @@ import { List } from "lucide-react";
 import { exposeThemeCss } from "@/domain/expose/theme";
 import { Block, blockTitle } from "./blocks";
 import { displayFont } from "./fonts";
+import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
+import { ContactLayer } from "./contact-layer";
 import { ExposeTracker } from "./expose-tracker";
 import { FooterActions } from "./footer-actions";
 import { ownerName } from "./owner";
 import { Picture } from "./picture";
-import { resolveImage, type RenderContext } from "./render-context";
+import { ownerPhoto, resolveImage, type RenderContext } from "./render-context";
 import type { ExposeViewData } from "@/server/exposes/load";
 
 /**
@@ -31,6 +33,7 @@ export function ExposeView({
     settings: data.settings,
     ownerPhoto: data.ownerPhoto,
     refCode: data.expose.refCode,
+    slug: data.expose.slug,
     prospectName: data.prospect.companyName,
     workspaceName: data.workspace.name,
   };
@@ -41,6 +44,9 @@ export function ExposeView({
     .filter((entry): entry is { id: string; title: string } => entry.title !== null);
   const company = data.settings.senderAddress.company ?? data.workspace.name;
   const accent = document.theme.accent ?? data.settings.branding.accentColor;
+  const contactBlock = document.blocks.find((block) => block.type === "contact");
+  const channels = data.settings.channels;
+  const phone = channels.phone ?? channels.mobile;
 
   return (
     <div
@@ -104,7 +110,26 @@ export function ExposeView({
         ))}
       </main>
 
-      <footer className="border-t border-border bg-surface-sunken px-5 py-10 sm:px-8">
+      {mode === "public" ? (
+        <ContactLayer
+          slug={data.expose.slug}
+          chat={data.settings.chat}
+          nudges={data.settings.nudges}
+          owner={{ name: ownerName(context), photo: ownerPhoto(context, "")?.src ?? null }}
+          whatsappHref={whatsappHref(
+            channels,
+            prefilledMessage(
+              contactBlock?.type === "contact" ? contactBlock.message : undefined,
+              data.prospect.companyName,
+              data.expose.refCode,
+            ),
+          )}
+          phoneHref={phone ? telHref(phone) : null}
+          contactBlockId={contactBlock?.id ?? null}
+        />
+      ) : null}
+
+      <footer className="border-t border-border bg-surface-sunken px-5 pt-10 pb-28 sm:px-8 md:pb-10">
         <div className="mx-auto grid max-w-6xl gap-6 text-sm text-foreground-muted">
           <FooterActions title={document.meta.title} />
           <p>

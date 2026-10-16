@@ -172,3 +172,11 @@
     break-inside: avoid-page;
   }
 }
+
+/* Nudge card entrance (§7.4); only with motion-safe, see contact-layer.tsx. */
+@keyframes nudge-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}

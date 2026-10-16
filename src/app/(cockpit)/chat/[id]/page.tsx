@@ -68,6 +68,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
               detail.draft ? { length: detail.draft.length, content: detail.draft.content } : null
             }
             canHandOver={canHandOver}
+            visitorName={thread.visitorName}
           />
         </div>
         <Card className="h-fit">

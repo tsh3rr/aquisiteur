@@ -18,6 +18,53 @@ let queue: TrackEvent[] = [];
 let startedSlug: string | null = null;
 let active = false;
 
+/**
+ * What the page observed so far, for the nudges and the contact bar
+ * (§7.4). Lives in memory like everything else here.
+ */
+export interface Signals {
+  sectionsSeen: number;
+  sectionTotal: number;
+  activeSeconds: number;
+  pricingTouched: boolean;
+  /** Bottom of the viewport relative to the page height, 0–1. */
+  scrollRatio: number;
+  returning: boolean;
+  available: boolean;
+}
+
+let signals: Signals = {
+  sectionsSeen: 0,
+  sectionTotal: 0,
+  activeSeconds: 0,
+  pricingTouched: false,
+  scrollRatio: 0,
+  returning: false,
+  available: false,
+};
+const signalListeners = new Set<(signals: Signals) => void>();
+let tokenWaiters: ((token: string | null) => void)[] = [];
+/** /t/start answered (with or without a token). */
+let ready = false;
+
+function update(patch: Partial<Signals>) {
+  signals = { ...signals, ...patch };
+  for (const listener of signalListeners) listener(signals);
+}
+
+/** Calls `listener` now and on every change; returns the unsubscribe function. */
+export function onSignals(listener: (signals: Signals) => void): () => void {
+  signalListeners.add(listener);
+  listener(signals);
+  return () => signalListeners.delete(listener);
+}
+
+/** The visit token once the visit started (null if it could not start). */
+export function visitToken(): Promise<string | null> {
+  if (ready) return Promise.resolve(token);
+  return new Promise((resolve) => tokenWaiters.push(resolve));
+}
+
 const at = () => Math.round(performance.now() - started);
 
 function post(path: string, body: unknown, beacon = false) {
@@ -71,6 +118,7 @@ export function start(slug: string): () => void {
     started = performance.now();
     queue = [];
     token = null;
+    ready = false;
     const url = new URL(window.location.href);
     const ticket = url.searchParams.get("v") ?? undefined;
     if (ticket) {
@@ -84,8 +132,12 @@ export function start(slug: string): () => void {
       viewport: { width: window.innerWidth, height: window.innerHeight },
     })
       .then((response) => (response?.ok ? response.json() : null))
-      .then((data: { token?: string } | null) => {
+      .then((data: { token?: string; returning?: boolean; available?: boolean } | null) => {
         token = data?.token ?? null;
+        ready = true;
+        update({ returning: Boolean(data?.returning), available: Boolean(data?.available) });
+        for (const resolve of tokenWaiters) resolve(token);
+        tokenWaiters = [];
         flush();
       });
   }
@@ -98,6 +150,7 @@ export function start(slug: string): () => void {
     lastTick = now;
     if (document.visibilityState === "visible" && seconds > 0) {
       track({ type: "heartbeat", seconds: Math.min(seconds, 60) });
+      update({ activeSeconds: signals.activeSeconds + Math.min(seconds, 60) });
       flush();
     }
   }, HEARTBEAT_MS);
@@ -123,6 +176,7 @@ export function start(slug: string): () => void {
           if (!seen.has(id)) {
             seen.add(id);
             track({ type: "section_view", blockId: id });
+            update({ sectionsSeen: seen.size });
           }
           if (!visibleSince.has(id)) visibleSince.set(id, Date.now());
         } else {
@@ -132,9 +186,9 @@ export function start(slug: string): () => void {
     },
     { threshold: 0.5 },
   );
-  document
-    .querySelectorAll("section[data-block][id]")
-    .forEach((section) => observer.observe(section));
+  const sections = document.querySelectorAll("section[data-block][id]");
+  sections.forEach((section) => observer.observe(section));
+  update({ sectionTotal: sections.length });
 
   // Scroll depth at 25/50/75/100 %.
   let reached = 0;
@@ -144,10 +198,9 @@ export function start(slug: string): () => void {
     frame = requestAnimationFrame(() => {
       frame = 0;
       const doc = document.documentElement;
-      const percent = Math.min(
-        100,
-        Math.round(((window.scrollY + window.innerHeight) / doc.scrollHeight) * 100),
-      );
+      const ratio = Math.min(1, (window.scrollY + window.innerHeight) / doc.scrollHeight);
+      if (Math.abs(ratio - signals.scrollRatio) >= 0.02) update({ scrollRatio: ratio });
+      const percent = Math.round(ratio * 100);
       const mark = SCROLL_MARKS.filter((m) => m <= percent).pop() ?? 0;
       if (mark > reached) {
         reached = mark;
@@ -176,6 +229,7 @@ export function start(slug: string): () => void {
     const optionId = input?.dataset?.pricingOption;
     if (!input || !optionId) return;
     track({ type: "pricing_change", blockId: blockOf(input), optionId, selected: input.checked });
+    update({ pricingTouched: true });
   };
   const onPlay = (event: Event) => {
     track({ type: "media_play", blockId: blockOf(event.target as Element) });

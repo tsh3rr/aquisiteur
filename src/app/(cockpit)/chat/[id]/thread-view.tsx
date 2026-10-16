@@ -25,22 +25,23 @@ export function ThreadView({
   initialMessages,
   initialDraft,
   canHandOver,
+  visitorName,
 }: {
   threadId: string;
   prospectId: string;
   initialMessages: ChatMessageView[];
   initialDraft: { length: number; content: string | null } | null;
   canHandOver: boolean;
+  visitorName: string | null;
 }) {
   const [messages, setMessages] = useState(initialMessages);
-  const [typing, setTyping] = useState<{ length: number; at: number } | null>(
-    initialDraft ? { length: initialDraft.length, at: 0 } : null,
+  const [typing, setTyping] = useState<{ length: number; live: boolean } | null>(
+    initialDraft ? { length: initialDraft.length, live: false } : null,
   );
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const lastTypingSent = useRef(0);
-  const [, setTick] = useState(0);
 
   const add = (message: ChatMessageView) =>
     setMessages((current) =>
@@ -65,7 +66,7 @@ export function ThreadView({
       payload.author === "visitor" &&
       (payload.threadId === threadId || (!payload.threadId && payload.prospectId === prospectId))
     ) {
-      setTyping(payload.length > 0 ? { length: payload.length, at: Date.now() } : null);
+      setTyping(payload.length > 0 ? { length: payload.length, live: true } : null);
     }
   });
 
@@ -79,11 +80,14 @@ export function ThreadView({
 
   // The live indicator fades; an older draft stays as a quiet note.
   useEffect(() => {
-    if (!typing?.at) return;
-    const timer = window.setTimeout(() => setTick((t) => t + 1), TYPING_SHOWN_MS);
+    if (!typing?.live) return;
+    const timer = window.setTimeout(
+      () => setTyping((current) => (current ? { ...current, live: false } : null)),
+      TYPING_SHOWN_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [typing]);
-  const typingNow = typing && typing.at > 0 && Date.now() - typing.at < TYPING_SHOWN_MS;
+  const typingNow = typing?.live ?? false;
 
   const send = (kind: "text" | "handover") => {
     setError(null);
@@ -112,11 +116,11 @@ export function ThreadView({
       aria-label="Unterhaltung"
       className="grid gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6"
     >
-      <MessageList messages={messages} perspective="owner" />
+      <MessageList messages={messages} perspective="owner" otherName={visitorName ?? undefined} />
 
       <p aria-live="polite" className="min-h-5 text-sm text-foreground-muted">
         {typingNow
-          ? `Schreibt gerade … (${typing.length} Zeichen)`
+          ? `Schreibt gerade … (${typing!.length} Zeichen)`
           : typing && typing.length > 0
             ? `Hat ${typing.length} Zeichen getippt, aber noch nicht gesendet.`
             : ""}

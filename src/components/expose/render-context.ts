@@ -11,6 +11,8 @@ export interface RenderContext {
   settings: WorkspaceSettings;
   ownerPhoto: ManifestEntry | null;
   refCode: string;
+  /** Exposé slug, for the public routes (callback form). */
+  slug: string;
   prospectName: string;
   workspaceName: string;
 }

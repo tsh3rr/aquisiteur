@@ -14,14 +14,17 @@ export function MessageList({
   messages,
   perspective,
   whatsappHref,
+  otherName,
   className,
 }: {
   messages: ChatMessageView[];
   perspective: "owner" | "visitor";
   whatsappHref?: string | null;
+  /** Name shown for the other side's messages. */
+  otherName?: string;
   className?: string;
 }) {
-  const otherLabel = perspective === "owner" ? "Besucher" : "Antwort";
+  const otherLabel = otherName ?? (perspective === "owner" ? "Besucher" : "Antwort");
   return (
     <ol role="log" aria-label="Nachrichten" className={cn("grid content-start gap-3", className)}>
       {messages.map((message) => {

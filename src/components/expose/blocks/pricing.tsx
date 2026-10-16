@@ -47,6 +47,7 @@ export function PricingCalculator({ block }: { block: BlockOf<"pricing"> }) {
                 checked={checked}
                 disabled={option.required}
                 data-pricing-option={option.id}
+                data-option-title={option.title}
                 onChange={() =>
                   setSelected((current) => {
                     const next = new Set(current);
