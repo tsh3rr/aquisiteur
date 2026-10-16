@@ -74,7 +74,10 @@ const serverEnvSchema = z.object({
    * Error monitoring (Sentry, EU region: the DSN host ends in ingest.de.sentry.io).
    * Unset: errors go to the server log only.
    */
-  SENTRY_DSN: z.url().optional(),
+  SENTRY_DSN: z
+    .url()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   SENTRY_ENVIRONMENT: z.string().optional(),
   SENTRY_RELEASE: z.string().optional(),
   /**
@@ -88,7 +91,11 @@ const serverEnvSchema = z.object({
   /** Accounts that see installation-wide figures (DB size, requests). Besides `platform_admins`. */
   PLATFORM_ADMIN_EMAILS: csv,
   /** Bearer secret for /api/jobs/* (cron: digest). Unset disables the endpoint. */
-  CRON_SECRET: z.string().min(24).optional(),
+  CRON_SECRET: z
+    .string()
+    .min(24)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
 });
