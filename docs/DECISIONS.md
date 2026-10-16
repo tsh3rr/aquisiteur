@@ -439,3 +439,13 @@ mit `HOSTING_PLAN=paid`, der bezahlten Pläne. Ab 80 % erscheint „Über 80 %�
 jeweils mit Symbol und Text. Impressum und Datenschutzerklärung sind in den Einstellungen als Markdown
 bearbeitbar; leer bleibt der aus den Angaben erzeugte Text, der jetzt auch Messwerte, Score, Chat,
 Speicherdauer und Dienstleister nennt und die eingestellten Fristen einsetzt.
+
+## ADR-0046 · Exposés weiter pro Aufruf gerendert, Betrieb auf Workers Paid (2026-10-16)
+
+Gemessen mit `next start` (Node, Produktions-Build): ein Exposé-Aufruf kostet rund 33 ms CPU, eine
+schlichte Seite wie das Impressum rund 15 ms. Der Gratis-Plan von Cloudflare erlaubt 10 ms. Vorrendern
+ginge nur über Next-ISR mit OpenNext-Cache (R2, dazu D1 und eine Queue für die Invalidierung): Seiten aus
+dem Cache können keine Nonce tragen, die CSP für Exposés würde also schwächer, und „offline nehmen“ wirkte
+erst nach der Invalidierung. Entscheidung: ADR-0012 bleibt, für den Betrieb wird Workers Paid empfohlen
+(5 $ im Monat, 30 s CPU). Das Vorrendern steht unter „Später“, falls der Gratis-Plan Pflicht wird.
+Einstellungen → System zeigt die CPU-Zeit pro Anfrage gegen die Grenze des gewählten Plans.

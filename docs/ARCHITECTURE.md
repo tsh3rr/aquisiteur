@@ -116,6 +116,19 @@ eingeschränkt. Mitglieder lesen Visits und Events nur (RLS, `GRANT SELECT`).
    Workspace des Hosts begrenzt) → `src/server/tracking/replay.ts` → Storage. Das Cockpit liest als
    Mandant und spielt im Frame ab (ADR-0042).
 
+## Härtung (Phase 6)
+
+1. **Aufbewahrung**: `/api/jobs/hourly` ruft `runRetention` (`src/server/retention.ts`, System-Verbindung,
+   je Workspace mit dessen Fristen) auf: Ereignisse, Tracking nach Sperrvermerk samt Replay-Dateien,
+   Anmelde- und Rate-Limit-Reste (ADR-0043).
+2. **Export und Löschung**: `src/server/data-export.ts` liest als Mandant; Workspace-Export als Stream.
+   Dateien löscht `StoragePort.deletePrefix`.
+3. **Monitoring**: `src/instrumentation.ts` meldet Server-Fehler über `MonitorPort` (ADR-0044).
+4. **Einstellungen → System**: `src/server/system-usage.ts` mit reinen Grenzen aus
+   `src/domain/system-limits.ts`; Anfragen und CPU über `HostingMetricsPort` (ADR-0045).
+5. **Eingaben von außen**: Bodies über `readBodyLimited` (`src/lib/body.ts`), Kurzlinks mit
+   Enumeration-Schutz (`src/server/tracking/short-link-guard.ts`). Checkliste: `docs/SECURITY.md`.
+
 ## Mandantentrennung (§9a)
 
 ```
@@ -169,3 +182,5 @@ Weitere Tabellen (Prospects, Exposés, Touchpoints, Events …) kommen mit ihren
 | `LetterDispatchProvider` | 5      | `manual`, danach Pingen                |
 | `GeocoderPort`           | 5      | Nominatim, Tests: Fake                 |
 | `DomainPort`             | 1/6    | Cloudflare for SaaS (Custom Hostnames) |
+| `MonitorPort`            | 6      | Sentry-Envelope per `fetch`, Dev: Log  |
+| `HostingMetricsPort`     | 6      | Cloudflare GraphQL Analytics (lesend)  |
