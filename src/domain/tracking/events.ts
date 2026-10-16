@@ -3,9 +3,12 @@ import { z } from "zod";
 /**
  * Events the exposé reports (§6.3, §11). One central, typed list; the
  * ingestion validates every batch against it and drops anything else.
- * Phase 2 sends the reading events; chat, nudges and consent follow.
+ * Phase 2 sends the reading events, phase 3 chat, callback and nudges;
+ * consent follows. `chat_message_sent` and `callback_submitted` are written
+ * by the server when the message or request is stored, never by the script.
  */
 const blockId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
+const nudgeId = z.enum(["read_invite", "pricing", "returning", "exit_intent"]);
 const at = z.number().int().nonnegative().describe("Milliseconds since the visit started.");
 
 export const EVENT_SCHEMAS = {
@@ -32,7 +35,7 @@ export const EVENT_SCHEMAS = {
     type: z.literal("contact_click"),
     at,
     blockId: blockId.optional(),
-    channel: z.enum(["whatsapp", "phone", "email"]),
+    channel: z.enum(["whatsapp", "phone", "email", "booking", "messenger", "sms"]),
   }),
   copy_contact: z.object({
     type: z.literal("copy_contact"),
@@ -50,7 +53,20 @@ export const EVENT_SCHEMAS = {
   share: z.object({ type: z.literal("share"), at }),
   pdf_download: z.object({ type: z.literal("pdf_download"), at }),
   opt_out: z.object({ type: z.literal("opt_out"), at }),
+  chat_open: z.object({
+    type: z.literal("chat_open"),
+    at,
+    source: z.enum(["launcher", "contact", "nudge", "bar"]),
+  }),
+  callback_started: z.object({ type: z.literal("callback_started"), at }),
+  nudge_shown: z.object({ type: z.literal("nudge_shown"), at, nudge: nudgeId }),
+  nudge_dismissed: z.object({ type: z.literal("nudge_dismissed"), at, nudge: nudgeId }),
+  nudge_clicked: z.object({ type: z.literal("nudge_clicked"), at, nudge: nudgeId }),
 } as const;
+
+/** Server-side only: stored with the chat message or callback request. */
+export const SERVER_EVENT_TYPES = ["chat_message_sent", "callback_submitted"] as const;
+export type ServerEventType = (typeof SERVER_EVENT_TYPES)[number];
 
 export type EventType = keyof typeof EVENT_SCHEMAS;
 export const EVENT_TYPES = Object.keys(EVENT_SCHEMAS) as EventType[];
@@ -69,6 +85,11 @@ export const trackedEventSchema = z.discriminatedUnion("type", [
   EVENT_SCHEMAS.share,
   EVENT_SCHEMAS.pdf_download,
   EVENT_SCHEMAS.opt_out,
+  EVENT_SCHEMAS.chat_open,
+  EVENT_SCHEMAS.callback_started,
+  EVENT_SCHEMAS.nudge_shown,
+  EVENT_SCHEMAS.nudge_dismissed,
+  EVENT_SCHEMAS.nudge_clicked,
 ]);
 export type TrackedEvent = z.infer<typeof trackedEventSchema>;
 

@@ -4,7 +4,15 @@
  * token for sending events. HMAC-SHA-256 over "<purpose>.<id>.<expiry>",
  * base64url. Web Crypto only, so it runs on Workers and Node alike.
  */
-export type TokenPurpose = "ticket" | "visit" | "owner" | "owner_link";
+export type TokenPurpose =
+  | "ticket"
+  | "visit"
+  | "owner"
+  | "owner_link"
+  /** Access to one chat thread from the exposé (phase 3). */
+  | "chat"
+  /** Listening on one realtime topic (phase 3). */
+  | "live";
 
 const encoder = new TextEncoder();
 

@@ -31,6 +31,14 @@ describe("infra boundary lint rule", () => {
     expect(messages).toHaveLength(0);
   });
 
+  it("allows the browser realtime client in client components", async () => {
+    const messages = await lint(
+      "src/components/example.tsx",
+      'import { subscribeRealtime } from "@/infra/realtime-client";\nexport const x = subscribeRealtime;\n',
+    );
+    expect(messages).toHaveLength(0);
+  });
+
   it("allows provider imports inside src/infra/", async () => {
     const messages = await lint(
       "src/infra/cloudflare/example.ts",

@@ -8,6 +8,8 @@ export function buildContentSecurityPolicy(options: {
   upgradeInsecure: boolean;
   /** Only the cockpit preview may be framed, and only by the cockpit itself. */
   allowSameOriginFraming?: boolean;
+  /** Extra origins for fetch/WebSocket, e.g. the Supabase Realtime socket. */
+  connectSrc?: string[];
 }): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -21,7 +23,7 @@ export function buildContentSecurityPolicy(options: {
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'"],
-    "connect-src": ["'self'", ...(options.isDev ? ["ws:"] : [])],
+    "connect-src": ["'self'", ...(options.connectSrc ?? []), ...(options.isDev ? ["ws:"] : [])],
     "frame-ancestors": [options.allowSameOriginFraming ? "'self'" : "'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],
@@ -49,3 +51,16 @@ export const hstsHeader = {
   key: "Strict-Transport-Security",
   value: "max-age=63072000; includeSubDomains; preload",
 };
+
+/** The Realtime socket origin when Supabase Realtime is configured, for connect-src. */
+export function realtimeConnectSrc(env: {
+  REALTIME_PROVIDER?: string;
+  SUPABASE_URL?: string;
+}): string[] {
+  if (env.REALTIME_PROVIDER !== "supabase" || !env.SUPABASE_URL) return [];
+  try {
+    return [`wss://${new URL(env.SUPABASE_URL).host}`];
+  } catch {
+    return [];
+  }
+}

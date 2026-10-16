@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContentSecurityPolicy } from "./security-headers";
+import { buildContentSecurityPolicy, realtimeConnectSrc } from "./security-headers";
 
 describe("buildContentSecurityPolicy()", () => {
   it("locks production down to self + nonce", () => {
@@ -16,5 +16,23 @@ describe("buildContentSecurityPolicy()", () => {
     expect(csp).toContain("'unsafe-eval'");
     expect(csp).toContain("connect-src 'self' ws:");
     expect(csp).not.toContain("upgrade-insecure-requests");
+  });
+
+  it("adds the Supabase Realtime socket when configured", () => {
+    const connectSrc = realtimeConnectSrc({
+      REALTIME_PROVIDER: "supabase",
+      SUPABASE_URL: "https://abcd.supabase.co",
+    });
+    expect(connectSrc).toEqual(["wss://abcd.supabase.co"]);
+    expect(
+      realtimeConnectSrc({ REALTIME_PROVIDER: "memory", SUPABASE_URL: "https://x.co" }),
+    ).toEqual([]);
+    const csp = buildContentSecurityPolicy({
+      nonce: "abc",
+      isDev: false,
+      upgradeInsecure: true,
+      connectSrc,
+    });
+    expect(csp).toContain("connect-src 'self' wss://abcd.supabase.co;");
   });
 });

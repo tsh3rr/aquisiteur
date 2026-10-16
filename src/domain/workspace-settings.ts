@@ -39,9 +39,51 @@ export const channelsSchema = z.object({
   phone,
   mobile: phone,
   whatsapp: phone,
-  /** Prepared channels (§4.4): stored now, used once the adapters exist. */
-  messengerPage: optionalText(200),
+  /** Facebook page name for m.me links (§7.4, prepared channel). */
+  messengerPage: z
+    .string()
+    .trim()
+    .max(100)
+    .regex(/^[A-Za-z0-9.]+$/, "Nur der Seitenname, z. B. pixelwerk.leipzig.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   sms: phone,
+  /** Booking page (Cal.com, Calendly …), opened in a new tab; nothing is embedded. */
+  bookingUrl: z
+    .url({ protocol: /^https$/, error: "Bitte eine https-Adresse angeben." })
+    .max(300)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+});
+
+/** Live chat in exposés (§7.5). */
+export const chatSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  /** Shown in the chat header and the reading nudge. */
+  responseTime: z.string().trim().max(120).default("Ich antworte meist innerhalb einer Stunde."),
+  /** Sent automatically when nobody answers within two minutes. Channels are appended. */
+  offlineMessage: z
+    .string()
+    .trim()
+    .max(500)
+    .default(
+      "Danke für Ihre Nachricht! Ich bin gerade nicht am Rechner und melde mich so bald wie möglich.",
+    ),
+  /**
+   * Store the text of unsent drafts (§7.5). Off by default: then only the
+   * length is kept. When on, the widget says so above the text field.
+   */
+  storeDraftContent: z.boolean().default(false),
+});
+
+/** Behaviour-based nudges in exposés (§7.4). Each can be switched off. */
+export const nudgeSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  readInvite: z.boolean().default(true),
+  pricing: z.boolean().default(true),
+  returning: z.boolean().default(true),
+  exitIntent: z.boolean().default(true),
+  stickyBar: z.boolean().default(true),
 });
 
 export const senderAddressSchema = z.object({
@@ -78,6 +120,8 @@ export const workspaceSettingsSchema = z.object({
   senderAddress: senderAddressSchema.prefault({ country: "DE" }),
   branding: brandingSchema.prefault({}),
   legal: legalSchema.prefault({}),
+  chat: chatSettingsSchema.prefault({}),
+  nudges: nudgeSettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 365, replaysDays: 90, optOutTrackingDays: 30 }),
 });
 
@@ -85,3 +129,5 @@ export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;
 export type ProfileSettings = z.infer<typeof profileSchema>;
 export type ChannelSettings = z.infer<typeof channelsSchema>;
 export type SenderAddress = z.infer<typeof senderAddressSchema>;
+export type ChatSettings = z.infer<typeof chatSettingsSchema>;
+export type NudgeSettings = z.infer<typeof nudgeSettingsSchema>;

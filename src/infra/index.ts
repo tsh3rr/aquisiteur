@@ -1,11 +1,13 @@
 import { serverEnv } from "@/config/env";
 import { cloudflareDatabase } from "./cloudflare/database";
 import { logEmail } from "./dev/email";
+import { memoryRealtime } from "./memory/realtime";
 import { localStorage } from "./dev/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
 import { s3Storage } from "./s3/storage";
-import type { EmailPort, Infra, StoragePort } from "./types";
+import { supabaseRealtime } from "./supabase/realtime";
+import type { EmailPort, Infra, RealtimePort, StoragePort } from "./types";
 
 export type * from "./types";
 
@@ -43,6 +45,23 @@ export function getInfra(): Infra {
     throw new Error("STORAGE_PROVIDER=local cannot persist files on Workers; configure S3/R2");
   }
 
+  const realtime: RealtimePort =
+    env.REALTIME_PROVIDER === "supabase"
+      ? supabaseRealtime({
+          url: required(env.SUPABASE_URL, "SUPABASE_URL"),
+          publishableKey: required(env.SUPABASE_PUBLISHABLE_KEY, "SUPABASE_PUBLISHABLE_KEY"),
+          secretKey: required(env.SUPABASE_SECRET_KEY, "SUPABASE_SECRET_KEY"),
+          secret: env.BETTER_AUTH_SECRET,
+        })
+      : memoryRealtime(env.BETTER_AUTH_SECRET);
+  if (
+    env.REALTIME_PROVIDER === "memory" &&
+    env.HOSTING_PROFILE === "cloudflare" &&
+    env.NODE_ENV === "production"
+  ) {
+    throw new Error("REALTIME_PROVIDER=memory cannot reach other Worker isolates; use supabase");
+  }
+
   cached = {
     profile: env.HOSTING_PROFILE,
     database:
@@ -51,6 +70,7 @@ export function getInfra(): Infra {
         : urlDatabase(env.DATABASE_URL),
     email,
     storage,
+    realtime,
   };
   return cached;
 }

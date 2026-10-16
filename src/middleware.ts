@@ -1,7 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { classifyHost } from "@/domain/hostname";
-import { buildContentSecurityPolicy } from "@/lib/security-headers";
+import { buildContentSecurityPolicy, realtimeConnectSrc } from "@/lib/security-headers";
 
 /**
  * Edge entry point (§6.1): one app, split by Host header.
@@ -36,6 +36,10 @@ export function middleware(request: NextRequest) {
     isDev: process.env.NODE_ENV === "development",
     upgradeInsecure: appUrl.startsWith("https:"),
     allowSameOriginFraming: request.nextUrl.pathname.startsWith("/preview/"),
+    connectSrc: realtimeConnectSrc({
+      REALTIME_PROVIDER: process.env.REALTIME_PROVIDER,
+      SUPABASE_URL: process.env.SUPABASE_URL,
+    }),
   });
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);

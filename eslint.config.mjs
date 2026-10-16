@@ -35,6 +35,8 @@ export const providerImportRestrictions = {
     {
       group: [
         "@/infra/*",
+        // Browser side of the RealtimePort: provider-neutral, safe in client components.
+        "!@/infra/realtime-client",
         "**/infra/cloudflare/*",
         "**/infra/resend/*",
         "**/infra/portable/*",

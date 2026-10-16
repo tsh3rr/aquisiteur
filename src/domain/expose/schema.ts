@@ -354,7 +354,25 @@ const aboutBlock = z
   })
   .strict();
 
-export const CONTACT_CHANNELS = ["whatsapp", "phone", "email"] as const;
+export const CONTACT_CHANNELS = [
+  "chat",
+  "whatsapp",
+  "phone",
+  "callback",
+  "email",
+  "booking",
+  "messenger",
+  "sms",
+] as const;
+/** Offered when an exposé does not list channels. Messenger and SMS are opt-in. */
+export const DEFAULT_CONTACT_CHANNELS = [
+  "chat",
+  "whatsapp",
+  "phone",
+  "callback",
+  "email",
+  "booking",
+] as const;
 
 const contactBlock = z
   .object({
@@ -365,12 +383,12 @@ const contactBlock = z
     channels: z
       .array(z.enum(CONTACT_CHANNELS))
       .min(1)
-      .default([...CONTACT_CHANNELS])
+      .default([...DEFAULT_CONTACT_CHANNELS])
       .describe(
-        "Which channels to offer, in this order. Numbers and addresses come from the workspace settings.",
+        "Which channels to offer, in this order. Numbers and addresses come from the workspace settings; channels without a configured target are left out. 'chat' opens the live chat, 'callback' a callback form.",
       ),
     message: optionalText(400).describe(
-      "Prefilled message for WhatsApp and e-mail. The reference code is appended automatically.",
+      "Prefilled message for WhatsApp, e-mail and SMS. The reference code is appended automatically.",
     ),
   })
   .strict();

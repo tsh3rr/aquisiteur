@@ -40,6 +40,18 @@ const serverEnvSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_REGION: z.string().default("auto"),
+  /**
+   * Live chat and live feed (§6.4). `memory`: in-process Server-Sent Events
+   * (dev, tests, a single Node instance). `supabase`: Supabase Realtime
+   * broadcast, required on Workers.
+   */
+  REALTIME_PROVIDER: z.enum(["memory", "supabase"]).default("memory"),
+  SUPABASE_URL: z
+    .url()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
+  SUPABASE_SECRET_KEY: z.string().optional(),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
 });

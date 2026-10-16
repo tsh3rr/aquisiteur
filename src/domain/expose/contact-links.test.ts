@@ -49,4 +49,28 @@ describe("contactLinks()", () => {
     expect(links.map((link) => link.channel)).toEqual(["email"]);
     expect(telHref("0341 / 12 34-5")).toBe("tel:034112345");
   });
+
+  it("builds the prepared channels and leaves chat and callback to the page", () => {
+    const links = contactLinks({
+      channels: ["chat", "booking", "messenger", "sms", "callback"],
+      settings: {
+        bookingUrl: "https://cal.com/pixelwerk",
+        messengerPage: "pixelwerk.leipzig",
+        mobile: "0170 1234567",
+      },
+      message: undefined,
+      company: "Café Müller",
+      refCode: "K7M2",
+    });
+    expect(links.map((link) => [link.channel, link.external])).toEqual([
+      ["booking", true],
+      ["messenger", true],
+      ["sms", false],
+    ]);
+    expect(links[0]!.display).toBe("cal.com");
+    expect(links[1]!.href).toBe("https://m.me/pixelwerk.leipzig?ref=K7M2");
+    expect(decodeURIComponent(links[2]!.href)).toBe(
+      "sms:01701234567?&body=Hallo, ich habe Ihre Vorschläge für Café Müller gesehen. [Ref K7M2]",
+    );
+  });
 });

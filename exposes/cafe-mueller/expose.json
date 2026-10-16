@@ -277,7 +277,7 @@
       "type": "contact",
       "title": "Schreiben Sie mir",
       "intro": "Ich antworte meist innerhalb einer Stunde.",
-      "channels": ["whatsapp", "phone", "email"],
+      "channels": ["chat", "whatsapp", "phone", "callback", "email"],
       "message": "Hallo, ich habe Ihre Vorschläge für Café Müller gesehen."
     }
   ]

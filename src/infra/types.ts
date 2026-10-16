@@ -80,9 +80,29 @@ export interface CachePort {
   delete(key: string): Promise<void>;
 }
 
-/** Phase 3: live chat and cockpit live feed. */
+/**
+ * How a browser listens on a topic. `sse`: an EventSource on the app's own
+ * live route (`token` authorises the topic). `supabase`: a Supabase Realtime
+ * broadcast channel with an unguessable name.
+ */
+export type RealtimeSubscription =
+  { kind: "sse"; token: string } | { kind: "supabase"; url: string; apiKey: string; topic: string };
+
+/**
+ * Phase 3: live chat and cockpit live feed (§6.4). Browsers only listen;
+ * everything they say goes through the app's routes, which publish here.
+ * Topics are `ws-<workspaceId>` (cockpit) and `chat-<threadId>` (visitor).
+ */
 export interface RealtimePort {
-  publish(channel: string, event: string, payload: unknown): Promise<void>;
+  readonly provider: "memory" | "supabase";
+  publish(topic: string, event: string, payload: unknown): Promise<void>;
+  /** What a browser needs to listen on `topic`. The caller has authorised it. */
+  subscription(topic: string): Promise<RealtimeSubscription>;
+  /**
+   * The event stream behind the `sse` subscription, or null for an invalid
+   * token. Only the in-process adapter serves streams itself.
+   */
+  stream?(token: string, signal: AbortSignal): Promise<ReadableStream<Uint8Array> | null>;
 }
 
 /** Phase 6 / SaaS: TLS for workspace custom domains (Cloudflare for SaaS). */
@@ -134,4 +154,5 @@ export interface Infra {
   readonly database: DatabasePort;
   readonly email: EmailPort;
   readonly storage: StoragePort;
+  readonly realtime: RealtimePort;
 }
