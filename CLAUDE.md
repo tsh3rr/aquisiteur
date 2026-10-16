@@ -81,3 +81,20 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 `drizzle/0000` (roles, helper functions) and `drizzle/0002` (grants) are hand-written
 (`drizzle-kit generate --custom`). Everything else is generated from `src/db/schema`. Plain Postgres
 only (portable via `pg_dump`). Migrations must keep the previous app version working.
+
+## Working notes (for new threads)
+
+- Production runs on Hetzner + Coolify (`HOSTING_PROFILE=node`, ADR-0047); files live on a volume via
+  `diskStorage` (ADR-0049), mail via Resend. Cloudflare stays a buildable fallback, so the CI bundle job
+  must stay green. `docs/DEPLOY.md` is the runbook.
+- One feature per branch and PR; after a merge, restart the working branch from `origin/main`.
+  Screenshots for the owner go to `/mnt/project-files/screenshots/<topic>/`.
+- Lighthouse CI (median ≥ 0.9 over 5 runs on two exposés) is TBT-bound. Keep exposé client code lean:
+  no `next/link` in the root `not-found`, no `Intl.NumberFormat` (use `formatEuro`), no tailwind-merge
+  in idle-loaded exposé code (`clsx` instead, avoid conflicting classes) (ADR-0048). E2E asserts no
+  cockpit chunk loads on an exposé.
+- New notification trigger default ⇒ add it to `DEFAULT_RULES` **and** backfill existing workspaces in
+  a custom migration (see `drizzle/0015_callback_rule.sql`).
+- The Chat nav badge counts unread threads plus open callbacks (`chatInboxCount`); keep it in sync via
+  `UNREAD_EVENT` after mutating either.
+- Backlog with owner requests lives in ZIELPROMPT §7 and `docs/ROADMAP.md` "Später".
