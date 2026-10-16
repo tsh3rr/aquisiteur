@@ -2,7 +2,8 @@
 
 Schritt-für-Schritt-Anleitung, um Aquisiteur auf einem eigenen Server zu betreiben (ADR-0047). Coolify
 ist eine Weboberfläche auf dem Server: Sie verbindet das GitHub-Repo, baut jeden Push selbst, holt
-TLS-Zertifikate und verwaltet die Datenbank samt Backups. Ein Server reicht für mehrere Prototypen.
+TLS-Zertifikate und verwaltet die Datenbank samt Backups. Datenbank und Dateien liegen auf dem Server
+selbst (ADR-0049); von außen kommt nur der E-Mail-Versand. Ein Server reicht für mehrere Prototypen.
 Zeitaufwand beim ersten Mal: etwa eine Stunde.
 
 Die frühere Variante mit Cloudflare Workers und Supabase steht in
@@ -16,23 +17,26 @@ GitHub (main) ──► Coolify auf dem Server: bauen (Nixpacks) → migrieren �
 Browser ──► Traefik (TLS, Let's Encrypt) ──► Aquisiteur (Node, Port 3000)
                                                   │            │
                                                   ▼            ▼
-                                        Postgres 16 (Coolify)  Cloudflare R2 (Bilder, Aufzeichnungen)
-                                                  │
-                                                  └── tägliches Backup ──► R2
+                                        Postgres 16 (Coolify)  Volume /data/files (Bilder, Aufzeichnungen)
+
+Hetzner-Backup: tägliches Abbild der ganzen Platte (App, Datenbank, Dateien, DB-Dumps)
 ```
 
-| Was       | Wo                                  | Wofür                                      |
-| --------- | ----------------------------------- | ------------------------------------------ |
-| Server    | Hetzner Cloud, Standort Deutschland | App und Datenbank                          |
-| App       | Coolify-Anwendung aus GitHub        | Cockpit, Exposés, Kurzlinks, Live-Chat     |
-| Datenbank | Postgres 16 als Coolify-Ressource   | Alle Daten inkl. Logins (Better Auth)      |
-| Dateien   | Cloudflare R2 (Region EU)           | Bilder, Videos, Aufzeichnungen; DB-Backups |
-| E-Mail    | Resend (EU-Region)                  | Anmeldelinks und Benachrichtigungen        |
+| Was       | Wo                                  | Wofür                                  |
+| --------- | ----------------------------------- | -------------------------------------- |
+| Server    | Hetzner Cloud, Standort Deutschland | App, Datenbank und Dateien             |
+| App       | Coolify-Anwendung aus GitHub        | Cockpit, Exposés, Kurzlinks, Live-Chat |
+| Datenbank | Postgres 16 als Coolify-Ressource   | Alle Daten inkl. Logins (Better Auth)  |
+| Dateien   | Coolify-Volume auf dem Server       | Bilder, Videos, Aufzeichnungen         |
+| E-Mail    | Resend (EU-Region)                  | Anmeldelinks und Benachrichtigungen    |
+
+**Warum E-Mail nicht vom eigenen Server?** Hetzner sperrt bei neuen Konten den ausgehenden Mail-Port 25,
+und Mails von einer frischen Server-IP landen oft im Spam. Resend kümmert sich um Zustellbarkeit und
+kostet bis 3.000 Mails im Monat nichts; Aquisiteur verschickt nur Anmeldelinks und Benachrichtigungen.
 
 ## Voraussetzungen
 
 - Ein Hetzner-Cloud-Konto und eine Domain, deren DNS du bearbeiten kannst
-- Ein Cloudflare-Konto (nur für R2; der Free-Plan reicht)
 - Ein Resend-Konto (kostenloser Plan reicht für den Anfang)
 - Zugriff auf das GitHub-Repo `tsh3rr/aquisiteur`; betrieben wird der Stand auf `main`
 - Ein SSH-Schlüssel auf deinem Rechner (`ssh-keygen -t ed25519`, falls noch keiner existiert)
@@ -51,8 +55,11 @@ Beispiel mit `aquisiteur.de`, ersetze durch deine Domain:
 ## 2. Server anlegen und absichern
 
 1. In der Hetzner Cloud Console **Add Server**: Standort **Nürnberg** oder **Falkenstein**, Image
-   **Ubuntu 24.04**, Typ **CX22** (2 vCPU, 4 GB RAM) oder größer. Unter **SSH keys** deinen öffentlichen
-   Schlüssel hinterlegen. **Backups** anhaken (etwa 20 % Aufpreis, tägliche Server-Abbilder).
+   **Ubuntu 24.04**. Typ: mindestens **2 vCPU, 4 GB RAM, 40 GB SSD**; der günstigste verfügbare Typ mit
+   diesen Werten passt. Intel/AMD (Reihen CX, CPX) und ARM (Reihe CAX) gehen beide. Mit 2 GB RAM bricht der
+   Build ab, weil Coolify, Postgres und der Next-Build gleichzeitig Speicher brauchen. Unter **SSH keys**
+   deinen öffentlichen Schlüssel hinterlegen. **Backups** anhaken (etwa 20 % Aufpreis): Das tägliche
+   Abbild der ganzen Platte sichert Datenbank und Dateien mit, Hetzner hält die letzten sieben.
 2. Unter **Firewalls** eine Firewall anlegen und dem Server zuweisen: eingehend nur TCP **22**, **80**,
    **443**. Port 8000 (Coolify vor dem Domain-Setup) nur vorübergehend und nur für deine eigene IP.
 3. Per SSH anmelden (`ssh root@<server-ip>`) und die Grundabsicherung einschalten:
@@ -90,18 +97,7 @@ selbst holen kann. Mit oranger Wolke (Proxy) zeigt die Timeline zusätzlich die 
 (**Rules → Managed Transforms → Add visitor location headers**); dann SSL/TLS auf **Full (strict)**
 stellen.
 
-## 5. R2 und Resend anlegen
-
-**R2 (Dateien und Backups):**
-
-1. Im Cloudflare-Dashboard **R2 Object Storage → Create bucket**: `aquisiteur-assets`, Location **EU**.
-   Einen zweiten Bucket `aquisiteur-backups` (EU) für die Datenbank-Backups.
-2. **R2 → Manage API tokens → Create API token** mit _Object Read & Write_ für beide Buckets. Notiere
-   _Access Key ID_, _Secret Access Key_ und den Endpoint `https://<account-id>.eu.r2.cloudflarestorage.com`.
-
-Die Buckets bleiben privat; die App liefert Dateien selbst aus, nur für den passenden Workspace.
-
-**Resend (E-Mail):**
+## 5. Resend anlegen
 
 1. **Domains → Add domain**, Region **EU (Ireland)**, z. B. `mail.aquisiteur.de`; die DNS-Einträge (SPF,
    DKIM) anlegen und verifizieren lassen.
@@ -116,10 +112,10 @@ Zum ersten Ausprobieren geht es auch ohne Resend, siehe „Ohne E-Mail-Versand t
    (`postgres://postgres:…@aquisiteur-db:5432/postgres`, nur im Server-Netz erreichbar) ist die
    **Datenbank-URL** für Schritt 8. Die Datenbank bleibt von außen unerreichbar („Make it publicly
    available“ aus lassen).
-3. **Backups**: unter **S3 Storages** (in den Coolify-Einstellungen) den Bucket `aquisiteur-backups` mit
-   den R2-Zugangsdaten anlegen, dann in der Datenbank **Backups → Scheduled backup**: täglich
-   (`0 3 * * *`), **Save to S3** an, Aufbewahrung z. B. 14 Tage. Einmal **Backup now** und prüfen, dass
-   die Datei im Bucket liegt.
+3. **Backups**: in der Datenbank **Backups → Scheduled backup**: täglich (`0 3 * * *`), Aufbewahrung
+   z. B. 14 Tage. Coolify legt die Dumps auf dem Server ab, das Hetzner-Backup nimmt sie mit. Einmal
+   **Backup now** und prüfen, dass die Ausführung grün ist. Eine Kopie außer Haus ist optional, siehe
+   „Backups außer Haus“.
 
 Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schritt 7).
 
@@ -130,11 +126,13 @@ Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schri
 2. Branch `main`, Build Pack **Nixpacks**. Die Datei `nixpacks.toml` im Repo legt Node 22, den Build
    (`pnpm build`) und den Start fest: erst `pnpm db:migrate`, dann `pnpm start`.
 3. **Ports Exposes**: `3000`.
-4. **Domains**: `https://app.aquisiteur.de,https://pixelwerk.aquisiteur.de` (Cockpit plus die Adresse
+4. **Persistent Storage → Add → Volume Mount**: Name `aquisiteur-files`, Destination Path `/data/files`.
+   Hier liegen Bilder, Videos und Aufzeichnungen; das Volume übersteht jedes neue Deployment.
+5. **Domains**: `https://app.aquisiteur.de,https://pixelwerk.aquisiteur.de` (Cockpit plus die Adresse
    jedes Workspaces, kommagetrennt; nach dem Einrichtungs-Assistenten ergänzen). Coolify holt für jede
    ein Zertifikat.
-5. **Health check**: Pfad `/healthz`, Port 3000 (antwortet erst, wenn die Datenbank erreichbar ist). So geht eine neue Version erst live, wenn sie antwortet.
-6. **Auto deploy** an: jeder Push auf `main` baut und veröffentlicht neu.
+6. **Health check**: Pfad `/healthz`, Port 3000 (antwortet erst, wenn die Datenbank erreichbar ist). So geht eine neue Version erst live, wenn sie antwortet.
+7. **Auto deploy** an: jeder Push auf `main` baut und veröffentlicht neu.
 
 Die App läuft als **eine** Instanz. Live-Chat und Live-Feed laufen dann direkt aus dem Node-Prozess
 (Server-Sent Events, `REALTIME_PROVIDER=memory`), ohne weiteren Dienst.
@@ -146,33 +144,30 @@ Die Geheimnisse erzeugt `pnpm deploy:secrets` lokal (`BETTER_AUTH_SECRET`,
 `INTEGRATIONS_ENCRYPTION_KEY`, `CRON_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`); alles in den
 Passwortmanager. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern.
 
-| Name                          | Wert                                               | Secret |
-| ----------------------------- | -------------------------------------------------- | ------ |
-| `HOSTING_PROFILE`             | `node`                                             |        |
-| `HOSTING_PLAN`                | `vps`                                              |        |
-| `DATABASE_URL`                | interne Datenbank-URL aus Schritt 6                | ja     |
-| `APP_URL`                     | `https://app.aquisiteur.de`                        |        |
-| `PLATFORM_DOMAIN`             | `aquisiteur.de`                                    |        |
-| `SIGNUP_ALLOWLIST`            | deine E-Mail-Adresse                               |        |
-| `PLATFORM_ADMIN_EMAILS`       | deine E-Mail-Adresse (Einstellungen → System)      |        |
-| `EMAIL_PROVIDER`              | `resend`                                           |        |
-| `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`        |        |
-| `RESEND_API_KEY`              | aus Schritt 5                                      | ja     |
-| `STORAGE_PROVIDER`            | `s3`                                               |        |
-| `S3_ENDPOINT`                 | `https://<account-id>.eu.r2.cloudflarestorage.com` |        |
-| `S3_BUCKET`                   | `aquisiteur-assets`                                |        |
-| `S3_ACCESS_KEY_ID`            | aus Schritt 5                                      | ja     |
-| `S3_SECRET_ACCESS_KEY`        | aus Schritt 5                                      | ja     |
-| `REALTIME_PROVIDER`           | `memory`                                           |        |
-| `PUSH_PROVIDER`               | `webpush`                                          |        |
-| `VAPID_PUBLIC_KEY`            | aus `pnpm deploy:secrets`                          |        |
-| `VAPID_PRIVATE_KEY`           | aus `pnpm deploy:secrets`                          | ja     |
-| `VAPID_SUBJECT`               | `mailto:deine@adresse.de`                          |        |
-| `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                          | ja     |
-| `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                          | ja     |
-| `CRON_SECRET`                 | aus `pnpm deploy:secrets`                          | ja     |
-| `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim)    |        |
-| `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU          | ja     |
+| Name                          | Wert                                            | Secret |
+| ----------------------------- | ----------------------------------------------- | ------ |
+| `HOSTING_PROFILE`             | `node`                                          |        |
+| `HOSTING_PLAN`                | `vps`                                           |        |
+| `DATABASE_URL`                | interne Datenbank-URL aus Schritt 6             | ja     |
+| `APP_URL`                     | `https://app.aquisiteur.de`                     |        |
+| `PLATFORM_DOMAIN`             | `aquisiteur.de`                                 |        |
+| `SIGNUP_ALLOWLIST`            | deine E-Mail-Adresse                            |        |
+| `PLATFORM_ADMIN_EMAILS`       | deine E-Mail-Adresse (Einstellungen → System)   |        |
+| `EMAIL_PROVIDER`              | `resend`                                        |        |
+| `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`     |        |
+| `RESEND_API_KEY`              | aus Schritt 5                                   | ja     |
+| `STORAGE_PROVIDER`            | `local`                                         |        |
+| `LOCAL_STORAGE_DIR`           | `/data/files` (das Volume aus Schritt 7.4)      |        |
+| `REALTIME_PROVIDER`           | `memory`                                        |        |
+| `PUSH_PROVIDER`               | `webpush`                                       |        |
+| `VAPID_PUBLIC_KEY`            | aus `pnpm deploy:secrets`                       |        |
+| `VAPID_PRIVATE_KEY`           | aus `pnpm deploy:secrets`                       | ja     |
+| `VAPID_SUBJECT`               | `mailto:deine@adresse.de`                       |        |
+| `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                       | ja     |
+| `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                       | ja     |
+| `CRON_SECRET`                 | aus `pnpm deploy:secrets`                       | ja     |
+| `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim) |        |
+| `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU       | ja     |
 
 Dann **Deploy**. Der erste Build dauert einige Minuten (**Deployments → Logs**).
 
@@ -202,7 +197,7 @@ Der Befehl läuft im Container der App und ruft `/api/jobs/hourly` mit `CRON_SEC
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
 4. Die Workspace-Adresse (z. B. `pixelwerk.aquisiteur.de`) in Coolify unter **Domains** ergänzen
-   (Schritt 7.4) und neu deployen.
+   (Schritt 7.5) und neu deployen.
 5. Auf dem Handy: Cockpit öffnen, **Einstellungen → Benachrichtigungen → Push auf diesem Gerät
    aktivieren**, dann **Test senden**. Auf dem iPhone vorher in Safari „Teilen → Zum Home-Bildschirm“.
 6. Unter **Einstellungen → Eigene Besuche** auf jedem eigenen Gerät „Dieses Gerät als meines markieren“.
@@ -244,10 +239,22 @@ lauffähig).
 
 ## Wiederherstellen
 
-- **Datenbank:** in Coolify **Backups → Restore**, oder eine Backup-Datei aus R2 mit
+- **Datenbank:** in Coolify **Backups → Restore**, oder einen Dump mit
   `pg_restore --no-owner -d "$DATABASE_URL" backup.dump` einspielen, danach `pnpm db:migrate`.
-- **Ganzer Server:** Hetzner-Backup des Servers wiederherstellen.
-- **Dateien** liegen in R2 und sind vom Server unabhängig.
+- **Ganzer Server mit Dateien:** in der Hetzner Console **Backups** ein Abbild wiederherstellen (oder als
+  neuen Server anlegen und die DNS-Einträge umstellen).
+- **Einzelne Dateien:** im Terminal der App liegen sie unter `/data/files/<workspace-id>/`.
+
+## Backups außer Haus (optional)
+
+Das Hetzner-Backup liegt beim selben Anbieter. Wer zusätzlich eine Kopie woanders will, legt einen
+S3-Bucket an (z. B. Hetzner Object Storage oder Cloudflare R2), trägt ihn in Coolify unter **S3 Storages**
+ein und schaltet bei den Datenbank-Backups **Save to S3** an. Die Dateien lassen sich mit `rclone sync`
+aus dem Volume dorthin spiegeln.
+
+Statt des Volumes können die Dateien auch direkt in einem S3-Bucket liegen: `STORAGE_PROVIDER=s3` mit
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (Umzug der vorhandenen Dateien mit
+`rclone copy`). Das entlastet die Platte, wenn viele Videos und Aufzeichnungen anfallen.
 
 ## Überwachung
 
@@ -263,20 +270,21 @@ lauffähig).
 | Start bricht mit `DATABASE_URL` ab         | Variable fehlt oder zeigt nicht auf die interne URL aus Schritt 6.                                                              |
 | `Invalid environment configuration` im Log | Eine Variable aus Schritt 8 fehlt; das Log nennt, welche.                                                                       |
 | Zertifikat fehlt / Browser warnt           | DNS-Eintrag zeigt nicht auf den Server, Port 80 ist zu, oder bei Cloudflare-DNS ist der Proxy an, ohne SSL „Full (strict)“.     |
-| Workspace-Adresse liefert 404              | Domain in Coolify nicht eingetragen (Schritt 7.4), oder der Assistent wurde nicht abgeschlossen.                                |
+| Workspace-Adresse liefert 404              | Domain in Coolify nicht eingetragen (Schritt 7.5), oder der Assistent wurde nicht abgeschlossen.                                |
 | Login-Mail kommt nicht                     | `EMAIL_PROVIDER` steht auf `log`, oder die Absender-Domain ist in Resend nicht verifiziert; Adresse muss in `SIGNUP_ALLOWLIST`. |
 | Passkey-Fehler „origin“                    | `APP_URL` muss exakt der Adresse im Browser entsprechen (https, ohne Schrägstrich am Ende).                                     |
 | Live-Chat hängt                            | Mehr als eine Instanz läuft; im Node-Profil genau eine Instanz betreiben.                                                       |
+| Bilder fehlen nach einem Deployment        | Das Volume aus Schritt 7.4 fehlt oder `LOCAL_STORAGE_DIR` zeigt nicht auf `/data/files`.                                        |
+| Build bricht ohne klare Meldung ab         | Zu wenig Arbeitsspeicher; der Server braucht mindestens 4 GB RAM.                                                               |
 
 ## Kosten (Stand Oktober 2026, ungefähr)
 
-| Dienst                     | Kosten                                         |
-| -------------------------- | ---------------------------------------------- |
-| Hetzner CX22 inkl. Backups | etwa 5–6 €/Monat, für alle Prototypen zusammen |
-| Coolify (selbst betrieben) | kostenlos                                      |
-| Cloudflare R2              | kostenlos bis 10 GB                            |
-| Resend                     | kostenlos bis 3.000 Mails/Monat                |
-| Sentry                     | kostenloser Developer-Plan                     |
+| Dienst                       | Kosten                                                                        |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| Hetzner-Server inkl. Backups | je nach Typ und Verfügbarkeit etwa 5–10 €/Monat, für alle Prototypen zusammen |
+| Coolify (selbst betrieben)   | kostenlos                                                                     |
+| Resend                       | kostenlos bis 3.000 Mails/Monat                                               |
+| Sentry                       | kostenloser Developer-Plan                                                    |
 
 ## Umzug zu einem anderen Hoster
 

@@ -1,10 +1,11 @@
 import type { StoragePort } from "../types";
 
 /**
- * Development and test adapter: files in a local folder (default
- * .data/storage). Node only; production uses the S3 adapter.
+ * Files in a folder on the server's disk (default .data/storage): for
+ * development, tests and the own server, where LOCAL_STORAGE_DIR sits on a
+ * persistent volume (ADR-0049). Node only; Workers use the S3 adapter.
  */
-export function localStorage(root: string): StoragePort {
+export function diskStorage(root: string): StoragePort {
   const resolve = async (key: string) => {
     const path = await import("node:path");
     const base = path.resolve(root);
@@ -13,6 +14,18 @@ export function localStorage(root: string): StoragePort {
     return full;
   };
   const metaPath = (file: string) => `${file}.meta.json`;
+  // Write beside the target, then rename: a reader never sees half a file.
+  const writeAtomic = async (file: string, data: Uint8Array | string) => {
+    const fs = await import("node:fs/promises");
+    const temp = `${file}.${crypto.randomUUID()}.tmp`;
+    try {
+      await fs.writeFile(temp, data);
+      await fs.rename(temp, file);
+    } catch (error) {
+      await fs.rm(temp, { force: true });
+      throw error;
+    }
+  };
 
   return {
     async put(key, body, options) {
@@ -20,8 +33,8 @@ export function localStorage(root: string): StoragePort {
       const path = await import("node:path");
       const file = await resolve(key);
       await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, body);
-      await fs.writeFile(metaPath(file), JSON.stringify({ contentType: options.contentType }));
+      await writeAtomic(metaPath(file), JSON.stringify({ contentType: options.contentType }));
+      await writeAtomic(file, body);
     },
     async get(key) {
       const fs = await import("node:fs/promises");

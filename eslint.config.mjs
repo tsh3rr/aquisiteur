@@ -41,6 +41,7 @@ export const providerImportRestrictions = {
         "**/infra/resend/*",
         "**/infra/portable/*",
         "**/infra/dev/*",
+        "**/infra/disk/*",
         "**/infra/s3/*",
       ],
       message: "Import the provider-neutral facade '@/infra' instead of a concrete adapter.",

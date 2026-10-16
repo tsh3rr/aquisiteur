@@ -25,7 +25,7 @@ export function imprintMarkdown(settings: WorkspaceSettings, workspaceName: stri
 export type HostingProfile = "node" | "cloudflare";
 
 const PROCESSORS: Record<HostingProfile, string> = {
-  node: "Server und Datenbank bei Hetzner in Deutschland, Dateien bei Cloudflare R2 (EU)",
+  node: "Server, Datenbank und Dateien bei Hetzner in Deutschland",
   cloudflare: "Hosting über Cloudflare, Datenbank bei Supabase in Frankfurt (EU)",
 };
 

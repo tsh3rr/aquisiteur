@@ -173,7 +173,7 @@ Weitere Tabellen (Prospects, Exposés, Touchpoints, Events …) kommen mit ihren
 | ------------------------ | ------ | -------------------------------------- |
 | `DatabasePort`           | 0      | Hyperdrive / `DATABASE_URL`            |
 | `EmailPort`              | 0      | Resend, Dev: Log                       |
-| `StoragePort`            | 1      | R2 über S3-API                         |
+| `StoragePort`            | 1      | Verzeichnis (Volume) oder S3-API       |
 | `RateLimiterPort`        | 2      | Cloudflare Rate Limiting Binding       |
 | `CachePort`              | 2      | Workers KV                             |
 | `RealtimePort`           | 3      | Supabase Broadcast, Dev: SSE           |

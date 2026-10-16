@@ -472,3 +472,16 @@ Die Root-Grenze `src/app/not-found.tsx` steckt in der Antwort jeder Seite, auch 
 (Zod, Realtime, Buttons; etwa 37 KB gzip), sodass die Lighthouse-Leistung der Exposés um 0,9 pendelte.
 Der Link „Zur Startseite“ ist deshalb ein einfaches `<a>`; eine 404 braucht keine Client-Navigation.
 Der E2E-Test des öffentlichen Exposés prüft, dass kein Cockpit-Chunk geladen wird.
+
+## ADR-0049 · Dateien auf dem eigenen Server statt in R2 (2026-10-16)
+
+Der Owner will die Daten selbst hosten. Bilder, Videos und Aufzeichnungen liegen deshalb mit
+`STORAGE_PROVIDER=local` in einem Coolify-Volume (`LOCAL_STORAGE_DIR=/data/files`) auf demselben Server
+wie App und Datenbank. Der bisherige Entwicklungs-Adapter wird dafür zum regulären Adapter
+(`src/infra/disk/storage.ts`) und schreibt jede Datei über eine temporäre Datei plus Umbenennen, damit
+kein Leser eine halbe Datei sieht. Gesichert wird über das tägliche Hetzner-Backup der ganzen Platte, das
+Volume und die Datenbank-Dumps von Coolify mitnimmt; eine Kopie außer Haus (S3, `rclone`) ist optional.
+S3 bleibt per Konfiguration möglich und ist auf Cloudflare Pflicht. E-Mail bleibt bei Resend: Hetzner
+sperrt Port 25 bei neuen Konten, und Mails von einer frischen Server-IP landen oft im Spam. Der Server
+braucht mindestens 2 vCPU, 4 GB RAM und 40 GB SSD; die Anleitung nennt bewusst keinen Typnamen, weil
+Hetzner Typen und Preise ändert.

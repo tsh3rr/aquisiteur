@@ -8,7 +8,7 @@ import { consoleMonitor } from "./dev/monitor";
 import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
 import { nominatimGeocoder } from "./nominatim/geocoder";
-import { localStorage } from "./dev/storage";
+import { diskStorage } from "./disk/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
 import { s3Storage } from "./s3/storage";
@@ -44,7 +44,7 @@ export function getInfra(): Infra {
           secretAccessKey: required(env.S3_SECRET_ACCESS_KEY, "S3_SECRET_ACCESS_KEY"),
           region: env.S3_REGION,
         })
-      : localStorage(env.LOCAL_STORAGE_DIR);
+      : diskStorage(env.LOCAL_STORAGE_DIR);
   if (
     env.STORAGE_PROVIDER === "local" &&
     env.HOSTING_PROFILE === "cloudflare" &&

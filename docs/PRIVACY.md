@@ -52,7 +52,7 @@ Die Fristen stellt der Owner unter Einstellungen → Daten und Aufbewahrung ein 
 
 | Thema                     | Umsetzung                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Speicherort               | Alle personenbezogenen Daten in Postgres auf dem eigenen Server bei Hetzner in Deutschland (ADR-0047); Dateien in Cloudflare R2, Region EU.                                                                                                                                                                                                                                     |
+| Speicherort               | Alle personenbezogenen Daten in Postgres auf dem eigenen Server bei Hetzner in Deutschland (ADR-0047); Dateien ebenfalls auf diesem Server (ADR-0049).                                                                                                                                                                                                                          |
 | Cockpit-Cookies           | Nur technisch notwendige: Session (`aq.session_token`, httpOnly, SameSite=Lax), aktiver Workspace (`aq_ws`), Farbschema (`aq_theme`), Passkey-Challenge während der Anmeldung.                                                                                                                                                                                                  |
 | IP-Adressen               | Werden in Sessions nicht gespeichert. Für das Rate Limiting der Anmeldung kurzzeitig als Schlüssel in `rate_limits`, für den Schutz der Kurzlinks nur als Hash mit Secret; beides löscht der stündliche Job nach einem Tag.                                                                                                                                                     |
 | Anmeldelinks              | 10 Minuten gültig, einmalig, nur als Hash gespeichert.                                                                                                                                                                                                                                                                                                                          |
@@ -65,7 +65,7 @@ Die Fristen stellt der Owner unter Einstellungen → Daten und Aufbewahrung ein 
 | Bots und Vorschauen       | Link-Vorschauen, Scanner und Prefetches werden mit Grund gespeichert, aber als Bot markiert und im Cockpit standardmäßig ausgeblendet.                                                                                                                                                                                                                                          |
 | Owner-Gerät               | Cookie `aq_owner` (httpOnly, 400 Tage) auf dem Exposé-Host, nur nach Klick des Owners in den Einstellungen; markiert dessen eigene Besuche als intern.                                                                                                                                                                                                                          |
 | Rate Limits               | Zähler pro Visit, Touchpoint und Exposé in `rate_limits` (ohne IP).                                                                                                                                                                                                                                                                                                             |
-| Bilder und Videos         | Privater R2-Bucket (EU), Pfad pro Workspace. Ausgeliefert nur über die App und nur für den Host des eigenen Workspaces. SVGs werden vor dem Upload gerastert.                                                                                                                                                                                                                   |
+| Bilder und Videos         | Verzeichnis auf dem eigenen Server (bei der Cloudflare-Variante privater R2-Bucket, EU), Pfad pro Workspace. Ausgeliefert nur über die App und nur für den Host des eigenen Workspaces. SVGs werden vor dem Upload gerastert.                                                                                                                                                   |
 | Widerspruch (Opt-out)     | Link „Kein Interesse“ in jedem Exposé; nach Bestätigung `status = no_interest` und `do_not_contact_at` am Prospect, Eintrag im Audit-Log. Keine IP, kein Cookie.                                                                                                                                                                                                                |
 | API-Tokens                | Nur als SHA-256-Hash gespeichert, einmalig angezeigt, ablaufend oder widerrufbar, handeln mit den Rechten ihres Erstellers.                                                                                                                                                                                                                                                     |
 
@@ -113,20 +113,20 @@ Neu in Phase 6:
 
 ## Auftragsverarbeiter
 
-| Dienst              | Zweck                                                | Region                 | AVV                                     |
-| ------------------- | ---------------------------------------------------- | ---------------------- | --------------------------------------- |
-| Hetzner             | Server und Datenbank (inkl. Server-Backups)          | Deutschland            | AVV in der Hetzner-Konsole abschließen  |
-| Cloudflare          | R2 (Dateien, Datenbank-Backups); optional DNS        | R2 in EU               | DPA ist Teil der Self-Serve-Bedingungen |
-| Resend              | E-Mail-Versand (Anmeldelinks, Benachrichtigungen)    | EU (Irland)            | DPA im Dashboard                        |
-| Sentry              | Fehler-Monitoring (ohne personenbezogene Daten)      | EU (Frankfurt)         | DPA in den Organisationseinstellungen   |
-| Pingen (später)     | Briefdruck und Versand                               | Schweiz / Österreich   | AV-Vertrag vor Produktivbetrieb         |
-| OpenStreetMap       | Ortssuche (Nominatim) und Kartenkacheln              | EU (UK-Stiftung)       | Keine AVV; nur Firmenanschriften        |
-| Push-Dienste        | Web Push an Geräte der Mitglieder                    | Google, Apple, Mozilla | Inhalte Ende-zu-Ende verschlüsselt      |
-| Supabase (Variante) | Nur bei der Cloudflare-Variante: Datenbank, Realtime | EU (Frankfurt)         | DPA im Dashboard                        |
+| Dienst                | Zweck                                                           | Region                 | AVV                                     |
+| --------------------- | --------------------------------------------------------------- | ---------------------- | --------------------------------------- |
+| Hetzner               | Server und Datenbank (inkl. Server-Backups)                     | Deutschland            | AVV in der Hetzner-Konsole abschließen  |
+| Cloudflare (optional) | DNS; R2 nur bei Backups außer Haus oder der Cloudflare-Variante | R2 in EU               | DPA ist Teil der Self-Serve-Bedingungen |
+| Resend                | E-Mail-Versand (Anmeldelinks, Benachrichtigungen)               | EU (Irland)            | DPA im Dashboard                        |
+| Sentry                | Fehler-Monitoring (ohne personenbezogene Daten)                 | EU (Frankfurt)         | DPA in den Organisationseinstellungen   |
+| Pingen (später)       | Briefdruck und Versand                                          | Schweiz / Österreich   | AV-Vertrag vor Produktivbetrieb         |
+| OpenStreetMap         | Ortssuche (Nominatim) und Kartenkacheln                         | EU (UK-Stiftung)       | Keine AVV; nur Firmenanschriften        |
+| Push-Dienste          | Web Push an Geräte der Mitglieder                               | Google, Apple, Mozilla | Inhalte Ende-zu-Ende verschlüsselt      |
+| Supabase (Variante)   | Nur bei der Cloudflare-Variante: Datenbank, Realtime            | EU (Frankfurt)         | DPA im Dashboard                        |
 
 ## Vor dem Livegang
 
-1. AV-Verträge mit Hetzner, Cloudflare, Resend und Sentry abschließen.
+1. AV-Verträge mit Hetzner, Resend und Sentry abschließen, mit Cloudflare nur bei Nutzung.
 2. Impressum und Datenschutzerklärung in den Einstellungen prüfen lassen oder durch eigene Texte ersetzen.
 3. Fristen unter Einstellungen → Daten und Aufbewahrung festlegen.
 4. Verzeichnis von Verarbeitungstätigkeiten um „Akquise per Brief mit Exposé“ ergänzen.

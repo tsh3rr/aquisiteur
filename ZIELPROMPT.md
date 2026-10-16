@@ -42,7 +42,7 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
 
 1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Aquisiteur als SaaS nutzen können, ohne Umbau des Datenmodells.
-2. **Hosting**: **Eigener Server bei Hetzner (Deutschland) mit Coolify**: Next.js als Node-Prozess (`HOSTING_PROFILE=node`), **Postgres 16** als Coolify-Ressource auf demselben Server, Dateien in **Cloudflare R2** (EU) über die S3-API. Feste Kosten, keine Kontingente, ein Server für mehrere Prototypen. Alle personenbezogenen Daten liegen in Deutschland bzw. der EU. Die Cloudflare-Variante (Workers + Hyperdrive) bleibt im Code als zweites Profil erhalten; die App muss **ohne Umbau auf einen anderen Hoster umziehbar** bleiben (siehe §5a).
+2. **Hosting**: **Eigener Server bei Hetzner (Deutschland) mit Coolify**: Next.js als Node-Prozess (`HOSTING_PROFILE=node`), **Postgres 16** als Coolify-Ressource auf demselben Server, Dateien in einem Volume auf demselben Server (wahlweise S3-kompatibler Speicher wie R2). Feste Kosten, keine Kontingente, ein Server für mehrere Prototypen. Alle personenbezogenen Daten liegen in Deutschland bzw. der EU. Die Cloudflare-Variante (Workers + Hyperdrive) bleibt im Code als zweites Profil erhalten; die App muss **ohne Umbau auf einen anderen Hoster umziehbar** bleiben (siehe §5a).
 3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
 4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
 5. **Chat**: Eigener Live-Chat im Exposé. Der Owner antwortet aus dem Cockpit (PWA, Push am Handy). Übergabe an WhatsApp jederzeit möglich.
@@ -62,7 +62,7 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 | Framework | **Next.js (App Router)**, React Server Components, Server Actions, TypeScript strict | Ein Repo für Cockpit, öffentliche Exposés und Edge-Redirects |
 | Paketmanager | pnpm | |
 | Hosting | **Hetzner-Server mit Coolify** (Node, Traefik mit Let's Encrypt); Alternative im Code: Cloudflare Workers via OpenNext | Feste, niedrige Kosten, keine CPU-Grenzen pro Anfrage |
-| Datenbank | **Postgres 16** auf dem Server (Coolify), Row Level Security, tägliche Backups nach R2 | Standard-Postgres, jederzeit umziehbar |
+| Datenbank | **Postgres 16** auf dem Server (Coolify), Row Level Security, tägliche Dumps und Hetzner-Backup der ganzen Platte | Standard-Postgres, jederzeit umziehbar |
 | ORM / Migrations | **Drizzle ORM** + drizzle-kit | Typsicher, SQL-nah, schnell |
 | Auth (Cockpit) | **Passkeys** (WebAuthn) + Magic Link als Fallback, via **Better Auth** (Daten in der eigenen Postgres-DB) | Kein Passwort, kein Anbieter-Lock-in |
 | Validierung | **Zod** (Schemas teilen zwischen Client, Server, Exposé-Import) | |
@@ -74,8 +74,8 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 | Push | Web Push (VAPID), PWA mit Service Worker | Owner bekommt Push auf iOS/Android ohne App Store |
 | QR | Lib, die **SVG** erzeugt (z. B. `qrcode`), Fehlerkorrektur Level M–Q, optional Logo in der Mitte | Druckqualität |
 | PDF (Brief) | **React-PDF** (läuft überall, kein Chromium nötig) | DIN 5008, druckfertig |
-| Dateien & Bilder | **Cloudflare R2** über die **S3-kompatible API**; Bildoptimierung (AVIF/WebP, mehrere Größen) beim Veröffentlichen per CLI mit `sharp`, nicht zur Laufzeit | Kein Egress, überall nutzbar |
-| Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert in R2 | |
+| Dateien & Bilder | **Volume auf dem Server** hinter dem `StoragePort`, alternativ jeder **S3-kompatible** Speicher (R2, Hetzner Object Storage); Bildoptimierung (AVIF/WebP, mehrere Größen) beim Veröffentlichen per CLI mit `sharp`, nicht zur Laufzeit | Keine weiteren Dienste, per Konfiguration auf S3 umstellbar |
+| Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert im Datei-Speicher | |
 | Rate Limiting | Postgres-basiert hinter eigener Schnittstelle | |
 | Tests | **Vitest** (Unit), **Playwright** (E2E), **axe-core** (A11y in E2E), Lighthouse CI | |
 | Qualität | ESLint + Prettier (oder Biome), Typecheck in CI, GitHub Actions | |
@@ -91,7 +91,7 @@ Der eigene Server ist das Ziel, aber kein Käfig. Wenn Last, Kosten oder Anforde
 - **Ein Deployment-Ziel im Betrieb**: Coolify baut aus dem Repo mit Nixpacks (`nixpacks.toml`), kein eigenes Docker-Image, keine doppelten E2E-Läufe. Der Cloudflare-Build bleibt in der CI als Größen-Check, damit der Rückweg offen bleibt.
 - **Nur Standard-Postgres**: Drizzle-Migrations als einzige Quelle der Wahrheit, keine Supabase-spezifischen Features außer hinter Adaptern. Die DB muss mit `pg_dump`/`pg_restore` auf jeden Postgres-Anbieter umziehen können.
 - **Auth in der eigenen DB** (Better Auth), damit Nutzerkonten beim Umzug mitkommen.
-- **Dateien über die S3-API**: R2 heute, morgen jeder S3-kompatible Speicher.
+- **Dateien hinter dem `StoragePort`**: heute ein Verzeichnis auf dem Server, per `STORAGE_PROVIDER=s3` jeder S3-kompatible Speicher (auf Cloudflare Pflicht).
 - **Konfiguration nur über Env-Variablen**, dokumentiert in `.env.example`, mit Profilen `cloudflare` und `node`.
 - **Lokale Entwicklung und Tests** mit `next dev` gegen ein lokales Postgres; das entspricht dem Betrieb auf dem Server. `wrangler dev` nur zum Testen der Cloudflare-Variante.
 - **Limits beobachten**: Ein kleiner Bereich im Cockpit (Einstellungen → System) zeigt DB-Größe und Speicher (auf Cloudflare zusätzlich Requests und CPU-Zeit) im Verhältnis zu den Limits und warnt ab 80 %.
@@ -356,7 +356,7 @@ Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis 
 - **IP-Adressen** nur zur Geo-Grobauflösung und Bot-Erkennung im Moment der Anfrage verwenden, nicht speichern (oder gekürzt).
 - **Aufbewahrung**: Rohevents und Replays nach konfigurierbarer Frist automatisch löschen (Standard: 12 Monate Events, 90 Tage Replays). Prospect mit „Kein Interesse“ → personenbezogene Trackingdaten nach 30 Tagen löschen, nur Sperrvermerk behalten.
 - **Betroffenenrechte**: Export und Löschung pro Prospect mit einem Klick.
-- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Hetzner, Cloudflare R2, Resend, Sentry; jeweils EU-Region bzw. EU-Datenspeicherung, wo verfügbar). Liste in `docs/PRIVACY.md`.
+- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Hetzner, Resend, Sentry, optional Cloudflare; jeweils EU-Region bzw. EU-Datenspeicherung, wo verfügbar). Liste in `docs/PRIVACY.md`.
 - Impressum und Datenschutzerklärung als konfigurierbare Seiten.
 - Opt-out-Link im Exposé (§ 7.3) und auf Wunsch im Brief.
 

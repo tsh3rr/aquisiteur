@@ -13,7 +13,7 @@ Betrieben wird Aquisiteur auf einem eigenen Server mit Coolify (ADR-0047, Anleit
 | DB-Verbindung                                             | `DatabasePort`: Hyperdrive (`cloudflare`) oder `DATABASE_URL` (`node`)                           | `HOSTING_PROFILE=node`                                                                         |
 | E-Mail                                                    | `EmailPort`: Resend (anbieterneutral, läuft überall)                                             | nichts zu tun                                                                                  |
 | Rate Limiting (Auth)                                      | Better Auth mit Postgres-Speicher                                                                | nichts zu tun                                                                                  |
-| Storage (Bilder, Videos)                                  | `StoragePort`: S3-API (Cloudflare R2), lokal ein Verzeichnis                                     | anderes S3 (MinIO, Supabase Storage, Hetzner): `S3_*` umstellen, Dateien mit `rclone` kopieren |
+| Storage (Bilder, Videos)                                  | `StoragePort`: Verzeichnis auf dem Server (Volume) oder S3-API                                   | anderes S3 (MinIO, Supabase Storage, Hetzner): `S3_*` umstellen, Dateien mit `rclone` kopieren |
 | Queue, Cron, Cache, Realtime, Domains, Push, Briefversand | Schnittstellen in `src/infra/types.ts` deklariert, Implementierung folgt in der jeweiligen Phase | je Port ein Adapter (pg-boss, node-cron …)                                                     |
 
 Fachcode importiert Anbieter-SDKs nie direkt; die ESLint-Regel in `eslint.config.mjs` erzwingt das

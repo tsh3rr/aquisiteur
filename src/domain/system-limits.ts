@@ -21,9 +21,10 @@ const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
 /**
- * `vps`: the own server (Hetzner CX22, 40 GB disk shared with the system,
- * ADR-0047) with files in R2's free tier. `free` / `paid`: Cloudflare Workers,
- * Supabase and R2 as of 2026 (docs/DEPLOY_CLOUDFLARE.md).
+ * `vps`: the own server (ADR-0047, ADR-0049) with a 40 GB disk shared by the
+ * system, Docker, database and files; the caps leave room for builds and
+ * backups. `free` / `paid`: Cloudflare Workers, Supabase and R2 as of 2026
+ * (docs/DEPLOY_CLOUDFLARE.md).
  */
 export const PLATFORM_LIMITS: Record<HostingPlan, PlatformLimits> = {
   vps: {
