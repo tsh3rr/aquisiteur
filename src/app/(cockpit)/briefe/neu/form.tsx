@@ -32,9 +32,9 @@ export function NewLettersForm({ ids, kind }: { ids: string[]; kind: "initial" |
               />
               <span className="font-medium">Erster Brief</span>
               <span className="col-start-2 text-foreground-muted">
-                  Text aus dem Exposé, sonst aus der Vorlage in den Einstellungen. Nutzt den Code
-                  des Exposés.
-                </span>
+                Text aus dem Exposé, sonst aus der Vorlage in den Einstellungen. Nutzt den Code des
+                Exposés.
+              </span>
             </label>
             <label className="grid min-h-11 grid-cols-[auto_1fr] items-start gap-x-3 text-sm">
               <input
@@ -46,8 +46,8 @@ export function NewLettersForm({ ids, kind }: { ids: string[]; kind: "initial" |
               />
               <span className="font-medium">Folgebrief</span>
               <span className="col-start-2 text-foreground-muted">
-                  Bekommt einen eigenen Code, damit Sie sehen, welcher Brief gewirkt hat.
-                </span>
+                Bekommt einen eigenen Code, damit Sie sehen, welcher Brief gewirkt hat.
+              </span>
             </label>
           </fieldset>
           <fieldset className="grid gap-1">

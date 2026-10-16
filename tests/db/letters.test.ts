@@ -6,6 +6,7 @@ import type { Actor } from "@/domain/authz";
 import { previewImport } from "@/domain/prospects/import";
 import { NO_FILTER } from "@/server/analytics/filters";
 import { loadContent } from "@/server/analytics/content";
+import { loadMapData } from "@/server/analytics/map";
 import { loadActivity, loadFunnels, loadKpis } from "@/server/analytics/overview";
 import {
   assignCampaign,
@@ -22,9 +23,12 @@ import {
   listLetters,
   loadPrintableLetters,
 } from "@/server/letters/manage";
+import { geocodePending } from "@/server/geocoding";
 import { importProspects } from "@/server/prospects/import";
+import { updateProspect } from "@/server/prospects/mutations";
 import { ingestEvents, startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
+import type { GeocoderPort } from "@/infra";
 import { minimalExpose } from "../support/expose";
 
 /** Phase 5: campaigns, CSV import, letters and the dashboards' figures. */
@@ -363,5 +367,92 @@ describe("dashboards", () => {
       loadKpis(tx, wsM, NO_FILTER, period),
     );
     expect(other.current).toMatchObject({ lettersSent: 0, visits: 0 });
+  });
+});
+
+describe("map", () => {
+  it("geocodes once, stores misses and re-queues edited addresses", async () => {
+    // Same behaviour as the `fake` adapter: "Unbekannt" is never found.
+    const geocoder: GeocoderPort = {
+      id: "test",
+      minIntervalMs: 0,
+      geocode: async (query) =>
+        query.city === "Unbekannt"
+          ? null
+          : { latitude: 51.3 + (query.street?.length ?? 0) / 100, longitude: 12.37 },
+    };
+    await db
+      .update(schema.prospects)
+      .set({ city: "Unbekannt", postalCode: null, street: null })
+      .where(eq(schema.prospects.id, bakery.prospectId));
+    const first = await geocodePending(db, { geocoder, limit: 500 });
+    expect(first.failed).toBe(false);
+    expect(first.found).toBeGreaterThan(0);
+    expect(first.missed).toBeGreaterThanOrEqual(1);
+    expect(await geocodePending(db, { geocoder })).toEqual({ found: 0, missed: 0, failed: false });
+
+    let map = await asLea((tx) => loadMapData(tx, wsL, NO_FILTER));
+    expect(map.points.map((point) => point.id)).toContain(cafe.prospectId);
+    expect(map.points.map((point) => point.id)).not.toContain(bakery.prospectId);
+    expect(map.notFound).toBeGreaterThanOrEqual(1);
+    expect(map.pending).toBe(0);
+
+    // Fixing the address queues it again; other edits keep the position.
+    await asLea(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(schema.prospects)
+        .where(eq(schema.prospects.id, bakery.prospectId));
+      await updateProspect(tx, actor, bakery.prospectId, {
+        companyName: row!.companyName,
+        industry: row!.industry,
+        website: row!.website,
+        street: "Markt 2",
+        postalCode: "04109",
+        city: "Leipzig",
+        phone: row!.phone,
+        email: row!.email,
+        tags: row!.tags,
+        notes: row!.notes,
+        estimatedValue: null,
+        campaignId: row!.campaignId,
+      } as Parameters<typeof updateProspect>[3]);
+    });
+    map = await asLea((tx) => loadMapData(tx, wsL, NO_FILTER));
+    expect(map.pending).toBe(1);
+    await geocodePending(db, { geocoder });
+    map = await asLea((tx) => loadMapData(tx, wsL, NO_FILTER));
+    expect(map.points.map((point) => point.id)).toContain(bakery.prospectId);
+
+    const before = map.points.find((point) => point.id === cafe.prospectId)!;
+    await asLea(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(schema.prospects)
+        .where(eq(schema.prospects.id, cafe.prospectId));
+      await updateProspect(tx, actor, cafe.prospectId, {
+        companyName: "Café Müller & Söhne",
+        industry: row!.industry,
+        website: row!.website,
+        street: row!.street,
+        postalCode: row!.postalCode,
+        city: row!.city,
+        phone: row!.phone,
+        email: row!.email,
+        tags: row!.tags,
+        notes: row!.notes,
+        estimatedValue: null,
+        campaignId: row!.campaignId,
+      } as Parameters<typeof updateProspect>[3]);
+    });
+    map = await asLea((tx) => loadMapData(tx, wsL, NO_FILTER));
+    expect(map.points.find((point) => point.id === cafe.prospectId)?.latitude).toBe(
+      before.latitude,
+    );
+
+    const other = await withTenant(db, { userId: max.id, workspaceId: wsM }, (tx) =>
+      loadMapData(tx, wsM, NO_FILTER),
+    );
+    expect(other.points).toEqual([]);
   });
 });

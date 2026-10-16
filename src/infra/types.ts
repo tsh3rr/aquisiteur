@@ -173,6 +173,23 @@ export interface LetterDispatchProvider {
 }
 
 /** Everything the app can ask the hosting environment for. */
+/** A postal address to place on the map (§7.8 „Karte“). */
+export interface GeocodeQuery {
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+}
+
+export interface GeocoderPort {
+  readonly id: string;
+  /** Pause between two calls the provider asks for (Nominatim: 1 s). */
+  readonly minIntervalMs: number;
+  /** Null when the address cannot be found; throws on provider errors. */
+  geocode(query: GeocodeQuery): Promise<{ latitude: number; longitude: number } | null>;
+}
+
 export interface Infra {
   readonly profile: HostingProfile;
   readonly database: DatabasePort;
@@ -182,4 +199,6 @@ export interface Infra {
   readonly push: PushPort;
   /** Letter dispatch providers by id; `manual` always exists. */
   letters(provider: string): LetterDispatchProvider | null;
+  /** Null when geocoding is switched off (GEOCODER_PROVIDER=none). */
+  geocoder: GeocoderPort | null;
 }

@@ -54,6 +54,7 @@ export default defineConfig({
       EMAIL_LOG_FILE: E2E.mailLog,
       PUSH_PROVIDER: "log",
       PUSH_LOG_FILE: E2E.pushLog,
+      GEOCODER_PROVIDER: "fake",
     },
   },
 });

@@ -2,8 +2,10 @@ import { serverEnv } from "@/config/env";
 import { manualLetters } from "./manual/letters";
 import { cloudflareDatabase } from "./cloudflare/database";
 import { logEmail } from "./dev/email";
+import { fakeGeocoder } from "./dev/geocoder";
 import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
+import { nominatimGeocoder } from "./nominatim/geocoder";
 import { localStorage } from "./dev/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
@@ -85,6 +87,12 @@ export function getInfra(): Infra {
     realtime,
     push,
     letters: (provider) => (provider === manualLetters.id ? manualLetters : null),
+    geocoder:
+      env.GEOCODER_PROVIDER === "nominatim"
+        ? nominatimGeocoder({ appUrl: env.APP_URL, contact: env.GEOCODER_CONTACT })
+        : env.GEOCODER_PROVIDER === "fake"
+          ? fakeGeocoder()
+          : null,
   };
   return cached;
 }

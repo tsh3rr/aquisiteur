@@ -10,6 +10,8 @@ export function buildContentSecurityPolicy(options: {
   allowSameOriginFraming?: boolean;
   /** Extra origins for fetch/WebSocket, e.g. the Supabase Realtime socket. */
   connectSrc?: string[];
+  /** Extra image origins, e.g. the map tiles on the map dashboard. */
+  imgSrc?: string[];
 }): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -21,7 +23,7 @@ export function buildContentSecurityPolicy(options: {
     ],
     // Next.js and Radix inject inline style attributes; styles cannot execute code.
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
+    "img-src": ["'self'", "data:", "blob:", ...(options.imgSrc ?? [])],
     "font-src": ["'self'"],
     "connect-src": ["'self'", ...(options.connectSrc ?? []), ...(options.isDev ? ["ws:"] : [])],
     "frame-ancestors": [options.allowSameOriginFraming ? "'self'" : "'none'"],
@@ -64,3 +66,7 @@ export function realtimeConnectSrc(env: {
     return [];
   }
 }
+
+/** OpenStreetMap raster tiles for the map dashboard (§7.8, ADR-0039). */
+export const MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+export const MAP_TILE_ORIGIN = "https://tile.openstreetmap.org";

@@ -62,6 +62,14 @@ const serverEnvSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:noreply@aquisiteur.app"),
   PUSH_LOG_FILE: z.string().optional(),
+  /**
+   * Places prospects on the map (§7.8). `nominatim`: OpenStreetMap's
+   * Nominatim, at most one request per second, from the hourly job.
+   * `fake`: deterministic points for tests. `none`: no map positions.
+   */
+  GEOCODER_PROVIDER: z.enum(["none", "fake", "nominatim"]).default("nominatim"),
+  /** Contact address sent to Nominatim, as its usage policy asks. */
+  GEOCODER_CONTACT: z.string().optional(),
   /** Bearer secret for /api/jobs/* (cron: digest). Unset disables the endpoint. */
   CRON_SECRET: z.string().min(24).optional(),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */

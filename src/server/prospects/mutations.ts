@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import { auditLog, contacts, exposes, prospects, savedViews, touchpoints } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
@@ -94,9 +94,20 @@ export async function updateProspect(
   id: string,
   form: ProspectForm,
 ): Promise<boolean> {
+  const values = columns(form);
+  // A changed address puts the prospect back in the geocoding queue (map).
+  const sameAddress = sql`(${prospects.street} is not distinct from ${values.street ?? null}
+    and ${prospects.postalCode} is not distinct from ${values.postalCode ?? null}
+    and ${prospects.city} is not distinct from ${values.city ?? null})`;
+  const keep = <T>(column: T) => sql`case when ${sameAddress} then ${column} else null end`;
   const updated = await tx
     .update(prospects)
-    .set(columns(form))
+    .set({
+      ...values,
+      latitude: keep(prospects.latitude),
+      longitude: keep(prospects.longitude),
+      geocodedAt: keep(prospects.geocodedAt),
+    })
     .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
     .returning({ id: prospects.id });
   return updated.length > 0;
