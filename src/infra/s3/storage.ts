@@ -69,7 +69,9 @@ export function s3Storage(config: {
         for (const key of keys) await this.delete(key);
         removed += keys.length;
         token = /<IsTruncated>true<\/IsTruncated>/.test(xml)
-          ? decodeXml(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] ?? "")
+          ? decodeXml(
+              /<NextContinuationToken>([^<]*)<\/NextContinuationToken>/.exec(xml)?.[1] ?? "",
+            )
           : undefined;
       } while (token);
       return removed;
