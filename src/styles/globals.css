@@ -194,8 +194,8 @@
 
 @font-face {
   font-family: "Aq Nunito";
-  src: url("/fonts/expose/nunito-latin-wght-normal.woff2") format("woff2");
-  font-weight: 200 1000;
+  src: url("/fonts/expose/nunito-latin-800-normal.woff2") format("woff2");
+  font-weight: 800;
   font-display: swap;
 }
 

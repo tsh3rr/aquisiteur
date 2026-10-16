@@ -19,5 +19,5 @@ export const displayFont = localFont({
 export const styleFontHref: Record<ExposeStyle, string | null> = {
   editorial: null,
   bold: "/fonts/expose/anton-latin-400-normal.woff2",
-  soft: "/fonts/expose/nunito-latin-wght-normal.woff2",
+  soft: "/fonts/expose/nunito-latin-800-normal.woff2",
 };
