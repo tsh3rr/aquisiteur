@@ -82,13 +82,14 @@ export async function signInWithWorkspace(
 
 /**
  * The magic-link plugin allows 5 verifications per minute and IP; the suite
- * signs in more often than that from 127.0.0.1. Production limits stay as
+ * signs in more often than that from one local IP. Production limits stay as
  * they are, the E2E database just forgets the local counters.
  */
 async function resetAuthRateLimits() {
   const sql = postgres(E2E.databaseUrl, { max: 1, onnotice: () => {} });
   try {
-    await sql`delete from rate_limits where key like '127.0.0.1|%' or key like '::1|%'`;
+    // Better Auth keys are "<ip>|<path>"; the IP form differs between machines (::1, ::ffff:…).
+    await sql`delete from rate_limits where key like '%|/%'`;
   } finally {
     await sql.end();
   }
