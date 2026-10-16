@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTimeline,
+  describeDraft,
   describeEvent,
   formatDuration,
   visitDetail,
@@ -107,5 +108,53 @@ describe("timeline wording", () => {
     const shown = buildTimeline({ ...input, showBots: true });
     expect(shown[0]!.muted).toBe(true);
     expect(shown).toHaveLength(3);
+  });
+
+  it("describes chat, callback and nudge events", () => {
+    const at = new Date();
+    const event = (type: string, payload = {}) =>
+      describeEvent({ visitId: "v1", type, blockId: null, payload, occurredAt: at }, outline);
+    expect(event("chat_open", { source: "nudge" })).toBe("Chat geöffnet über einen Hinweis");
+    expect(event("chat_message_sent", { length: 42 })).toBe("Chat-Nachricht gesendet (42 Zeichen)");
+    expect(event("callback_submitted")).toBe("Rückruf angefordert");
+    expect(event("nudge_clicked", { nudge: "pricing" })).toBe(
+      "Hinweis angeklickt: Angebot zur Preisauswahl",
+    );
+    expect(event("contact_click", { channel: "booking" })).toBe(
+      "Kontakt per Terminbuchung angeklickt",
+    );
+  });
+
+  it("shows typed but unsent chat drafts as a step of their visit", () => {
+    const draft = {
+      visitId: "v1",
+      length: 0,
+      maxLength: 0,
+      sent: false,
+      content: null,
+      updatedAt: new Date("2026-10-01T10:03:00Z"),
+    };
+    expect(describeDraft({ ...draft, length: 87 })).toBe(
+      "87 Zeichen in den Chat getippt, aber nicht gesendet",
+    );
+    expect(describeDraft({ ...draft, length: 12, content: "Was kostet" })).toBe(
+      "12 Zeichen in den Chat getippt, aber nicht gesendet: „Was kostet“",
+    );
+    expect(describeDraft({ ...draft, maxLength: 30 })).toBe(
+      "Chat-Nachricht mit 30 Zeichen angefangen und wieder gelöscht",
+    );
+    expect(describeDraft({ ...draft, maxLength: 30, sent: true })).toBeNull();
+
+    const [entry] = buildTimeline({
+      visits: [visit()],
+      events: [],
+      audits: [],
+      drafts: [{ ...draft, length: 87 }],
+      outline,
+      showBots: false,
+    });
+    expect(entry!.steps.map((step) => step.text)).toEqual([
+      "87 Zeichen in den Chat getippt, aber nicht gesendet",
+    ]);
   });
 });

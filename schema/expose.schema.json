@@ -1255,24 +1255,32 @@
               },
               "channels": {
                 "default": [
+                  "chat",
                   "whatsapp",
                   "phone",
-                  "email"
+                  "callback",
+                  "email",
+                  "booking"
                 ],
-                "description": "Which channels to offer, in this order. Numbers and addresses come from the workspace settings.",
+                "description": "Which channels to offer, in this order. Numbers and addresses come from the workspace settings; channels without a configured target are left out. 'chat' opens the live chat, 'callback' a callback form.",
                 "minItems": 1,
                 "type": "array",
                 "items": {
                   "type": "string",
                   "enum": [
+                    "chat",
                     "whatsapp",
                     "phone",
-                    "email"
+                    "callback",
+                    "email",
+                    "booking",
+                    "messenger",
+                    "sms"
                   ]
                 }
               },
               "message": {
-                "description": "Prefilled message for WhatsApp and e-mail. The reference code is appended automatically.",
+                "description": "Prefilled message for WhatsApp, e-mail and SMS. The reference code is appended automatically.",
                 "type": "string",
                 "maxLength": 400
               }
