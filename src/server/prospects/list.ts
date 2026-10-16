@@ -16,7 +16,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { exposes, intentScores, prospects, savedViews, visits } from "@/db/schema";
+import { campaigns, exposes, intentScores, prospects, savedViews, visits } from "@/db/schema";
 import type { IntentLevel } from "@/domain/intent/score";
 import type { ListQuery } from "@/domain/prospects/list-query";
 
@@ -44,6 +44,8 @@ export interface ProspectRow {
   exposeSlug: string | null;
   score: number | null;
   level: IntentLevel | null;
+  campaignId: string | null;
+  campaignName: string | null;
 }
 
 /** The customer list (§7.8), filtered and sorted as in the URL. Runs as tenant. */
@@ -78,6 +80,8 @@ export async function listProspects(
   }
   if (query.statuses.length > 0) filters.push(inArray(prospects.status, query.statuses));
   if (query.tag) filters.push(sql`${prospects.tags} @> array[${query.tag}]::text[]`);
+  if (query.campaign === "none") filters.push(isNull(prospects.campaignId));
+  else if (query.campaign) filters.push(eq(prospects.campaignId, query.campaign));
   if (query.activity === "never") filters.push(isNull(activity.last));
   else if (query.activity) {
     const since = new Date(Date.now() - ACTIVITY_HOURS[query.activity] * 3600 * 1000);
@@ -113,6 +117,8 @@ export async function listProspects(
       exposeSlug: exposes.slug,
       score: intentScores.score,
       level: intentScores.level,
+      campaignId: prospects.campaignId,
+      campaignName: campaigns.name,
     })
     .from(prospects)
     .leftJoin(activity, eq(activity.prospectId, prospects.id))
@@ -122,6 +128,10 @@ export async function listProspects(
         eq(intentScores.workspaceId, prospects.workspaceId),
         eq(intentScores.prospectId, prospects.id),
       ),
+    )
+    .leftJoin(
+      campaigns,
+      and(eq(campaigns.workspaceId, prospects.workspaceId), eq(campaigns.id, prospects.campaignId)),
     )
     .leftJoin(
       exposes,

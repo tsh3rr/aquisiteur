@@ -5,7 +5,7 @@ import { assets } from "@/db/schema";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import { resolveEntry } from "@/components/expose/render-context";
 
-export type BrandImageKind = "photo" | "logo";
+export type BrandImageKind = "photo" | "logo" | "signature";
 
 export interface BrandImagePreview {
   src: string;
@@ -14,7 +14,7 @@ export interface BrandImagePreview {
   height: number;
 }
 
-/** Owner photo and agency logo of a workspace, as cockpit-served image URLs. */
+/** Owner photo, agency logo and letter signature of a workspace, as cockpit-served image URLs. */
 export async function loadBrandImages(
   tx: Transaction,
   workspaceId: string,
@@ -23,6 +23,7 @@ export async function loadBrandImages(
   const ids = {
     photo: settings.profile.photoAssetId,
     logo: settings.branding.logoAssetId,
+    signature: settings.letter.signatureAssetId,
   };
   const wanted = Object.values(ids).filter((id): id is string => Boolean(id));
   const rows =
@@ -43,5 +44,9 @@ export async function loadBrandImages(
       height: image.height,
     };
   };
-  return { photo: preview(ids.photo), logo: preview(ids.logo) };
+  return {
+    photo: preview(ids.photo),
+    logo: preview(ids.logo),
+    signature: preview(ids.signature),
+  };
 }

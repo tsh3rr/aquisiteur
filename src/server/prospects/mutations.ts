@@ -58,7 +58,12 @@ function columns(form: ProspectForm) {
   return { ...rest, estimatedValueCents: estimatedValue };
 }
 
-export async function createProspect(tx: Transaction, actor: Actor, form: ProspectForm) {
+export async function createProspect(
+  tx: Transaction,
+  actor: Actor,
+  form: ProspectForm,
+  options: { audit?: boolean } = {},
+) {
   const base = slugify(form.companyName).slice(0, 50) || "kunde";
   for (let attempt = 0; attempt < 6; attempt++) {
     const key = attempt === 0 ? base : `${base}-${randomCode(4)}`;
@@ -68,6 +73,7 @@ export async function createProspect(tx: Transaction, actor: Actor, form: Prospe
       .onConflictDoNothing()
       .returning({ id: prospects.id });
     if (row) {
+      if (options.audit === false) return row.id;
       await tx.insert(auditLog).values({
         workspaceId: actor.workspaceId,
         actorUserId: actor.userId,

@@ -39,7 +39,7 @@ export interface TimelineAudit {
   actorName: string | null;
 }
 
-export type TimelineKind = "visit" | "status" | "expose" | "touchpoint";
+export type TimelineKind = "visit" | "status" | "expose" | "touchpoint" | "letter";
 
 export interface TimelineEntry {
   key: string;
@@ -206,9 +206,11 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
             ? "automatisch durch eine Chat-Nachricht"
             : audit.meta.via === "callback"
               ? "automatisch durch einen Rückrufwunsch"
-              : audit.actorName
-                ? `von ${audit.actorName}`
-                : null;
+              : audit.meta.via === "letter"
+                ? "automatisch beim Briefversand"
+                : audit.actorName
+                  ? `von ${audit.actorName}`
+                  : null;
       return { ...base, kind: "status", title: `Status: ${label}`, detail: by };
     }
     case "prospect.opted_out":
@@ -227,6 +229,22 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
           : "Exposé veröffentlicht",
         detail: audit.actorName ? `von ${audit.actorName}` : null,
       };
+    case "letter.posted":
+    case "letter.returned":
+    case "letter.cancelled": {
+      const what = audit.meta.kind === "follow_up" ? "Folgebrief" : "Brief";
+      const verb = {
+        "letter.posted": "versendet",
+        "letter.returned": "zurückgekommen",
+        "letter.cancelled": "verworfen",
+      }[audit.action];
+      return {
+        ...base,
+        kind: "letter",
+        title: `${what} ${verb}`,
+        detail: audit.actorName ? `von ${audit.actorName}` : null,
+      };
+    }
     case "touchpoint.created":
       return {
         ...base,

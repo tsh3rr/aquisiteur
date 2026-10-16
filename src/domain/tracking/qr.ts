@@ -14,8 +14,8 @@ function escapeXml(text: string): string {
   return text.replace(/[<>&"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-/** One path of unit squares for all dark modules. */
-function modulesPath(url: string): { size: number; path: string } {
+/** One path of unit squares for all dark modules, quiet zone included in `size`. */
+export function modulesPath(url: string): { size: number; path: string } {
   const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
   const size = qr.modules.size;
   let path = "";

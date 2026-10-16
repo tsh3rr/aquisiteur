@@ -25,6 +25,7 @@ import {
   setTouchpointEnabled,
   updateProspect,
 } from "@/server/prospects/mutations";
+import { assignCampaign } from "@/server/campaigns";
 import { requireCockpit } from "@/server/session";
 
 export interface FormState {
@@ -66,6 +67,28 @@ export async function changeStatus(ids: string[], status: string): Promise<FormS
         : changed === 1
           ? `Status auf „${label}“ gesetzt.`
           : `${changed} Kunden auf „${label}“ gesetzt.`,
+  };
+}
+
+/** Puts the selected prospects into a campaign; "" removes them from any. */
+export async function assignCampaignAction(ids: string[], campaignId: string): Promise<FormState> {
+  const { actor, tenant } = await manager();
+  const parsedIds = z.array(z.uuid()).max(500).safeParse(ids);
+  const parsedCampaign = z.union([z.uuid(), z.literal("")]).safeParse(campaignId);
+  if (!parsedIds.success || !parsedCampaign.success) {
+    return { ok: false, message: "Ungültige Auswahl." };
+  }
+  const changed = await tenant((tx) =>
+    assignCampaign(tx, actor, parsedIds.data, parsedCampaign.data || null),
+  );
+  revalidateCustomers();
+  revalidatePath("/kampagnen");
+  if (changed === 0) return { ok: false, message: "Kampagne nicht gefunden." };
+  return {
+    ok: true,
+    message: parsedCampaign.data
+      ? `${changed} ${changed === 1 ? "Kunde" : "Kunden"} der Kampagne zugewiesen.`
+      : `${changed} ${changed === 1 ? "Kunde" : "Kunden"} ohne Kampagne.`,
   };
 }
 

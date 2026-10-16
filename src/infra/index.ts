@@ -1,4 +1,5 @@
 import { serverEnv } from "@/config/env";
+import { manualLetters } from "./manual/letters";
 import { cloudflareDatabase } from "./cloudflare/database";
 import { logEmail } from "./dev/email";
 import { logPush } from "./dev/push";
@@ -83,6 +84,7 @@ export function getInfra(): Infra {
     storage,
     realtime,
     push,
+    letters: (provider) => (provider === manualLetters.id ? manualLetters : null),
   };
   return cached;
 }

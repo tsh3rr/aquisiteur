@@ -1,4 +1,4 @@
-import { Bot, Eye, FileText, Flag, Link2 } from "lucide-react";
+import { Bot, Eye, FileText, Flag, Link2, Mail } from "lucide-react";
 import type { TimelineEntry, TimelineKind } from "@/domain/tracking/timeline";
 import { cn } from "@/lib/cn";
 
@@ -7,6 +7,7 @@ const ICONS: Record<TimelineKind, typeof Eye> = {
   status: Flag,
   expose: FileText,
   touchpoint: Link2,
+  letter: Mail,
 };
 
 const dayFormat = new Intl.DateTimeFormat("de-DE", {

@@ -11,9 +11,11 @@ import type { BrandImageKind, BrandImagePreview } from "@/server/brand-images";
 const MAX_INPUT_BYTES = 20 * 1024 * 1024;
 
 /** Square crop for the photo (shown round), original aspect ratio for the logo. */
-const SHAPES: Record<BrandImageKind, { widths: number[]; square: boolean }> = {
+const SHAPES: Record<BrandImageKind, { widths: number[]; square: boolean; png?: true }> = {
   photo: { widths: [240, 480], square: true },
   logo: { widths: [480, 960], square: false },
+  // PNG only: the letter PDF cannot embed WebP.
+  signature: { widths: [600], square: false, png: true },
 };
 
 async function loadImage(file: File): Promise<HTMLImageElement> {
@@ -70,7 +72,7 @@ async function renditions(file: File, kind: BrandImageKind) {
     if (!context) throw new Error("no-canvas");
     context.imageSmoothingQuality = "high";
     context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, width, height);
-    let blob = await toBlob(canvas, "image/webp");
+    let blob = SHAPES[kind].png ? null : await toBlob(canvas, "image/webp");
     if (blob?.type !== "image/webp") blob = await toBlob(canvas, "image/png");
     if (!blob) throw new Error("no-blob");
     const format = blob.type === "image/webp" ? "webp" : "png";

@@ -6,7 +6,11 @@ import { getDb, withTenant } from "@/db";
 import { domains, workspaceSettings } from "@/db/schema";
 import { ONBOARDING_STEPS, type OnboardingStep } from "@/domain/onboarding";
 import { workspaceSettingsSchema } from "@/domain/workspace-settings";
-import { loadBrandImages, type BrandImagePreview } from "@/server/brand-images";
+import {
+  loadBrandImages,
+  type BrandImageKind,
+  type BrandImagePreview,
+} from "@/server/brand-images";
 import { getWorkspaceContext } from "@/server/session";
 import { PasskeyStep, ProfileStep, SenderStep, WorkspaceStep } from "./steps";
 
@@ -26,7 +30,11 @@ export default async function OnboardingPage({
 
   let settings = workspaceSettingsSchema.parse({});
   let customDomain = "";
-  let brandImages: Record<"photo" | "logo", BrandImagePreview | null> = { photo: null, logo: null };
+  let brandImages: Record<BrandImageKind, BrandImagePreview | null> = {
+    photo: null,
+    logo: null,
+    signature: null,
+  };
   if (active) {
     const loaded = await withTenant(
       getDb(),

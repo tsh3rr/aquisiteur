@@ -19,6 +19,7 @@ import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { ContactSettingsForm } from "./contact-settings";
+import { LetterSettingsForm } from "./letter-settings";
 import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
 import { PushDevices } from "./push-device";
@@ -155,6 +156,29 @@ export default async function SettingsPage() {
             channels={settings.channels}
             chat={settings.chat}
             nudges={settings.nudges}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="briefe">
+        <CardHeader>
+          <CardTitle>Briefe</CardTitle>
+          <CardDescription>
+            Absender, Standardtext und Unterschrift für die gedruckten Briefe.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8">
+          <LetterSettingsForm
+            sender={settings.senderAddress}
+            letter={settings.letter}
+            canEdit={canEditSettings}
+          />
+          <BrandImageField
+            kind="signature"
+            label="Unterschrift"
+            hint="Ein Foto oder Scan Ihrer Unterschrift, am besten auf weißem Papier. Wird als PNG gespeichert."
+            current={brandImages.signature}
             canEdit={canEditSettings}
           />
         </CardContent>

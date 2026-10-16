@@ -13,7 +13,9 @@ import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
 import { formatDuration } from "@/domain/tracking/timeline";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { SIGNAL_LABELS } from "@/domain/intent/score";
+import { listCampaigns } from "@/server/campaigns";
 import { loadIntent } from "@/server/intent/list";
+import { listLetters } from "@/server/letters/manage";
 import { loadProspectDetail } from "@/server/prospects/detail";
 import { formatRelative } from "@/lib/relative-time";
 import { CallbackList } from "../../chat/callbacks";
@@ -24,6 +26,7 @@ import { signOwnerLink } from "@/server/tracking/visits";
 import { updateProspectAction, deleteProspectAction } from "../actions";
 import { ProspectForm } from "../prospect-form";
 import { Contacts } from "./contacts";
+import { ProspectLetters } from "./letters";
 import { StatusSelect } from "./status-select";
 import { Timeline } from "./timeline";
 import { Touchpoints } from "./touchpoints";
@@ -71,10 +74,12 @@ export default async function CustomerPage({
       detail,
       origin: await workspacePublicOrigin(tx, ws),
       intent: await loadIntent(tx, workspace.id, id),
+      campaigns: await listCampaigns(tx, workspace.id),
+      letters: await listLetters(tx, workspace.id, { prospectId: id }, 20),
     };
   });
   if (!loaded) notFound();
-  const { detail, origin, intent } = loaded;
+  const { detail, origin, intent, campaigns, letters } = loaded;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const ownerLink = `${origin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
@@ -301,6 +306,26 @@ export default async function CustomerPage({
             </Card>
           ) : null}
 
+          <Card id="briefe">
+            <CardHeader>
+              <CardTitle>Briefe</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProspectLetters
+                prospectId={prospect.id}
+                canManage={canManage}
+                letters={letters.map((letter) => ({
+                  id: letter.id,
+                  kind: letter.kind,
+                  status: letter.status,
+                  shortCode: letter.shortCode,
+                  postedAt: letter.postedAt?.toISOString() ?? null,
+                  openedAt: letter.openedAt?.toISOString() ?? null,
+                }))}
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Links und QR-Codes</CardTitle>
@@ -370,6 +395,7 @@ export default async function CustomerPage({
                 <ProspectForm
                   action={updateProspectAction}
                   values={prospect}
+                  campaigns={campaigns.map(({ id, name }) => ({ id, name }))}
                   submitLabel="Speichern"
                   compact
                 />

@@ -19,12 +19,13 @@ export interface BrandImageResult {
 const TARGET = {
   photo: { column: "profile", key: "photoAssetId", fileName: "profilfoto" },
   logo: { column: "branding", key: "logoAssetId", fileName: "logo" },
+  signature: { column: "letter", key: "signatureAssetId", fileName: "unterschrift" },
 } as const;
 
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
 function isKind(value: unknown): value is BrandImageKind {
-  return value === "photo" || value === "logo";
+  return value === "photo" || value === "logo" || value === "signature";
 }
 
 /** Runs `fn` as tenant after checking the member may change settings. */

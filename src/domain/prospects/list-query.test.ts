@@ -14,6 +14,7 @@ describe("customer list query", () => {
       statuses: [],
       activity: null,
       tag: null,
+      campaign: null,
       sort: "activity",
       dir: "desc",
       columns: DEFAULT_COLUMNS,
@@ -24,6 +25,13 @@ describe("customer list query", () => {
     const query = parseListQuery(new URLSearchParams("status=opened,won&status=opened&q= Café "));
     expect(query.statuses).toEqual(["opened", "won"]);
     expect(query.q).toBe("Café");
+  });
+
+  it("reads the campaign filter", () => {
+    expect(parseListQuery({ kampagne: "none" }).campaign).toBe("none");
+    expect(parseListQuery({ kampagne: "x" }).campaign).toBeNull();
+    const id = "6f1c2a3e-1111-4222-8333-444455556666";
+    expect(serializeListQuery(parseListQuery({ kampagne: id }))).toBe(`kampagne=${id}`);
   });
 
   it("round-trips through the URL and leaves defaults out", () => {

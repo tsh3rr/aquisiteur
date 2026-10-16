@@ -13,6 +13,7 @@ export type SortKey = (typeof SORT_KEYS)[number];
 export const COLUMNS = [
   "status",
   "score",
+  "campaign",
   "city",
   "activity",
   "visits",
@@ -25,6 +26,7 @@ export const DEFAULT_COLUMNS: Column[] = ["status", "score", "city", "activity",
 export const COLUMN_LABELS: Record<Column, string> = {
   status: "Status",
   score: "Kontaktabsicht",
+  campaign: "Kampagne",
   city: "Ort",
   activity: "Letzte Aktivität",
   visits: "Besuche",
@@ -37,6 +39,8 @@ export interface ListQuery {
   statuses: ProspectStatus[];
   activity: ActivityFilter | null;
   tag: string | null;
+  /** A campaign id, "none" for prospects without campaign, or null for all. */
+  campaign: string | null;
   sort: SortKey;
   dir: "asc" | "desc";
   columns: Column[];
@@ -62,6 +66,7 @@ export function parseListQuery(params: Params): ListQuery {
     .flatMap((value) => value.split(","))
     .filter((c): c is Column => (COLUMNS as readonly string[]).includes(c));
   const tag = one(params, "tag")?.trim().slice(0, 40);
+  const campaign = one(params, "kampagne");
   return {
     q: (one(params, "q") ?? "").trim().slice(0, 100),
     statuses: [...new Set(statuses)],
@@ -69,6 +74,10 @@ export function parseListQuery(params: Params): ListQuery {
       ? (activity as ActivityFilter)
       : null,
     tag: tag || null,
+    campaign:
+      campaign === "none" || /^[0-9a-f-]{36}$/i.test(campaign ?? "")
+        ? campaign!.toLowerCase()
+        : null,
     sort: (SORT_KEYS as readonly string[]).includes(sort ?? "") ? (sort as SortKey) : "activity",
     dir: one(params, "dir") === "asc" ? "asc" : "desc",
     columns: columns.length > 0 ? COLUMNS.filter((c) => columns.includes(c)) : DEFAULT_COLUMNS,
@@ -82,6 +91,7 @@ export function serializeListQuery(query: Partial<ListQuery>): string {
   if (query.statuses?.length) params.set("status", query.statuses.join(","));
   if (query.activity) params.set("aktiv", query.activity);
   if (query.tag) params.set("tag", query.tag);
+  if (query.campaign) params.set("kampagne", query.campaign);
   if (query.sort && query.sort !== "activity") params.set("sort", query.sort);
   if (query.dir === "asc") params.set("dir", "asc");
   if (query.columns && query.columns.join(",") !== DEFAULT_COLUMNS.join(",")) {

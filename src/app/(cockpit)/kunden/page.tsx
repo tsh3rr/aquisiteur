@@ -1,4 +1,4 @@
-import { Download, KanbanSquare, Plus, Users } from "lucide-react";
+import { Download, KanbanSquare, Plus, Upload, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import {
   parseListQuery,
   serializeListQuery,
 } from "@/domain/prospects/list-query";
+import { listCampaigns } from "@/server/campaigns";
 import { LIST_LIMIT, listProspects, listSavedViews, listTags } from "@/server/prospects/list";
 import { requireCockpit } from "@/server/session";
 import { CustomerFilters } from "./filters";
@@ -29,8 +30,9 @@ export default async function CustomersPage({
   const { workspace, actor, tenant } = await requireCockpit();
   const query = parseListQuery(await searchParams);
   const current = serializeListQuery(query);
-  const { rows, tags, views } = await tenant(async (tx) => ({
+  const { rows, tags, views, campaigns } = await tenant(async (tx) => ({
     rows: await listProspects(tx, workspace.id, query),
+    campaigns: await listCampaigns(tx, workspace.id),
     tags: await listTags(tx, workspace.id),
     views: await listSavedViews(tx, workspace.id, actor.userId),
   }));
@@ -57,6 +59,12 @@ export default async function CustomersPage({
               CSV
             </a>
             {canManage ? (
+              <Link href="/kunden/import" className={linkButton}>
+                <Upload aria-hidden className="size-4" />
+                Importieren
+              </Link>
+            ) : null}
+            {canManage ? (
               <Link
                 href="/kunden/neu"
                 className="inline-flex h-11 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-sm hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
@@ -80,7 +88,11 @@ export default async function CustomersPage({
         }))}
         canManage={canManage}
       />
-      <CustomerFilters query={query} tags={tags} />
+      <CustomerFilters
+        query={query}
+        tags={tags}
+        campaigns={campaigns.map(({ id, name }) => ({ id, name }))}
+      />
 
       {rows.length === 0 ? (
         <Card className="border-dashed">
@@ -103,8 +115,8 @@ export default async function CustomersPage({
               <div className="grid max-w-md gap-1.5">
                 <p className="font-medium">Noch keine Kunden.</p>
                 <p className="text-sm text-foreground-muted">
-                  Kunden entstehen, wenn Sie ein Exposé veröffentlichen, oder Sie legen sie hier von
-                  Hand an.
+                  Kunden entstehen, wenn Sie ein Exposé veröffentlichen. Sie können auch eine Liste
+                  als CSV importieren oder einzelne Kunden von Hand anlegen.
                 </p>
               </div>
             )}
@@ -114,6 +126,7 @@ export default async function CustomersPage({
         <CustomerTable
           columns={query.columns}
           canManage={canManage}
+          campaigns={campaigns.map(({ id, name }) => ({ id, name }))}
           rows={rows.map((row) => ({
             id: row.id,
             companyName: row.companyName,
@@ -125,6 +138,8 @@ export default async function CustomersPage({
             visitCount: row.visitCount,
             score: row.score,
             level: row.level,
+            campaignId: row.campaignId,
+            campaignName: row.campaignName,
           }))}
         />
       )}

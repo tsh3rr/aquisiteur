@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Mail } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import {
   type ProspectStatus,
 } from "@/domain/prospects/status";
 import { formatRelative } from "@/lib/relative-time";
-import { changeStatus } from "./actions";
+import { assignCampaignAction, changeStatus } from "./actions";
 
 export interface CustomerRow {
   id: string;
@@ -29,6 +29,8 @@ export interface CustomerRow {
   visitCount: number;
   score: number | null;
   level: IntentLevel | null;
+  campaignId: string | null;
+  campaignName: string | null;
 }
 
 const dateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
@@ -44,6 +46,14 @@ function Cell({ column, row }: { column: Column; row: CustomerRow }) {
           <span className="font-medium tabular-nums">{row.score} %</span>
           <span className="text-xs text-foreground-muted">{LEVEL_LABELS[row.level]}</span>
         </span>
+      ) : (
+        <span className="text-foreground-muted">–</span>
+      );
+    case "campaign":
+      return row.campaignId ? (
+        <Link href={`/kampagnen/${row.campaignId}`} className="hover:text-accent">
+          {row.campaignName}
+        </Link>
       ) : (
         <span className="text-foreground-muted">–</span>
       );
@@ -80,13 +90,16 @@ export function CustomerTable({
   rows,
   columns,
   canManage,
+  campaigns,
 }: {
   rows: CustomerRow[];
   columns: Column[];
   canManage: boolean;
+  campaigns: { id: string; name: string }[];
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<ProspectStatus>("letter_sent");
+  const [campaign, setCampaign] = useState(campaigns[0]?.id ?? "");
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
   const ids = useMemo(() => rows.map((row) => row.id), [rows]);
@@ -101,9 +114,9 @@ export function CustomerTable({
       return next;
     });
 
-  const apply = () =>
+  const run = (action: () => Promise<{ ok: boolean; message?: string }>) =>
     startTransition(async () => {
-      const result = await changeStatus(visibleSelected, status);
+      const result = await action();
       setMessage(result.message ?? "");
       if (result.ok) setSelected(new Set());
     });
@@ -136,10 +149,44 @@ export function CustomerTable({
           <Button
             variant="secondary"
             disabled={visibleSelected.length === 0 || pending}
-            onClick={apply}
+            onClick={() => run(() => changeStatus(visibleSelected, status))}
           >
             Anwenden
           </Button>
+          <label className="flex items-center gap-2 text-sm">
+            Kampagne
+            <Select
+              value={campaign}
+              onChange={(event) => setCampaign(event.target.value)}
+              className="h-11 w-auto"
+            >
+              {campaigns.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+              <option value="">Keine Kampagne</option>
+            </Select>
+          </label>
+          <Button
+            variant="secondary"
+            disabled={visibleSelected.length === 0 || pending}
+            onClick={() => run(() => assignCampaignAction(visibleSelected, campaign))}
+          >
+            Zuweisen
+          </Button>
+          <Link
+            href={
+              visibleSelected.length
+                ? `/briefe/neu?ids=${visibleSelected.join(",")}`
+                : "/briefe/neu"
+            }
+            aria-disabled={visibleSelected.length === 0}
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent underline-offset-4 hover:underline aria-disabled:pointer-events-none aria-disabled:text-foreground-muted"
+          >
+            <Mail aria-hidden className="size-4" />
+            Briefe erstellen
+          </Link>
           <a
             href={
               visibleSelected.length ? `/kunden/export?ids=${visibleSelected.join(",")}` : undefined

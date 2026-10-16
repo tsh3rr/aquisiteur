@@ -142,23 +142,33 @@ export interface LetterPrintOptions {
   color: boolean;
   duplex: boolean;
   shipping: "standard" | "priority";
-  envelope: "DL" | "C5" | "C4";
-  attachments: number;
+  envelope: "DL";
+  /** Asset ids of enclosed PDFs. */
+  inserts: string[];
 }
 
 export interface LetterDispatchRequest {
   letterId: string;
   workspaceId: string;
-  pdf: Uint8Array;
+  /** Storage key of the print-ready PDF; null for `manual`, where the owner prints. */
+  pdfKey: string | null;
   options: LetterPrintOptions;
+  /** Same key for retries of the same letter (print APIs dedupe on it). */
+  idempotencyKey: string;
 }
 
 export interface LetterDispatchProvider {
   readonly id: string;
+  /**
+   * True when the provider reports printing and posting itself (webhooks).
+   * False for `manual`: the owner marks the letter as posted.
+   */
+  readonly tracksDelivery: boolean;
   send(letter: LetterDispatchRequest): Promise<{ providerRef: string }>;
-  getStatus(providerRef: string): Promise<LetterStatus>;
+  getStatus(providerRef: string): Promise<LetterStatus | null>;
   cancel(providerRef: string): Promise<void>;
-  estimateCost(letter: Pick<LetterDispatchRequest, "options">): Promise<{ cents: number }>;
+  /** Null when the provider has no price list (the workspace setting applies). */
+  estimateCost(letter: Pick<LetterDispatchRequest, "options">): Promise<{ cents: number } | null>;
   handleWebhook?(request: Request): Promise<{ providerRef: string; status: LetterStatus }[]>;
 }
 
@@ -170,4 +180,6 @@ export interface Infra {
   readonly storage: StoragePort;
   readonly realtime: RealtimePort;
   readonly push: PushPort;
+  /** Letter dispatch providers by id; `manual` always exists. */
+  letters(provider: string): LetterDispatchProvider | null;
 }

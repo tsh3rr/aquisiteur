@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -37,6 +38,29 @@ export const prospectStatus = pgEnum("prospect_status", [
 ]);
 
 /**
+ * A group of prospects for evaluation (§3), e.g. „Cafés Leipzig Okt 26“.
+ * Letters and dashboards filter by it.
+ */
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("campaigns_workspace_name_idx").on(t.workspaceId, t.name),
+    unique("campaigns_workspace_id_id_key").on(t.workspaceId, t.id),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+/**
  * A potential customer (§3). Phase 1 creates prospects from exposé files;
  * phase 2 adds the full customer management on top of the same table.
  */
@@ -67,9 +91,21 @@ export const prospects = pgTable(
     /** Set by "Kein Interesse" (§7.3): blocks follow-ups for good. */
     doNotContactAt: timestamp("do_not_contact_at", { withTimezone: true }),
     estimatedValueCents: integer("estimated_value_cents"),
+    /** Null: no campaign. Cleared by hand before a campaign is deleted. */
+    campaignId: uuid("campaign_id"),
+    /** For the map (§7.8), from the address; null until geocoded. */
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    geocodedAt: timestamp("geocoded_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
+    foreignKey({
+      name: "prospects_campaign_fk",
+      columns: [t.workspaceId, t.campaignId],
+      foreignColumns: [campaigns.workspaceId, campaigns.id],
+    }),
+    index("prospects_campaign_idx").on(t.workspaceId, t.campaignId),
     uniqueIndex("prospects_workspace_key_idx").on(t.workspaceId, t.key),
     // Target of composite foreign keys that pin children to the same workspace.
     unique("prospects_workspace_id_id_key").on(t.workspaceId, t.id),

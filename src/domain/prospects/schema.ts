@@ -12,6 +12,17 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => value ?? null);
 
+/** Campaign of a prospect: "" in a form means none; missing leaves it unchanged. */
+export const campaignIdField = z
+  .union([z.uuid(), z.literal("")])
+  .optional()
+  .transform((value) => (value === undefined ? undefined : value || null));
+
+export const campaignFormSchema = z.object({
+  name: z.string().trim().min(1, "Bitte einen Namen angeben.").max(120, "Höchstens 120 Zeichen."),
+  description: optionalText(1000),
+});
+
 /** Prospect master data as edited in the cockpit (§7.1). */
 export const prospectFormSchema = z.object({
   companyName: z.string().trim().min(1, "Bitte den Firmennamen angeben.").max(200),
@@ -56,6 +67,7 @@ export const prospectFormSchema = z.object({
       }
       return Math.round(euros * 100);
     }),
+  campaignId: campaignIdField,
 });
 
 export type ProspectForm = z.output<typeof prospectFormSchema>;

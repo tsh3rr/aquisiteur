@@ -115,6 +115,28 @@ export const retentionSchema = z.object({
   optOutTrackingDays: z.number().int().min(1).max(90).default(30),
 });
 
+/**
+ * The printed letter (§7.9). Subject and body are used when the exposé has
+ * no `letter` of its own; both may contain placeholders (see
+ * src/domain/letters/compose.ts).
+ */
+export const letterSettingsSchema = z.object({
+  subject: z.string().trim().max(160).default("Ein paar Ideen für {{firma}}"),
+  body: z
+    .string()
+    .trim()
+    .max(4000)
+    .default(
+      "ich bin über {{firma}} gestolpert und habe mir Ihren Auftritt im Netz genauer angesehen. Dabei sind mir ein paar Dinge eingefallen, die Ihnen mehr Anfragen bringen könnten.\n\nIch habe sie für Sie auf einer persönlichen Seite zusammengestellt, mit Beispielen und einem Preisrahmen. Scannen Sie einfach den QR-Code oder tippen Sie den Link ein.\n\nWenn Ihnen etwas davon gefällt, freue ich mich über eine kurze Nachricht.",
+    ),
+  closing: z.string().trim().max(80).default("Mit freundlichen Grüßen"),
+  /** Hand signature as an image (PNG with transparency). Row in `assets`. */
+  signatureAssetId: z.uuid().optional(),
+  qrHint: z.string().trim().max(80).default("Scannen Sie den Code mit der Handy-Kamera."),
+  /** Print and postage per letter for the `manual` provider, for the dashboards. */
+  costCents: z.number().int().min(0).max(10_000).default(110),
+});
+
 /** An IANA time zone the runtime knows, e.g. "Europe/Berlin". */
 export const timezoneSchema = z.string().refine((zone) => {
   try {
@@ -141,6 +163,7 @@ export const workspaceSettingsSchema = z.object({
   nudges: nudgeSettingsSchema.prefault({}),
   scoreWeights: scoreWeightsSchema.prefault({}),
   notifications: notificationSettingsSchema.prefault({}),
+  letter: letterSettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 365, replaysDays: 90, optOutTrackingDays: 30 }),
 });
 
@@ -151,3 +174,4 @@ export type SenderAddress = z.infer<typeof senderAddressSchema>;
 export type ChatSettings = z.infer<typeof chatSettingsSchema>;
 export type NudgeSettings = z.infer<typeof nudgeSettingsSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+export type LetterSettings = z.infer<typeof letterSettingsSchema>;

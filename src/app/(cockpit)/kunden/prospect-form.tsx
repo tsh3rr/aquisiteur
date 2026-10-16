@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input, Select, Textarea } from "@/components/ui/input";
 import type { FormState } from "./actions";
 
 export interface ProspectValues {
@@ -19,6 +19,7 @@ export interface ProspectValues {
   notes: string | null;
   tags: string[];
   estimatedValueCents: number | null;
+  campaignId: string | null;
 }
 
 export const EMPTY_PROSPECT: ProspectValues = {
@@ -33,6 +34,7 @@ export const EMPTY_PROSPECT: ProspectValues = {
   notes: null,
   tags: [],
   estimatedValueCents: null,
+  campaignId: null,
 };
 
 /** Master data of a prospect (§7.1), for „Neuer Kunde“ and the detail page. */
@@ -40,8 +42,10 @@ export function ProspectForm({
   action,
   values,
   submitLabel,
+  campaigns,
   compact = false,
 }: {
+  campaigns: { id: string; name: string }[];
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   values: ProspectValues;
   submitLabel: string;
@@ -120,6 +124,16 @@ export function ProspectForm({
                 : String(values.estimatedValueCents / 100).replace(".", ",")
             }
           />
+        </Field>
+        <Field label="Kampagne" optional error={errors.campaignId}>
+          <Select name="campaignId" defaultValue={values.campaignId ?? ""}>
+            <option value="">Keine</option>
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field
           label="Notizen"

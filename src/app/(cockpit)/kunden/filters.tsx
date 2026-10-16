@@ -15,7 +15,15 @@ const checkbox =
   "size-5 rounded border-border-strong accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** Plain GET form: filters live in the URL and work without JavaScript. */
-export function CustomerFilters({ query, tags }: { query: ListQuery; tags: string[] }) {
+export function CustomerFilters({
+  query,
+  tags,
+  campaigns,
+}: {
+  query: ListQuery;
+  tags: string[];
+  campaigns: { id: string; name: string }[];
+}) {
   const moreActive = query.statuses.length > 0 || query.columns.join() !== DEFAULT_COLUMNS.join();
   return (
     <form
@@ -25,7 +33,7 @@ export function CustomerFilters({ query, tags }: { query: ListQuery; tags: strin
       role="search"
       aria-label="Kunden filtern"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] lg:items-end">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
         <Field label="Suche">
           <Input
             name="q"
@@ -42,6 +50,17 @@ export function CustomerFilters({ query, tags }: { query: ListQuery; tags: strin
             <option value="7d">Letzte 7 Tage</option>
             <option value="30d">Letzte 30 Tage</option>
             <option value="never">Noch nie geöffnet</option>
+          </Select>
+        </Field>
+        <Field label="Kampagne">
+          <Select name="kampagne" defaultValue={query.campaign ?? ""}>
+            <option value="">Alle</option>
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
+              </option>
+            ))}
+            <option value="none">Ohne Kampagne</option>
           </Select>
         </Field>
         <Field label="Tag">
@@ -132,7 +151,7 @@ export function CustomerFilters({ query, tags }: { query: ListQuery; tags: strin
           </fieldset>
         </div>
       </details>
-      {query.q || query.activity || query.tag || query.statuses.length > 0 ? (
+      {query.q || query.activity || query.tag || query.campaign || query.statuses.length > 0 ? (
         <p className="text-sm">
           <Link href="/kunden" className="text-accent underline underline-offset-4">
             Alle Filter zurücksetzen

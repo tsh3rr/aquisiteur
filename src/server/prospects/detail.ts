@@ -135,6 +135,10 @@ export async function loadProspectDetail(
         eq(auditLog.workspaceId, workspaceId),
         or(
           and(eq(auditLog.targetType, "prospect"), eq(auditLog.targetId, prospectId)),
+          and(
+            eq(auditLog.targetType, "letter"),
+            sql`${auditLog.meta} ->> 'prospectId' = ${prospectId}`,
+          ),
           expose
             ? and(eq(auditLog.targetType, "expose"), eq(auditLog.targetId, expose.id))
             : sql`false`,

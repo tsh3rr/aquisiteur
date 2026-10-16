@@ -47,6 +47,10 @@ const tenantTables = {
   notification_rules: schema.notificationRules,
   notifications: schema.notifications,
   push_subscriptions: schema.pushSubscriptions,
+  campaigns: schema.campaigns,
+  letters: schema.letters,
+  consents: schema.consents,
+  session_replays: schema.sessionReplays,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -128,6 +132,39 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     p256dh: "key",
     auth: "auth",
   });
+  const [campaign] = await db
+    .insert(schema.campaigns)
+    .values({ workspaceId, name: `Kampagne ${tag}` })
+    .returning();
+  const [touchpoint] = await db
+    .select()
+    .from(schema.touchpoints)
+    .where(eq(schema.touchpoints.workspaceId, workspaceId));
+  await db.insert(schema.letters).values({
+    workspaceId,
+    prospectId: chat.prospectId,
+    campaignId: campaign!.id,
+    touchpointId: touchpoint!.id,
+    options: {
+      color: false,
+      duplex: false,
+      shipping: "standard",
+      envelope: "DL",
+      inserts: [],
+    },
+    subject: `Brief ${tag}`,
+    body: "Text",
+  });
+  await db.insert(schema.consents).values({
+    workspaceId,
+    prospectId: chat.prospectId,
+    visitId: visit!.id,
+    decision: "given",
+    noticeVersion: "1",
+  });
+  await db
+    .insert(schema.sessionReplays)
+    .values({ workspaceId, prospectId: chat.prospectId, visitId: visit!.id });
 }
 
 beforeAll(async () => {

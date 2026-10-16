@@ -4,11 +4,12 @@ import { auditLog, prospects } from "@/db/schema";
 import type { ProspectStatus } from "@/domain/prospects/status";
 
 /**
- * Status changes caused by the prospect (§7.1): the first real visit opens,
- * a chat message or callback request means contact. Only moves forward from
+ * Automatic status changes (§7.1): a posted letter marks „Brief versendet“,
+ * the first real visit opens, a chat message or callback request means contact. Only moves forward from
  * the listed statuses; anything the owner set later stays.
  */
 const AUTO_TRANSITIONS = {
+  letter_sent: ["draft"],
   opened: ["draft", "letter_sent"],
   contacted: ["draft", "letter_sent", "opened", "interested"],
 } as const satisfies Partial<Record<ProspectStatus, readonly ProspectStatus[]>>;
@@ -19,7 +20,7 @@ export async function advanceStatus(
     workspaceId: string;
     prospectId: string;
     to: keyof typeof AUTO_TRANSITIONS;
-    via: "visit" | "chat" | "callback";
+    via: "visit" | "chat" | "callback" | "letter";
     meta?: Record<string, unknown>;
   },
 ): Promise<void> {
