@@ -320,3 +320,14 @@ wegzulassen. Die CI prüft im Job „Cloudflare bundle“, dass es unter 2.900 K
 `next dev` bei Turbopack. Offen bleibt die CPU-Grenze des Free-Plans (10 ms pro Anfrage): Seiten, die
 auf dem Server gerendert werden, können sie überschreiten. Der Free-Plan taugt daher zum Testen und
 für wenig Verkehr; für den Betrieb bleibt Workers Paid empfohlen.
+
+## ADR-0036 · Deployment über Workers Builds und das Dashboard (2026-10-16)
+
+Der Betreiber richtet alles über die Weboberflächen ein. Cloudflare Workers Builds baut jeden Push auf
+`main` aus GitHub; der Deploy-Befehl `pnpm cf:release` spielt zuerst die Migrationen ein
+(`DATABASE_URL` als Build-Secret) und veröffentlicht danach. So bleibt die Reihenfolge „erst migrieren,
+dann deployen“ ohne zweites System (eine GitHub Action könnte mit dem Build um die Wette laufen).
+Variablen und Secrets liegen im Worker-Dashboard; `keep_vars: true` in `wrangler.jsonc` verhindert, dass
+ein Deploy sie löscht. Nur die Hyperdrive-ID steht in `wrangler.jsonc`, weil das Binding dort definiert
+sein muss. Für die zwei Schritte ohne Klickweg (Schlüssel erzeugen, Exposé veröffentlichen) reicht ein
+GitHub Codespace im Browser; `pnpm deploy:secrets` gibt alle Schlüssel auf einmal aus.

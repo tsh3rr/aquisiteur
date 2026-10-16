@@ -23,6 +23,8 @@
   "vars": {
     "HOSTING_PROFILE": "cloudflare",
   },
+  // Everything else is set in the Cloudflare dashboard; deploys must not wipe it (docs/DEPLOY.md).
+  "keep_vars": true,
   // Hourly jobs, e.g. the daily digest (worker.mjs → /api/jobs/hourly).
   "triggers": { "crons": ["5 * * * *"] },
   "observability": { "enabled": true },

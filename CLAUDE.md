@@ -24,6 +24,8 @@ pnpm expose:schema       # regenerate schema/expose.schema.json after changing s
 pnpm tokens:build        # regenerate src/styles/tokens.css from src/design/tokens.ts
 pnpm push:keys           # VAPID key pair for Web Push; pnpm jobs:hourly calls /api/jobs/hourly
 pnpm cf:build            # OpenNext Cloudflare bundle; cf:preview / cf:deploy
+pnpm cf:release          # migrate + deploy (Workers Builds deploy command, ADR-0036)
+pnpm deploy:secrets      # print fresh secrets + VAPID pair for the dashboard
 ```
 
 Local Postgres: see `.env.example`. In a cloud container: `service postgresql start`, role
