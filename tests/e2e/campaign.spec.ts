@@ -149,7 +149,7 @@ test("the prospect allows a recording and the owner watches it", async ({ page, 
   await page.getByRole("link", { name: /Aufzeichnung ansehen/ }).click();
   await expect(page.getByRole("heading", { name: "Aufzeichnung des Besuchs" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Abspielen" })).toBeEnabled({ timeout: 20_000 });
-  await expectAccessible(page, "replay viewer");
+  await expectAccessible(page, "replay viewer", { exclude: [".replayer-wrapper iframe"] });
 });
 
 test("the dashboards show the campaign from letter to visit", async ({ page }) => {

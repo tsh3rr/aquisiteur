@@ -5,11 +5,24 @@ import { expect, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { E2E } from "../../playwright.config";
 
-/** Asserts zero axe violations against WCAG 2.2 A/AA (§8). */
-export async function expectAccessible(page: Page, label: string) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
+/**
+ * Asserts zero axe violations against WCAG 2.2 A/AA (§8). `exclude` leaves out
+ * elements whose content is not our UI (the replay player's recorded page).
+ */
+export async function expectAccessible(
+  page: Page,
+  label: string,
+  { exclude = [] }: { exclude?: string[] } = {},
+) {
+  let builder = new AxeBuilder({ page }).withTags([
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa",
+  ]);
+  for (const selector of exclude) builder = builder.exclude(selector);
+  const results = await builder.analyze();
   const summary = results.violations.map(
     (v) => `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(" ")).join(", ")})`,
   );
