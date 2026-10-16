@@ -98,6 +98,16 @@ export async function unreadThreadCount(tx: Transaction, workspaceId: string): P
   return row?.value ?? 0;
 }
 
+/** The Chat menu badge: unread chats plus callback requests not yet done. */
+export async function chatInboxCount(tx: Transaction, workspaceId: string): Promise<number> {
+  const threads = await unreadThreadCount(tx, workspaceId);
+  const [callbacks] = await tx
+    .select({ value: count() })
+    .from(callbackRequests)
+    .where(and(eq(callbackRequests.workspaceId, workspaceId), eq(callbackRequests.status, "open")));
+  return threads + (callbacks?.value ?? 0);
+}
+
 export interface ThreadDetail {
   thread: typeof chatThreads.$inferSelect;
   prospect: { id: string; companyName: string };

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { telHref } from "@/domain/expose/contact-links";
 import { formatRelative } from "@/lib/relative-time";
+import { UNREAD_EVENT } from "@/components/cockpit/nav";
 import { markCallback } from "./actions";
 
 export interface CallbackView {
@@ -77,7 +78,12 @@ export function CallbackList({
             variant="secondary"
             disabled={pending}
             onClick={() =>
-              startTransition(() => markCallback(callback.id, callback.status === "open"))
+              startTransition(async () => {
+                const inbox = await markCallback(callback.id, callback.status === "open");
+                if (inbox !== undefined) {
+                  window.dispatchEvent(new CustomEvent(UNREAD_EVENT, { detail: inbox }));
+                }
+              })
             }
           >
             {callback.status === "open" ? (

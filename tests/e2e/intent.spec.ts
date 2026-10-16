@@ -72,21 +72,22 @@ test("the owner publishes an exposé and has a phone registered for push", async
   await expect(section.getByText("Chrome auf Android")).toBeVisible();
   await expect(section.getByText("Erster echter Scan → Push")).toBeVisible();
   await expect(section.getByText("Score ab 50 % → Push und E-Mail")).toBeVisible();
+  await expect(section.getByText("Rückrufwunsch → Push", { exact: true })).toBeVisible();
 
   // Add a rule with quiet hours, then remove it again.
   await section.getByRole("button", { name: "Regel hinzufügen" }).click();
   const form = section.getByRole("form", { name: "Neue Regel" });
-  await form.getByLabel("Ereignis").selectOption("callback");
+  await form.getByLabel("Ereignis").selectOption("return_visit");
   await form.getByRole("checkbox", { name: "E-Mail" }).check();
   await form.getByLabel(/Ruhezeit von/).fill("22:00");
   await form.getByLabel(/Ruhezeit bis/).fill("07:00");
   await form.getByRole("button", { name: "Regel hinzufügen" }).click();
   await expect(section.getByText("Regel hinzugefügt.")).toBeVisible();
   await expect(
-    section.getByText("Rückrufwunsch → Push und E-Mail (Ruhezeit 22:00–07:00)"),
+    section.getByText("Wiederholter Besuch → Push und E-Mail (Ruhezeit 22:00–07:00)"),
   ).toBeVisible();
   await expectAccessible(page, "notification settings");
-  await section.getByRole("button", { name: "Rückrufwunsch löschen" }).click();
+  await section.getByRole("button", { name: "Wiederholter Besuch löschen" }).click();
   await expect(section.getByText("Regel gelöscht.")).toBeVisible();
 });
 

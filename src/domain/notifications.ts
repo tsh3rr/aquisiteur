@@ -44,10 +44,11 @@ export interface NotificationRule {
   weekdaysOnly: boolean;
 }
 
-/** Inserted for every new workspace (and by migration 0010 for old ones). */
+/** Inserted for every new workspace (and by migrations 0010 and 0015 for old ones). */
 export const DEFAULT_RULES: Omit<NotificationRule, "id">[] = [
   rule("first_visit", null, ["push"]),
   rule("chat_message", null, ["push"]),
+  rule("callback", null, ["push"]),
   rule("score_threshold", 50, ["push", "email"]),
   rule("daily_digest", 8, ["email"]),
 ];

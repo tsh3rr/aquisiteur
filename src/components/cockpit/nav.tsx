@@ -34,12 +34,15 @@ const items: { href: Route; label: string; icon: typeof Sun; mobile: boolean }[]
 
 export const UNREAD_EVENT = "aq:unread-chats";
 
-/** Unread chats, kept current by the live connection. */
+/** Unread chats plus open callback requests, kept current by the live connection. */
 function useUnread(initial: number) {
   const [unread, setUnread] = useState(initial);
   const refresh = () => void unreadCount().then(setUnread, () => {});
   const generation = useLiveEvents((event, payload) => {
-    if (isRealtimeEvent("chat.message", event, payload) && payload.message.author === "visitor") {
+    if (
+      (isRealtimeEvent("chat.message", event, payload) && payload.message.author === "visitor") ||
+      event === "callback.created"
+    ) {
       refresh();
     }
   });
@@ -97,7 +100,7 @@ export function CockpitNav({
                 {label}
                 {href === "/chat" && unread > 0 ? (
                   <span className="sr-only">
-                    ({unread} {unread === 1 ? "ungelesener Chat" : "ungelesene Chats"})
+                    ({unread} {unread === 1 ? "neue Anfrage" : "neue Anfragen"})
                   </span>
                 ) : null}
               </Link>

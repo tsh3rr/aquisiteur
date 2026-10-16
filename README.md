@@ -4,7 +4,7 @@ Neukundengewinnung per persönlichem Brief: QR-Code und Kurzlink im Brief führe
 Exposé, Aquisiteur misst DSGVO-konform jede Interaktion und sagt dir, wer wie sicher Kontakt aufnehmen
 will und über welchen Kanal du jetzt reagieren solltest.
 
-Spezifikation: [ZIELPROMPT.md](./ZIELPROMPT.md) · Stand: Phase 0 (Fundament), siehe [docs/ROADMAP.md](./docs/ROADMAP.md).
+Spezifikation: [ZIELPROMPT.md](./ZIELPROMPT.md) · Stand: Phasen 0–6 fertig, offen ist der Abschnitt „Später“, siehe [docs/ROADMAP.md](./docs/ROADMAP.md).
 
 ## Lokal starten
 
@@ -36,10 +36,10 @@ eintragen und damit anmelden.
 pnpm lint && pnpm typecheck
 pnpm test         # Unit
 pnpm test:db      # Mandantentrennung gegen echtes Postgres
-pnpm test:e2e     # Playwright + axe: Login, Assistent, Passkey, Host-Routing
+pnpm test:e2e     # Playwright + axe, alle Bildschirme und Kernpfade
 ```
 
 ## Doku
 
-- [Deployment auf Cloudflare + Supabase](./docs/DEPLOY.md)
+- [Deployment auf eigenem Server (Hetzner + Coolify)](./docs/DEPLOY.md) · [Exposés schreiben](./docs/EXPOSE_AUTHORING.md) · [Sicherheit](./docs/SECURITY.md)
 - [Architektur](./docs/ARCHITECTURE.md) · [Entscheidungen](./docs/DECISIONS.md) · [Hosting-Umzug](./docs/HOSTING.md) · [Datenschutz](./docs/PRIVACY.md)

@@ -8,7 +8,7 @@ import { SignOutButton } from "@/components/cockpit/sign-out-button";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { parseTheme, THEME_COOKIE } from "@/components/theme/theme";
-import { unreadThreadCount } from "@/server/chat/owner";
+import { chatInboxCount } from "@/server/chat/owner";
 import { unreadNotificationCount } from "@/server/notifications/manage";
 import { liveSubscription, workspaceTopic } from "@/server/realtime";
 import { requireCockpit } from "@/server/session";
@@ -20,7 +20,7 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
   const { user, workspace, tenant } = await requireCockpit();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   const [unread, notifications, live] = await Promise.all([
-    tenant((tx) => unreadThreadCount(tx, workspace.id)),
+    tenant((tx) => chatInboxCount(tx, workspace.id)),
     tenant((tx) => unreadNotificationCount(tx, workspace.id)),
     liveSubscription(workspaceTopic(workspace.id)),
   ]);

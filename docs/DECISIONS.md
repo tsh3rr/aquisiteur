@@ -65,6 +65,11 @@ Node-Middleware auf Workers nur experimentell („not officially maintained“),
 offiziell. Deshalb bleibt es bei `src/middleware.ts` (Edge). Next gibt beim Build eine
 Deprecation-Warnung aus; Wechsel auf `proxy.ts`, sobald OpenNext Node-Middleware offiziell unterstützt.
 
+Nachtrag 2026-10-16: Trotz Betrieb auf Node (ADR-0047) erneut geprüft. `proxy.ts` baut mit Next und
+OpenNext, vergrößert den Worker aber von 2784 auf 3225 KiB (gzip) und reißt damit die Grenze der CI
+(2900 KiB, ADR-0035). Solange der Cloudflare-Weg als Rückfall offen bleiben soll, bleibt es bei
+`middleware.ts`.
+
 ## ADR-0007 · CSP mit Nonce pro Anfrage (2026-10-15)
 
 Strenge CSP (`script-src 'self' 'nonce-…' 'strict-dynamic'`, `frame-ancestors 'none'`, `object-src 'none'`)
