@@ -317,6 +317,7 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 - Brieftext kommt aus dem Exposé-JSON (Feld `letter`) oder aus einer Vorlage mit Platzhaltern.
 - Sammel-Export für eine ganze Kampagne (ein PDF, Seiten getrennt) und „als versendet markieren“ mit Datum (startet die Messung „Zeit bis zur Öffnung“).
 - Follow-up-Brief (zweiter Touchpoint) mit eigenem Code.
+- **Später (nicht v1): Exposé-Vorschau im Brief.** Ein kleiner „Sneak Peek“ des Exposés auf dem Brief (z. B. Titelbild, Headline und die drei Ideen als Teaser neben dem QR-Code), automatisch aus dem Exposé erzeugt oder separat hinterlegt. Optional zusätzlich eine gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download, die über die Druckansicht des Browsers hinausgeht.
 
 **Versand-Schnittstelle (Print-APIs von Anfang an mitdenken):**
 
