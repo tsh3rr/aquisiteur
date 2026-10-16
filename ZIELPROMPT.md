@@ -1,4 +1,4 @@
-# Aquisiteur – Zielprompt
+# Letterping – Zielprompt
 
 > Dieser Prompt ist für Claude Code geschrieben (funktioniert genauso mit Codex).
 > Ihn komplett lesen, bevor du irgendetwas anlegst. Abschnitt 13 sagt, wie du arbeiten sollst.
@@ -7,7 +7,7 @@
 
 ## 1. Deine Rolle
 
-Du bist Lead Engineer und Product Designer für **Aquisiteur**, eine Web-App, mit der ein Einzelunternehmer (Inhaber einer kleinen Webagentur, im Folgenden „Owner“) Neukunden per **personalisiertem Brief** gewinnt. Du triffst technische Entscheidungen eigenständig im Rahmen dieses Dokuments, begründest Abweichungen kurz und baust in Phasen, die jeweils lauffähig, getestet und deploybar sind.
+Du bist Lead Engineer und Product Designer für **Letterping**, eine Web-App, mit der ein Einzelunternehmer (Inhaber einer kleinen Webagentur, im Folgenden „Owner“) Neukunden per **personalisiertem Brief** gewinnt. Du triffst technische Entscheidungen eigenständig im Rahmen dieses Dokuments, begründest Abweichungen kurz und baust in Phasen, die jeweils lauffähig, getestet und deploybar sind.
 
 Qualitätsanspruch: Produktionsreife, nicht Demo. Moderne, mutige, aber ruhige UI. Barrierefrei. Schnell. Datenschutzkonform für Deutschland.
 
@@ -15,7 +15,7 @@ Qualitätsanspruch: Produktionsreife, nicht Demo. Moderne, mutige, aber ruhige U
 
 ## 2. Das Geschäftsmodell in einem Absatz
 
-Der Owner recherchiert ein lokales Unternehmen (z. B. ein Café mit veralteter Website), lässt mit Claude Code ein **Exposé** erstellen (konkrete, personalisierte Verbesserungsvorschläge für Website, Branding, Google-Profil, Social Media, inkl. Vorher/Nachher, Mockups, Preisrahmen) und schickt dem Unternehmen einen **Brief per Post**. Im Brief stehen ein **QR-Code** und ein **kurzer, abtippbarer Link** zur interaktiven Web-Version des Exposés. Aquisiteur hostet dieses Exposé, **erfasst jede Interaktion**, **motiviert den Empfänger an den richtigen Stellen zur Kontaktaufnahme** und **informiert den Owner sofort**, wenn jemand den Brief „öffnet“ oder Kontakt aufnehmen will, inklusive einer Einschätzung, **wie sicher** ein Kontaktversuch stattgefunden hat und **über welchen Kanal** der Owner jetzt reagieren sollte.
+Der Owner recherchiert ein lokales Unternehmen (z. B. ein Café mit veralteter Website), lässt mit Claude Code ein **Exposé** erstellen (konkrete, personalisierte Verbesserungsvorschläge für Website, Branding, Google-Profil, Social Media, inkl. Vorher/Nachher, Mockups, Preisrahmen) und schickt dem Unternehmen einen **Brief per Post**. Im Brief stehen ein **QR-Code** und ein **kurzer, abtippbarer Link** zur interaktiven Web-Version des Exposés. Letterping hostet dieses Exposé, **erfasst jede Interaktion**, **motiviert den Empfänger an den richtigen Stellen zur Kontaktaufnahme** und **informiert den Owner sofort**, wenn jemand den Brief „öffnet“ oder Kontakt aufnehmen will, inklusive einer Einschätzung, **wie sicher** ein Kontaktversuch stattgefunden hat und **über welchen Kanal** der Owner jetzt reagieren sollte.
 
 Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.** Exposés *erstellt* die App in v1 nicht selbst.
 
@@ -41,7 +41,7 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 
 Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
 
-1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Aquisiteur als SaaS nutzen können, ohne Umbau des Datenmodells.
+1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Letterping als SaaS nutzen können, ohne Umbau des Datenmodells.
 2. **Hosting**: **Cloudflare Workers** (Next.js über den OpenNext-Adapter `@opennextjs/cloudflare`, Paid Plan) + **Postgres bei Supabase** (Region EU/Frankfurt), angebunden über Cloudflare Hyperdrive. Alle personenbezogenen Daten liegen in der EU-Datenbank. Die App muss **ohne Umbau auf einen anderen Hoster umziehbar** sein (siehe §5a), z. B. auf einen eigenen Server (Hetzner + Coolify) oder Vercel.
 3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
 4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
@@ -369,14 +369,14 @@ v1 hat nur einen Nutzer, aber jede Zeile Code wird so geschrieben, als gäbe es 
 - **Mandantentrennung**: Jede fachliche Tabelle hat `workspace_id` (NOT NULL, indiziert). RLS-Policies prüfen die Workspace-Mitgliedschaft, nicht „ist eingeloggt“. Ein Test stellt sicher, dass Workspace A niemals Daten von Workspace B sieht (auch über Realtime, Storage und API-Tokens).
 - **Nutzer ≠ Workspace**: Tabellen `workspaces`, `users`, `memberships` (Rolle: `owner`, `admin`, `member`). Ein Nutzer kann mehreren Workspaces angehören. Berechtigungen laufen über eine zentrale `can(user, action, resource)`-Funktion, auch wenn es heute nur `owner` gibt.
 - **Nichts hartkodiert**: Name, Foto, Telefonnummern, WhatsApp, Absenderadresse, Impressum, Datenschutztext, Brief-Vorlagen, Branding, Score-Gewichte und Nudge-Texte gehören zu den **Workspace-Einstellungen**, nicht in Env-Variablen oder Code.
-- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über Cloudflare for SaaS (Custom Hostnames), gekapselt in einer `DomainProvider`-Schnittstelle.
+- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.letterping.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über Cloudflare for SaaS (Custom Hostnames), gekapselt in einer `DomainProvider`-Schnittstelle.
 - **Storage-Pfade** immer mit Workspace-Präfix (`/{workspace_id}/exposes/...`).
 - **Externe Dienste pro Workspace konfigurierbar**: Absender-Domain für E-Mails, Print-API-Zugang, Messenger-Kanäle. Secrets dieser Integrationen verschlüsselt in der DB (nicht in Env).
 - **Nutzungsmessung**: Eine `usage_events`-Tabelle zählt ab Tag 1 abrechnungsrelevante Dinge (veröffentlichte Exposés, Besuche, versendete Briefe, Speicher). Darauf baut später die Abrechnung.
 - **Pläne & Limits**: Eine zentrale `entitlements(workspace)`-Funktion liefert Feature-Flags und Limits. Heute gibt sie für den Owner „alles unbegrenzt“ zurück, aber jede limitierbare Funktion fragt sie bereits ab.
 - **Billing-Schnittstelle vorbereitet**: Abstraktion für Abos (später Stripe Billing inkl. Steuern/Rechnungen), aber in v1 nicht implementiert.
 - **Onboarding als Flow denken**: Workspace-Anlage (Name, Logo, Kanäle, Domain) als Wizard bauen, den der Owner auch selbst einmal durchläuft. Damit ist der SaaS-Einstieg später schon fertig.
-- **Datenschutz als Plattform**: Später ist jeder Workspace Verantwortlicher und Aquisiteur Auftragsverarbeiter. Datenexport und Löschung deshalb auch **pro Workspace** (nicht nur pro Prospect), Audit-Log pro Workspace, Impressum/Datenschutz pro Workspace.
+- **Datenschutz als Plattform**: Später ist jeder Workspace Verantwortlicher und Letterping Auftragsverarbeiter. Datenexport und Löschung deshalb auch **pro Workspace** (nicht nur pro Prospect), Audit-Log pro Workspace, Impressum/Datenschutz pro Workspace.
 - **Plattform-Admin**: Eine minimale, getrennte Rolle `platform_admin` (für den Owner als Betreiber) ist im Modell vorgesehen, UI dafür erst später.
 - **Exposé-CLI/API** authentifiziert per Workspace-API-Token, damit später jeder Kunde seine Exposés per Claude Code/Codex hochladen kann.
 
