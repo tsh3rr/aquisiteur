@@ -84,7 +84,7 @@ export function CockpitNav({
                 {label}
                 {href === "/chat" && unread > 0 ? (
                   <span className="sr-only">
-                    , {unread} {unread === 1 ? "ungelesener Chat" : "ungelesene Chats"}
+                    ({unread} {unread === 1 ? "ungelesener Chat" : "ungelesene Chats"})
                   </span>
                 ) : null}
               </Link>

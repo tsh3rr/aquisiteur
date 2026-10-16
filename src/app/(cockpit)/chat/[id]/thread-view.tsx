@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircle, SendHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useLiveEvents } from "@/components/cockpit/live";
 import { UNREAD_EVENT } from "@/components/cockpit/nav";
@@ -43,6 +44,7 @@ export function ThreadView({
   const [pending, startTransition] = useTransition();
   const lastTypingSent = useRef(0);
 
+  const router = useRouter();
   const add = (message: ChatMessageView) =>
     setMessages((current) =>
       current.some((m) => m.id === message.id) ? current : [...current, message],
@@ -61,6 +63,9 @@ export function ThreadView({
         setTyping(null);
         if (document.visibilityState === "visible") read();
       }
+    } else if (isRealtimeEvent("chat.thread", event, payload) && payload.threadId === threadId) {
+      // The visitor left a return channel: the side card shows it.
+      router.refresh();
     } else if (
       isRealtimeEvent("chat.typing", event, payload) &&
       payload.author === "visitor" &&
