@@ -91,7 +91,7 @@ export function ReplayConsent({ privacyHref }: { privacyHref: string }) {
       <section
         aria-labelledby="replay-consent-title"
         data-replay-block
-        className="fixed inset-x-3 top-3 z-40 rounded-2xl border border-border bg-surface p-4 shadow-lg md:inset-x-auto md:top-auto md:bottom-4 md:left-4 md:w-[24rem] print:hidden"
+        className="fixed inset-x-3 top-3 z-50 rounded-2xl border border-border bg-surface p-4 shadow-lg md:inset-x-auto md:top-auto md:bottom-4 md:left-4 md:w-[24rem] print:hidden"
       >
         <h2 id="replay-consent-title" className="text-sm font-semibold">
           {REPLAY_NOTICE.title}

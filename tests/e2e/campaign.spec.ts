@@ -155,6 +155,9 @@ test("the prospect allows a recording and the owner watches it", async ({ page, 
 test("the dashboards show the campaign from letter to visit", async ({ page }) => {
   test.setTimeout(120_000);
   await owner(page);
+  // The visit came straight to the exposé address, as when someone types it from the letter.
+  await page.goto("/briefe");
+  await expect(page.getByRole("row", { name: /Café Müller/ })).toContainText("nach");
   await page.goto("/auswertung");
   const tile = (label: string) => page.locator("dl > div").filter({ hasText: label });
   await expect(tile("Versendete Briefe").locator("dd").first()).toHaveText("1");

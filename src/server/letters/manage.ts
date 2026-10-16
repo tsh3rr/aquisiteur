@@ -207,7 +207,11 @@ export interface LetterListItem {
   costCents: number | null;
   postedAt: Date | null;
   createdAt: Date;
-  /** First real visit through this letter's code after posting. */
+  /**
+   * First real visit after posting: through this letter's code, or for a first
+   * letter any visit of the prospect (people often type the exposé address from
+   * the letter instead of scanning), matching the dashboard's time to open.
+   */
   openedAt: Date | null;
 }
 
@@ -238,7 +242,8 @@ export async function listLetters(
       openedAt: sql<string | null>`(
         select min(v.started_at) from visits v
         where v.workspace_id = ${letters.workspaceId}
-          and v.touchpoint_id = ${letters.touchpointId}
+          and (v.touchpoint_id = ${letters.touchpointId}
+            or (${letters.kind} = 'initial' and v.prospect_id = ${letters.prospectId}))
           and v.confirmed_at is not null and not v.is_bot and not v.is_internal
           and v.started_at >= ${letters.postedAt}
       )`,

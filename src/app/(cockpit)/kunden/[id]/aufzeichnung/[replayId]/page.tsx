@@ -74,7 +74,7 @@ export default async function ReplayPage({
       </nav>
       <PageHeader
         title="Aufzeichnung des Besuchs"
-        description={`${dateTime.format(row.startedAt)} · ${DEVICE[row.device]} · ${formatSeconds(row.durationMs / 1000)}. Aufgezeichnet mit Einwilligung; Eingaben und Chat sind ausgeblendet.`}
+        description={`${dateTime.format(row.startedAt)} · ${DEVICE[row.device]} · Dauer ${formatSeconds(row.durationMs / 1000)} · Aufgezeichnet mit Einwilligung; Eingaben und Chat sind ausgeblendet.`}
         actions={
           canManage ? (
             <form action={deleteReplayAction.bind(null, id, replayId)}>
