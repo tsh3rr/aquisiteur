@@ -87,8 +87,13 @@ test("phone and cockpit chat in real time", async ({ page, browser }) => {
   await expect(
     page.getByRole("link", { name: /^Chat\W+1 ungelesener Chat/ }).first(),
   ).toBeVisible();
+  // The thread view marks the chat read once hydrated; its live listener is attached by then.
+  const hydrated = page.waitForResponse(
+    (r) => r.request().method() === "POST" && new URL(r.url()).pathname.startsWith("/chat/"),
+  );
   await thread.click();
   await expect(page.getByRole("heading", { name: "Chat mit Café Müller" })).toBeVisible();
+  await hydrated;
   await expectAccessible(page, "chat thread");
 
   // Visitor types: the owner sees it before it is sent.

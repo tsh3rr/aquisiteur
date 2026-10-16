@@ -82,6 +82,7 @@ export function ChatPanel(props: ChatPanelProps) {
   const [usedPrefill, setUsedPrefill] = useState<string | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const lastTyping = useRef(0);
+  const trailingTyping = useRef<number | undefined>(undefined);
   const unread = useRef(0);
   const openRef = useRef(open);
 
@@ -184,10 +185,8 @@ export function ChatPanel(props: ChatPanelProps) {
     return () => window.clearTimeout(timer);
   }, [ownerTyping]);
 
-  const reportTyping = async (value: string, force = false) => {
-    const now = Date.now();
-    if (!force && now - lastTyping.current < TYPING_EVERY_MS) return;
-    lastTyping.current = now;
+  const sendTyping = async (value: string) => {
+    lastTyping.current = Date.now();
     const token = await visitToken();
     if (!token) return;
     void post("/t/chat/typing", {
@@ -198,9 +197,20 @@ export function ChatPanel(props: ChatPanelProps) {
     });
   };
 
+  // Throttled with a trailing report, so the owner always ends up with the latest length.
+  const reportTyping = (value: string, force = false) => {
+    window.clearTimeout(trailingTyping.current);
+    const wait = TYPING_EVERY_MS - (Date.now() - lastTyping.current);
+    if (force || wait <= 0) return void sendTyping(value);
+    trailingTyping.current = window.setTimeout(() => void sendTyping(value), wait);
+  };
+
+  useEffect(() => () => window.clearTimeout(trailingTyping.current), []);
+
   const send = async () => {
     const body = text.trim();
     if (!body || sending) return;
+    window.clearTimeout(trailingTyping.current);
     setSending(true);
     setError(null);
     const token = await visitToken();
@@ -320,9 +330,9 @@ export function ChatPanel(props: ChatPanelProps) {
             aria-describedby={props.storeDraftContent ? "aq-chat-draft" : undefined}
             onChange={(event) => {
               setText(event.target.value);
-              void reportTyping(event.target.value);
+              reportTyping(event.target.value);
             }}
-            onBlur={() => void reportTyping(text, true)}
+            onBlur={() => reportTyping(text, true)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();
