@@ -173,10 +173,10 @@
   }
 }
 
-/* Nudge card entrance (§7.4); only with motion-safe, see contact-layer.tsx. */
+/* The launcher expanding into the nudge card (§7.4); only with motion-safe, see contact-layer.tsx. */
 @keyframes nudge-in {
   from {
     opacity: 0;
-    transform: translateY(0.75rem);
+    transform: translateY(0.5rem) scale(0.92);
   }
 }

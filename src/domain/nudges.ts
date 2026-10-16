@@ -25,6 +25,8 @@ export interface NudgeState {
 }
 
 export const READ_INVITE = { ratio: 0.6, seconds: 90 } as const;
+/** Scrolling this many screen heights past a nudge folds it away unanswered. */
+export const NUDGE_SCROLL_AWAY = 0.6;
 /** A returning visitor gets a moment to arrive before being greeted. */
 export const RETURNING_DELAY_SECONDS = 15;
 

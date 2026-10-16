@@ -4,6 +4,7 @@ import { MessageCircle, MessageSquareText, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   isFastScrollUp,
+  NUDGE_SCROLL_AWAY,
   nudgeCopy,
   offerRequestText,
   pickNudge,
@@ -172,6 +173,22 @@ export function ContactLayer(props: ContactLayerProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, [nudge]);
 
+  // Reading on past the question folds the card back into the launcher.
+  useEffect(() => {
+    if (!nudge) return;
+    const from = window.scrollY;
+    // The scroll that triggered it (a flick up on phones) may still be gliding.
+    const settled = performance.now() + 1200;
+    const onScroll = () => {
+      if (performance.now() < settled) return;
+      if (Math.abs(window.scrollY - from) < window.innerHeight * NUDGE_SCROLL_AWAY) return;
+      track({ type: "nudge_dismissed", nudge });
+      setNudge(null);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [nudge]);
+
   const closeNudge = () => {
     if (nudge) track({ type: "nudge_dismissed", nudge });
     setNudge(null);
@@ -197,80 +214,76 @@ export function ContactLayer(props: ContactLayerProps) {
   const bar = signals ? showStickyBar(signals.scrollRatio, nudges) && !open : false;
   const available = signals?.available ?? false;
 
+  // The launcher and the nudge are one element: a nudge expands the launcher
+  // into a small card with the question, and it folds back on its own.
+  const launcherVisible = chat.enabled && !open && !copy;
   return (
     <div className="print:hidden">
-      <div aria-live="polite">
-        {copy ? (
-          <div
-            role="group"
-            aria-label="Hinweis"
-            className="fixed right-4 bottom-24 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface p-4 shadow-lg motion-safe:animate-[nudge-in_240ms_ease-out]"
-          >
-            <div className="flex items-start gap-3">
-              {props.owner.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- pre-scaled asset
-                <img
-                  src={props.owner.photo}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="size-10 shrink-0 rounded-full object-cover"
-                />
-              ) : null}
-              <p className="flex-1 text-sm">
-                <span className="font-semibold">{props.owner.name}: </span>
-                {copy.text}
-              </p>
-              <button
-                type="button"
-                onClick={closeNudge}
-                className="-mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-foreground-muted hover:bg-surface-sunken hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus-ring"
-              >
-                <X aria-hidden className="size-4" />
-                <span className="sr-only">Hinweis schließen</span>
+      <div
+        className={cn(
+          "fixed right-4 z-40 flex flex-col items-end",
+          bar ? "bottom-20 md:bottom-4" : "bottom-4",
+        )}
+      >
+        <div aria-live="polite">
+          {copy ? (
+            <div
+              role="group"
+              aria-label="Hinweis"
+              className="w-[min(22rem,calc(100vw-2rem))] origin-bottom-right rounded-[1.75rem] border border-border bg-surface p-2 shadow-xl motion-safe:animate-[nudge-in_240ms_ease-out]"
+            >
+              <div className="flex items-start gap-3 py-2 pl-2">
+                {props.owner.photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- pre-scaled asset
+                  <img
+                    src={props.owner.photo}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-full object-cover"
+                  />
+                ) : null}
+                <p className="flex-1 pt-0.5 text-sm">
+                  <span className="font-semibold">{props.owner.name}: </span>
+                  {copy.text}
+                </p>
+                <button
+                  type="button"
+                  onClick={closeNudge}
+                  className="-mt-1 grid size-11 shrink-0 place-items-center rounded-full text-foreground-muted hover:bg-surface-sunken hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus-ring"
+                >
+                  <X aria-hidden className="size-4" />
+                  <span className="sr-only">Hinweis schließen</span>
+                </button>
+              </div>
+              <button type="button" onClick={actOnNudge} className={cn(launcherClass, "w-full")}>
+                {chat.enabled ? <ChatIcon available={available} /> : null}
+                <span>{copy.action}</span>
               </button>
             </div>
-            <button
-              type="button"
-              onClick={actOnNudge}
-              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              {copy.action}
-            </button>
-          </div>
+          ) : null}
+        </div>
+
+        {launcherVisible ? (
+          <button
+            ref={launcher}
+            type="button"
+            onClick={() => openChat("launcher")}
+            onPointerEnter={() => void loadPanel()}
+            className={cn(launcherClass, bar ? "hidden md:inline-flex" : "inline-flex")}
+          >
+            <ChatIcon available={available} />
+            <span>Chat</span>
+            {available ? <span className="text-sm font-normal">verfügbar</span> : null}
+            {unread > 0 ? (
+              <span className="grid min-w-5 place-items-center rounded-full bg-surface px-1.5 text-xs leading-5 text-foreground">
+                {unread}
+                <span className="sr-only"> neue Antworten</span>
+              </span>
+            ) : null}
+          </button>
         ) : null}
       </div>
-
-      {chat.enabled && !open ? (
-        <button
-          ref={launcher}
-          type="button"
-          onClick={() => openChat("launcher")}
-          onPointerEnter={() => void loadPanel()}
-          className={cn(
-            "fixed right-4 bottom-4 z-40 h-14 items-center gap-2 rounded-full bg-accent px-5 font-semibold text-accent-foreground shadow-lg hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-            bar ? "hidden md:inline-flex" : "inline-flex",
-          )}
-        >
-          <MessageSquareText aria-hidden className="size-5" />
-          <span>Chat</span>
-          {available ? (
-            <span className="flex items-center gap-1.5 text-sm font-normal">
-              <span
-                aria-hidden
-                className="size-2 rounded-full bg-success ring-2 ring-accent-foreground"
-              />
-              verfügbar
-            </span>
-          ) : null}
-          {unread > 0 ? (
-            <span className="grid min-w-5 place-items-center rounded-full bg-surface px-1.5 text-xs text-foreground">
-              {unread}
-              <span className="sr-only"> neue Antworten</span>
-            </span>
-          ) : null}
-        </button>
-      ) : null}
 
       {bar ? (
         <nav
@@ -337,5 +350,23 @@ function barItem(primary: boolean) {
     primary
       ? "bg-accent text-accent-foreground"
       : "border border-border bg-surface text-foreground",
+  );
+}
+
+const launcherClass =
+  "group inline-flex h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-5 leading-none font-semibold text-accent-foreground shadow-lg hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+
+/** Chat icon with a small presence dot, cut out of the button by a ring in the button's colour. */
+function ChatIcon({ available }: { available: boolean }) {
+  return (
+    <span className="relative grid size-5 shrink-0 place-items-center">
+      <MessageSquareText aria-hidden className="size-5" />
+      {available ? (
+        <span
+          aria-hidden
+          className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-success ring-2 ring-accent group-hover:ring-accent-hover"
+        />
+      ) : null}
+    </span>
   );
 }

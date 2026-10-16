@@ -116,3 +116,25 @@ test("unknown slugs and foreign hosts answer 404", async ({ page }) => {
     (await page.goto(`http://nobody.localhost:${new URL(E2E.baseURL).port}${slug}`))?.status(),
   ).toBe(404);
 });
+
+test("a nudge expands the chat button and folds back when the visitor reads on", async ({
+  page,
+}) => {
+  await page.goto(publicUrl);
+  const launcher = page.getByRole("button", { name: /^Chat/ });
+  await expect(launcher).toBeVisible();
+
+  // Exit intent on desktop: the pointer leaves towards the tab bar.
+  await page.evaluate(() =>
+    document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })),
+  );
+  const nudge = page.getByRole("group", { name: "Hinweis" });
+  await expect(nudge).toContainText("Haben Sie noch eine Frage?");
+  await expect(launcher).toBeHidden();
+  await expectAccessible(page, "exposé with the expanded chat button");
+
+  await page.waitForTimeout(1300);
+  await page.mouse.wheel(0, 900);
+  await expect(nudge).toBeHidden();
+  await expect(launcher).toBeVisible();
+});
