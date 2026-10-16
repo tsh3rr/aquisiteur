@@ -1,6 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import type { ChatMessageView } from "@/domain/realtime";
-import { cn } from "@/lib/cn";
+import { clsx as cn } from "clsx";
 
 const time = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
 

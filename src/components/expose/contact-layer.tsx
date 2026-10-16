@@ -12,7 +12,7 @@ import {
   type NudgeId,
 } from "@/domain/nudges";
 import type { NudgeSettings } from "@/domain/workspace-settings";
-import { cn } from "@/lib/cn";
+import { clsx as cn } from "clsx";
 import type { ChatPanelProps } from "./chat-panel";
 import { onSignals, track, type Signals } from "./tracking-client";
 
@@ -256,7 +256,11 @@ export function ContactLayer(props: ContactLayerProps) {
                   <span className="sr-only">Hinweis schließen</span>
                 </button>
               </div>
-              <button type="button" onClick={actOnNudge} className={cn(launcherClass, "w-full")}>
+              <button
+                type="button"
+                onClick={actOnNudge}
+                className={cn(launcherClass, "flex w-full")}
+              >
                 {chat.enabled ? <ChatIcon available={available} /> : null}
                 <span>{copy.action}</span>
               </button>
@@ -353,8 +357,9 @@ function barItem(primary: boolean) {
   );
 }
 
+// No display utility here: callers add exactly one, since clsx does not resolve conflicts.
 const launcherClass =
-  "group inline-flex h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-5 leading-none font-semibold text-accent-foreground shadow-lg hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+  "group h-14 items-center justify-center gap-2.5 rounded-full bg-accent px-5 leading-none font-semibold text-accent-foreground shadow-lg hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 /** Chat icon with a small presence dot, cut out of the button by a ring in the button's colour. */
 function ChatIcon({ available }: { available: boolean }) {

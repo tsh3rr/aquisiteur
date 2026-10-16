@@ -6,7 +6,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MAX_MESSAGE_LENGTH, OFFLINE_AFTER_MS } from "@/domain/chat";
 import { isRealtimeEvent, type ChatMessageView } from "@/domain/realtime";
 import { subscribeRealtime, type RealtimeSubscription } from "@/infra/realtime-client";
-import { cn } from "@/lib/cn";
+import { clsx as cn } from "clsx";
 import { visitToken } from "./tracking-client";
 
 export interface ChatPanelProps {
