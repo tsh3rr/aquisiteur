@@ -1,0 +1,284 @@
+{
+  "$schema": "../../schema/expose.schema.json",
+  "schemaVersion": 1,
+  "prospect": {
+    "key": "cafe-mueller",
+    "company": "Café Müller",
+    "industry": "Gastronomie",
+    "website": "https://cafe-mueller.example",
+    "contact": {
+      "salutation": "Frau",
+      "firstName": "Sabine",
+      "lastName": "Müller",
+      "role": "Inhaberin"
+    },
+    "address": {
+      "street": "Gottschedstraße 7",
+      "postalCode": "04109",
+      "city": "Leipzig",
+      "country": "DE"
+    },
+    "phone": "+49 341 9876543",
+    "email": "kontakt@cafe-mueller.example"
+  },
+  "meta": {
+    "title": "Vorschläge für Café Müller",
+    "description": "Persönliche Ideen für die Website und das Google-Profil von Café Müller.",
+    "lang": "de"
+  },
+  "theme": {
+    "accent": "#c2410c",
+    "logo": { "src": "assets/logo-cafe-mueller.svg", "alt": "Café Müller" },
+    "appearance": "auto"
+  },
+  "letter": {
+    "subject": "Drei Ideen, damit mehr Gäste Café Müller online finden",
+    "body": "Sehr geehrte Frau Müller,\n\nich war letzte Woche bei Ihnen zum Frühstück und habe danach Ihre Website auf dem Handy aufgerufen. Ihr Café ist wunderbar, die Website zeigt davon leider wenig.\n\nIch habe Ihnen drei konkrete Vorschläge zusammengestellt. Scannen Sie einfach den QR-Code, es dauert fünf Minuten."
+  },
+  "blocks": [
+    {
+      "id": "start",
+      "type": "hero",
+      "eyebrow": "Persönlich für Café Müller",
+      "greeting": "Hallo Frau Müller,",
+      "headline": "Ihr Café ist voller Charme. Ihre Website sollte das auch sein.",
+      "lead": "Ich habe mir Ihren Auftritt im Netz genau angesehen und drei Ideen mitgebracht, mit denen mehr Gäste Sie finden und direkt einen Tisch reservieren.",
+      "image": {
+        "src": "assets/mockup-startseite.svg",
+        "alt": "Entwurf der neuen Startseite von Café Müller auf einem Smartphone mit großem Foto der Kuchentheke und einem Button „Tisch reservieren“."
+      },
+      "showOwnerPhoto": true
+    },
+    {
+      "id": "persoenlich",
+      "type": "personal_note",
+      "title": "Warum ich Ihnen schreibe",
+      "body": "Ich bin Jeremiasz, ich baue Websites für Leipziger Betriebe. Bei Ihnen habe ich letzte Woche den besten Apfelkuchen der Südvorstadt gegessen.\n\nAuf dem Heimweg wollte ich Ihre Öffnungszeiten nachsehen und bin auf dem Handy an Ihrer Website gescheitert. Das muss nicht sein, und es kostet Sie vermutlich jeden Tag Gäste.",
+      "showSignature": true
+    },
+    {
+      "id": "analyse",
+      "type": "audit",
+      "title": "So steht Ihre Website heute da",
+      "intro": "Gemessen am 12. Oktober 2026. Die Werte sind öffentlich nachprüfbar.",
+      "scores": [
+        {
+          "label": "Ladezeit mobil",
+          "value": 38,
+          "detail": "Die Startseite lädt auf dem Handy über 6 Sekunden.",
+          "source": "PageSpeed Insights, mobil, 12.10.2026"
+        },
+        {
+          "label": "Mobil nutzbar",
+          "value": 45,
+          "detail": "Texte zu klein, Buttons zu nah beieinander.",
+          "source": "Eigene Prüfung auf iPhone 15 und Pixel 8"
+        },
+        {
+          "label": "Auffindbarkeit",
+          "value": 61,
+          "detail": "Bei „Café Südvorstadt Leipzig“ auf Seite 2.",
+          "source": "Google-Suche, anonym, Standort Leipzig"
+        },
+        {
+          "label": "Google-Profil",
+          "value": 72,
+          "detail": "4,7 Sterne, aber Öffnungszeiten veraltet.",
+          "source": "Google Unternehmensprofil, 12.10.2026"
+        }
+      ]
+    },
+    {
+      "id": "vorher-nachher",
+      "type": "before_after",
+      "title": "Vorher und nachher",
+      "intro": "Schieben Sie den Regler, um Ihre heutige Startseite mit meinem Entwurf zu vergleichen.",
+      "before": {
+        "src": "assets/vorher.svg",
+        "alt": "Heutige Startseite: kleiner Text, ein dunkles Foto, die Öffnungszeiten stehen ganz unten."
+      },
+      "after": {
+        "src": "assets/nachher.svg",
+        "alt": "Entwurf: großes, helles Foto der Kuchentheke, Öffnungszeiten und Reservierungs-Button direkt sichtbar."
+      },
+      "beforeLabel": "Heute",
+      "afterLabel": "Vorschlag"
+    },
+    {
+      "id": "probleme",
+      "type": "findings",
+      "title": "Was Sie heute Gäste kostet",
+      "items": [
+        {
+          "title": "Öffnungszeiten sind schwer zu finden",
+          "severity": "high",
+          "impact": "Wer unterwegs nachsieht, ob Sie offen haben, gibt nach wenigen Sekunden auf und geht woanders hin.",
+          "solution": "Öffnungszeiten und „Heute geöffnet bis 18 Uhr“ ganz oben auf der Startseite."
+        },
+        {
+          "title": "Keine Online-Reservierung",
+          "severity": "medium",
+          "impact": "Am Wochenende rufen Gäste an, während Sie hinter der Theke stehen.",
+          "solution": "Ein einfaches Reservierungsformular, das Ihnen eine E-Mail schickt."
+        },
+        {
+          "title": "Speisekarte als PDF",
+          "severity": "low",
+          "impact": "Auf dem Handy muss man zoomen; Google kann die Gerichte nicht lesen.",
+          "solution": "Speisekarte als normale Seite, die Sie selbst pflegen können."
+        }
+      ]
+    },
+    {
+      "id": "vorschlaege",
+      "type": "proposal",
+      "title": "Meine drei Vorschläge",
+      "items": [
+        {
+          "title": "Neue Website",
+          "description": "Schnell, für das Handy gebaut, mit Ihren eigenen Fotos und einer Speisekarte zum Selbstpflegen.",
+          "benefit": "Gäste finden in Sekunden, was sie suchen.",
+          "icon": "website"
+        },
+        {
+          "title": "Google-Profil auffrischen",
+          "description": "Aktuelle Öffnungszeiten, neue Fotos, Antworten auf Bewertungen.",
+          "benefit": "Mehr Laufkundschaft aus der Kartensuche.",
+          "icon": "map"
+        },
+        {
+          "title": "Tischreservierung",
+          "description": "Ein Formular auf der Website, die Anfrage landet direkt in Ihrem Postfach.",
+          "benefit": "Weniger Telefonate in Stoßzeiten.",
+          "icon": "calendar"
+        }
+      ]
+    },
+    {
+      "id": "entwuerfe",
+      "type": "mockup_gallery",
+      "title": "Entwürfe",
+      "images": [
+        {
+          "src": "assets/mockup-startseite.svg",
+          "alt": "Startseite auf dem Smartphone mit Öffnungszeiten und Reservierungs-Button.",
+          "caption": "Startseite mobil"
+        },
+        {
+          "src": "assets/mockup-karte.svg",
+          "alt": "Speisekarte als übersichtliche Liste mit Kuchen, Frühstück und Getränken.",
+          "caption": "Speisekarte"
+        }
+      ]
+    },
+    {
+      "id": "ablauf",
+      "type": "roadmap",
+      "title": "So würden wir vorgehen",
+      "steps": [
+        {
+          "title": "Kennenlernen",
+          "description": "30 Minuten bei Ihnen im Café: Was ist Ihnen wichtig, was nervt Sie heute?",
+          "duration": "1 Termin"
+        },
+        {
+          "title": "Fotos und Texte",
+          "description": "Ein Fototermin am Vormittag, die Texte schreibe ich und Sie geben frei.",
+          "duration": "1 Woche"
+        },
+        {
+          "title": "Website live",
+          "description": "Ich baue, Sie prüfen, wir gehen gemeinsam online. Danach zeige ich Ihnen, wie Sie die Karte selbst ändern.",
+          "duration": "2 Wochen"
+        }
+      ]
+    },
+    {
+      "id": "preise",
+      "type": "pricing",
+      "title": "Was es kostet",
+      "intro": "Wählen Sie aus, was für Sie interessant ist. Die Summe passt sich an.",
+      "options": [
+        {
+          "id": "website",
+          "title": "Neue Website",
+          "description": "Bis zu 5 Seiten, Speisekarte zum Selbstpflegen, Hosting im ersten Jahr inklusive.",
+          "price": 2400,
+          "priceTo": 3200,
+          "billing": "once",
+          "selected": true,
+          "required": true
+        },
+        {
+          "id": "google-profil",
+          "title": "Google-Profil auffrischen",
+          "price": 290,
+          "billing": "once",
+          "selected": true
+        },
+        {
+          "id": "reservierung",
+          "title": "Online-Reservierung",
+          "price": 450,
+          "billing": "once",
+          "selected": false
+        },
+        {
+          "id": "pflege",
+          "title": "Pflege und Updates",
+          "description": "Ich halte alles aktuell und ändere Kleinigkeiten auf Zuruf.",
+          "price": 49,
+          "billing": "monthly",
+          "selected": false
+        }
+      ],
+      "note": "Ein unverbindliches Angebot schicke ich Ihnen gern nach einem kurzen Gespräch."
+    },
+    {
+      "id": "fragen",
+      "type": "faq",
+      "title": "Häufige Fragen",
+      "items": [
+        {
+          "question": "Kann ich die Speisekarte selbst ändern?",
+          "answer": "Ja. Sie bekommen einen einfachen Zugang, mit dem Sie Gerichte und Preise vom Handy aus anpassen."
+        },
+        {
+          "question": "Was passiert mit meiner alten Website?",
+          "answer": "Die Adresse bleibt gleich. Alte Links leite ich auf die neuen Seiten um, damit Google nichts verloren geht."
+        },
+        {
+          "question": "Muss ich mich langfristig binden?",
+          "answer": "Nein. Die Pflege ist monatlich kündbar, die Website gehört Ihnen."
+        }
+      ]
+    },
+    {
+      "id": "kontakt-cta",
+      "type": "cta",
+      "headline": "Sollen wir uns kurz unterhalten?",
+      "text": "Zehn Minuten am Telefon reichen, um zu sehen, ob es passt.",
+      "label": "Kontakt aufnehmen",
+      "target": "kontakt"
+    },
+    {
+      "id": "ueber-mich",
+      "type": "about",
+      "title": "Über mich",
+      "body": "Ich bin Webdesigner in Leipzig und arbeite fast nur für kleine Betriebe: Cafés, Handwerker, Praxen.\n\nSie haben bei mir einen festen Ansprechpartner, keine Agentur mit wechselnden Projektleitern.",
+      "facts": [
+        { "label": "Seit", "value": "2016" },
+        { "label": "Projekte", "value": "über 60" },
+        { "label": "Standort", "value": "Leipzig" }
+      ]
+    },
+    {
+      "id": "kontakt",
+      "type": "contact",
+      "title": "Schreiben Sie mir",
+      "intro": "Ich antworte meist innerhalb einer Stunde.",
+      "channels": ["chat", "whatsapp", "phone", "callback", "email"],
+      "message": "Hallo, ich habe Ihre Vorschläge für Café Müller gesehen."
+    }
+  ]
+}

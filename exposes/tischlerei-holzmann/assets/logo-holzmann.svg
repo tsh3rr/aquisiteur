@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 124" width="660" height="124">
+  <g transform="translate(2 2)">
+    <rect width="120" height="120" rx="18" fill="#2f5d3a"/>
+    <path d="M60 18 22 100h76z" fill="#c49a6c"/>
+    <path d="M60 40 38 88h44z" fill="#2f5d3a"/>
+    <rect x="54" y="88" width="12" height="16" fill="#c49a6c"/>
+  </g>
+  <text x="144" y="70" font-family="Georgia, serif" font-size="54" font-weight="700" fill="#1f3a26">Holzmann</text>
+  <text x="146" y="108" font-family="sans-serif" font-size="20" letter-spacing="7" fill="#7a5a3a">TISCHLEREI · LEIPZIG</text>
+</svg>

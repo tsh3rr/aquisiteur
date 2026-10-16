@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+drizzle/meta/
+.next/
+.open-next/
+.wrangler/
+cloudflare-env.d.ts
+ZIELPROMPT.md
+schema/expose.schema.json
+dist-worker

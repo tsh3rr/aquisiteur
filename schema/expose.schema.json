@@ -1,0 +1,1351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "prospect": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$",
+          "description": "Stable key of the prospect in this workspace, e.g. 'cafe-mueller'. Publishing again with the same key creates a new version of the same exposé."
+        },
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "industry": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 300,
+          "format": "uri"
+        },
+        "contact": {
+          "type": "object",
+          "properties": {
+            "salutation": {
+              "default": "",
+              "type": "string",
+              "enum": [
+                "Frau",
+                "Herr",
+                ""
+              ]
+            },
+            "firstName": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "lastName": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "role": {
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "additionalProperties": false
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "postalCode": {
+              "type": "string",
+              "maxLength": 10
+            },
+            "city": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "country": {
+              "default": "DE",
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254,
+          "format": "email",
+          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+        }
+      },
+      "required": [
+        "key",
+        "company"
+      ],
+      "additionalProperties": false,
+      "description": "Created in the cockpit on first publish. Later publishes do not overwrite data edited in the cockpit."
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Browser tab title, e.g. 'Vorschläge für Café Müller'."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "lang": {
+          "default": "de",
+          "type": "string",
+          "enum": [
+            "de",
+            "en"
+          ]
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false
+    },
+    "theme": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour of the prospect's brand. Adjusted automatically when contrast is too low.",
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "logo": {
+          "description": "Logo of the prospect, shown in the header.",
+          "type": "object",
+          "properties": {
+            "src": {
+              "type": "string",
+              "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+              "description": "Relative path, e.g. assets/vorher.png"
+            },
+            "alt": {
+              "type": "string",
+              "maxLength": 300,
+              "description": "What the image shows. Empty string only for purely decorative images."
+            },
+            "caption": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "src",
+            "alt"
+          ],
+          "additionalProperties": false
+        },
+        "appearance": {
+          "default": "auto",
+          "type": "string",
+          "enum": [
+            "auto",
+            "light",
+            "dark"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "letter": {
+      "description": "Text for the printed letter (phase 5).",
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "description": "Markdown subset: blank line = new paragraph, **bold**, *italic*, [text](https://…), lines starting with '- ' form a list."
+        }
+      },
+      "required": [
+        "subject",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "blocks": {
+      "minItems": 1,
+      "maxItems": 40,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "hero"
+              },
+              "eyebrow": {
+                "description": "Small line above the greeting, e.g. 'Für Café Müller'.",
+                "type": "string",
+                "maxLength": 80
+              },
+              "greeting": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "description": "Personal salutation, e.g. 'Hallo Frau Müller,'."
+              },
+              "headline": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "lead": {
+                "type": "string",
+                "maxLength": 600
+              },
+              "image": {
+                "description": "Optional large image, e.g. a mockup of the new site.",
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
+              },
+              "showOwnerPhoto": {
+                "default": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "greeting",
+              "headline"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "personal_note"
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000,
+                "description": "Markdown subset: blank line = new paragraph, **bold**, *italic*, [text](https://…), lines starting with '- ' form a list."
+              },
+              "showSignature": {
+                "default": true,
+                "type": "boolean"
+              },
+              "video": {
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$"
+                  },
+                  "captions": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "WebVTT captions are required."
+                  },
+                  "poster": {
+                    "type": "object",
+                    "properties": {
+                      "src": {
+                        "type": "string",
+                        "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                        "description": "Relative path, e.g. assets/vorher.png"
+                      },
+                      "alt": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "What the image shows. Empty string only for purely decorative images."
+                      },
+                      "caption": {
+                        "type": "string",
+                        "maxLength": 300
+                      }
+                    },
+                    "required": [
+                      "src",
+                      "alt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "description": "Accessible name of the video."
+                  }
+                },
+                "required": [
+                  "src",
+                  "captions",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "body"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "audit"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "scores": {
+                "minItems": 1,
+                "maxItems": 8,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "value": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "detail": {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    "source": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Where the number comes from, e.g. 'PageSpeed Insights, mobil, 12.10.2026'. Honest and verifiable (§7.2)."
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "scores"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "before_after"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "before": {
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
+              },
+              "after": {
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
+              },
+              "beforeLabel": {
+                "default": "Heute",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "afterLabel": {
+                "default": "Vorschlag",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "before",
+              "after"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "findings"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "items": {
+                "minItems": 1,
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "severity": {
+                      "default": "medium",
+                      "type": "string",
+                      "enum": [
+                        "high",
+                        "medium",
+                        "low"
+                      ]
+                    },
+                    "impact": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600,
+                      "description": "What it costs the business today."
+                    },
+                    "solution": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "impact",
+                    "solution"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "proposal"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "items": {
+                "minItems": 1,
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    },
+                    "benefit": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "description": "The concrete benefit for the prospect."
+                    },
+                    "icon": {
+                      "type": "string",
+                      "enum": [
+                        "website",
+                        "mobile",
+                        "search",
+                        "map",
+                        "social",
+                        "brand",
+                        "photo",
+                        "speed",
+                        "calendar",
+                        "shop",
+                        "mail",
+                        "chart"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "description",
+                    "benefit"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "mockup_gallery"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "images": {
+                "minItems": 1,
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "src": {
+                      "type": "string",
+                      "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                      "description": "Relative path, e.g. assets/vorher.png"
+                    },
+                    "alt": {
+                      "type": "string",
+                      "maxLength": 300,
+                      "description": "What the image shows. Empty string only for purely decorative images."
+                    },
+                    "caption": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "src",
+                    "alt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "images"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "brand_preview"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "colors": {
+                "maxItems": 8,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "usage": {
+                      "type": "string",
+                      "maxLength": 120
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "typography": {
+                "default": [],
+                "maxItems": 4,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40,
+                      "description": "e.g. 'Überschriften'"
+                    },
+                    "family": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60,
+                      "description": "Font name shown as text; rendered in a similar style."
+                    },
+                    "style": {
+                      "default": "sans",
+                      "type": "string",
+                      "enum": [
+                        "sans",
+                        "serif",
+                        "mono",
+                        "display"
+                      ]
+                    },
+                    "sample": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "family",
+                    "sample"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "logos": {
+                "default": [],
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "src": {
+                      "type": "string",
+                      "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                      "description": "Relative path, e.g. assets/vorher.png"
+                    },
+                    "alt": {
+                      "type": "string",
+                      "maxLength": 300,
+                      "description": "What the image shows. Empty string only for purely decorative images."
+                    },
+                    "caption": {
+                      "type": "string",
+                      "maxLength": 300
+                    }
+                  },
+                  "required": [
+                    "src",
+                    "alt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "roadmap"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "steps": {
+                "minItems": 1,
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    },
+                    "duration": {
+                      "description": "e.g. '1 Woche'",
+                      "type": "string",
+                      "maxLength": 40
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "description"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "steps"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "pricing"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 800
+              },
+              "currency": {
+                "default": "EUR",
+                "type": "string",
+                "const": "EUR"
+              },
+              "vatNote": {
+                "default": "Alle Preise netto zzgl. gesetzlicher USt.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "options": {
+                "minItems": 1,
+                "maxItems": 12,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                      "description": "Stable id of the option, unique within the block."
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 400
+                    },
+                    "price": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "multipleOf": 0.01,
+                      "description": "Price in EUR. With priceTo it is the lower end of a range."
+                    },
+                    "priceTo": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "multipleOf": 0.01
+                    },
+                    "billing": {
+                      "default": "once",
+                      "type": "string",
+                      "enum": [
+                        "once",
+                        "monthly"
+                      ]
+                    },
+                    "selected": {
+                      "default": true,
+                      "description": "Preselected when the page opens.",
+                      "type": "boolean"
+                    },
+                    "required": {
+                      "default": false,
+                      "description": "Always included, cannot be deselected.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "price"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 400
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "testimonials"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "items": {
+                "minItems": 1,
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 600
+                    },
+                    "author": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "role": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "company": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "photo": {
+                      "type": "object",
+                      "properties": {
+                        "src": {
+                          "type": "string",
+                          "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                          "description": "Relative path, e.g. assets/vorher.png"
+                        },
+                        "alt": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "What the image shows. Empty string only for purely decorative images."
+                        },
+                        "caption": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      },
+                      "required": [
+                        "src",
+                        "alt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "author"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "faq"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "items": {
+                "minItems": 1,
+                "maxItems": 15,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "question": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "answer": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "Markdown subset: blank line = new paragraph, **bold**, *italic*, [text](https://…), lines starting with '- ' form a list."
+                    }
+                  },
+                  "required": [
+                    "question",
+                    "answer"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "about"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 3000,
+                "description": "Markdown subset: blank line = new paragraph, **bold**, *italic*, [text](https://…), lines starting with '- ' form a list."
+              },
+              "image": {
+                "description": "Defaults to the owner photo from the settings.",
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
+              },
+              "facts": {
+                "default": [],
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title",
+              "body"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "contact"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "intro": {
+                "type": "string",
+                "maxLength": 600
+              },
+              "channels": {
+                "default": [
+                  "chat",
+                  "whatsapp",
+                  "phone",
+                  "callback",
+                  "email",
+                  "booking"
+                ],
+                "description": "Which channels to offer, in this order. Numbers and addresses come from the workspace settings; channels without a configured target are left out. 'chat' opens the live chat, 'callback' a callback form.",
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "chat",
+                    "whatsapp",
+                    "phone",
+                    "callback",
+                    "email",
+                    "booking",
+                    "messenger",
+                    "sms"
+                  ]
+                }
+              },
+              "message": {
+                "description": "Prefilled message for WhatsApp, e-mail and SMS. The reference code is appended automatically.",
+                "type": "string",
+                "maxLength": 400
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "title"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "Stable id of the block, unique within the exposé. Tracking keys on it."
+              },
+              "type": {
+                "type": "string",
+                "const": "cta"
+              },
+              "headline": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 400
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60,
+                "description": "Button label."
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,47}$",
+                "description": "id of the block the button scrolls to, usually 'kontakt'."
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "headline",
+              "label",
+              "target"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "prospect",
+    "meta",
+    "blocks"
+  ],
+  "additionalProperties": false,
+  "$id": "https://aquisiteur.app/schema/expose.schema.json",
+  "title": "Aquisiteur Exposé",
+  "description": "Personalised exposé rendered by Aquisiteur. Generated from src/domain/expose/schema.ts; see docs/EXPOSE_AUTHORING.md."
+}

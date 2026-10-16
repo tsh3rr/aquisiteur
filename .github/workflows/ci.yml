@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  APP_URL: http://localhost:3000
+  PLATFORM_DOMAIN: localhost
+  BETTER_AUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret-ci
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  quality:
+    name: Lint, format, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      # Known advisories in runtime dependencies (docs/SECURITY.md); dev tooling is not shipped.
+      - run: pnpm audit --prod --audit-level high
+
+  database:
+    name: Tenant isolation (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aquisiteur
+          POSTGRES_PASSWORD: aquisiteur
+          POSTGRES_DB: aquisiteur_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aquisiteur -d postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:db
+
+  e2e:
+    name: E2E + accessibility (Playwright, axe)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aquisiteur
+          POSTGRES_PASSWORD: aquisiteur
+          POSTGRES_DB: aquisiteur_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aquisiteur -d postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      E2E_DATABASE_URL: postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  lighthouse:
+    name: Lighthouse (public exposés, mobile)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aquisiteur
+          POSTGRES_PASSWORD: aquisiteur
+          POSTGRES_DB: aquisiteur
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aquisiteur -d postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      HOSTING_PROFILE: node
+      DATABASE_URL: postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur
+      APP_URL: http://localhost:3000
+      PLATFORM_DOMAIN: localhost
+      BETTER_AUTH_SECRET: lighthouse-secret-lighthouse-secret-1
+      EMAIL_PROVIDER: log
+      ALLOW_LOG_EMAIL: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm build
+      - name: Start the app
+        run: |
+          pnpm start > /tmp/app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/login && exit 0; sleep 2; done
+          cat /tmp/app.log; exit 1
+      - name: Collect exposé URLs
+        run: |
+          urls=$(psql "$DATABASE_URL" -Atc "select 'http://pixelwerk.localhost:3000/x/' || slug from exposes order by slug" | tr '\n' ' ')
+          echo "LHCI_URLS=$urls" >> "$GITHUB_ENV"
+          # Warm the Node server (first render compiles routes and fills caches) so a
+          # cold run does not drag the median; Workers in production stay warm (ADR-0014).
+          for url in $urls; do for i in 1 2 3; do curl -sf -o /dev/null "$url"; done; done
+      - run: npx -y @lhci/cli@0.15.1 autorun
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: .lighthouseci/
+          include-hidden-files: true
+          retention-days: 7
+
+  cloudflare:
+    name: Cloudflare bundle (OpenNext)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm cf:build
+      # Workers Free allows 3 MB compressed (ADR-0035); keep a margin so the free plan stays usable.
+      - name: Worker size within the free plan
+        run: |
+          pnpm exec wrangler deploy --dry-run --outdir dist-worker > /dev/null
+          size=$(gzip -9 -c dist-worker/worker.js | wc -c)
+          echo "Worker gzip: $((size / 1024)) KiB (limit 2900 KiB)"
+          test "$size" -le $((2900 * 1024))

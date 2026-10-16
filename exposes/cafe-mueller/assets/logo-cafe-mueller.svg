@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 124" width="640" height="124">
+  <g transform="translate(2 2)">
+    <circle cx="60" cy="60" r="58" fill="#c2410c"/>
+    <path d="M30 52h52v18a26 26 0 0 1-52 0z" fill="#fff7ed"/>
+    <path d="M82 58h8a10 10 0 0 1 0 20h-8" fill="none" stroke="#fff7ed" stroke-width="6"/>
+    <path d="M42 30c0-8 8-8 8-16M58 30c0-8 8-8 8-16" fill="none" stroke="#fff7ed" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="140" y="74" font-family="Georgia, serif" font-size="56" font-weight="700" fill="#431407">Café Müller</text>
+  <text x="142" y="110" font-family="sans-serif" font-size="20" letter-spacing="6" fill="#9a3412">SEIT 1987 · LEIPZIG</text>
+</svg>

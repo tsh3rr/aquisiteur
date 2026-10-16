@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <rect width="1200" height="900" fill="#f5f5f4"/>
+  <rect x="80" y="70" width="1040" height="760" rx="28" fill="#fffaf5" stroke="#e7e5e4" stroke-width="2"/>
+  <g font-family="sans-serif">
+    <text x="140" y="160" font-family="Georgia, serif" font-size="52" font-weight="700" fill="#431407">Speisekarte</text>
+    <g font-size="20" font-weight="600">
+      <rect x="140" y="200" width="150" height="44" rx="22" fill="#c2410c"/><text x="215" y="229" fill="#fff" text-anchor="middle">Kuchen</text>
+      <rect x="304" y="200" width="160" height="44" rx="22" fill="#ffedd5"/><text x="384" y="229" fill="#7c2d12" text-anchor="middle">Frühstück</text>
+      <rect x="478" y="200" width="150" height="44" rx="22" fill="#ffedd5"/><text x="553" y="229" fill="#7c2d12" text-anchor="middle">Getränke</text>
+    </g>
+    <g font-size="26" fill="#292524">
+      <text x="140" y="320" font-weight="700">Apfelkuchen nach Omas Rezept</text><text x="1060" y="320" text-anchor="end" font-weight="700">3,90 €</text>
+      <text x="140" y="352" font-size="19" fill="#78716c">Mit Streuseln, auf Wunsch mit Sahne</text>
+      <rect x="140" y="380" width="920" height="2" fill="#e7e5e4"/>
+      <text x="140" y="440" font-weight="700">Leipziger Lerche</text><text x="1060" y="440" text-anchor="end" font-weight="700">2,80 €</text>
+      <text x="140" y="472" font-size="19" fill="#78716c">Mürbeteig, Marzipan, Kirsche</text>
+      <rect x="140" y="500" width="920" height="2" fill="#e7e5e4"/>
+      <text x="140" y="560" font-weight="700">Käsekuchen</text><text x="1060" y="560" text-anchor="end" font-weight="700">3,60 €</text>
+      <text x="140" y="592" font-size="19" fill="#78716c">Cremig, ohne Boden · glutenfrei</text>
+      <rect x="140" y="620" width="920" height="2" fill="#e7e5e4"/>
+      <text x="140" y="680" font-weight="700">Schwarzwälder Kirschtorte</text><text x="1060" y="680" text-anchor="end" font-weight="700">4,20 €</text>
+      <text x="140" y="712" font-size="19" fill="#78716c">Am Wochenende</text>
+    </g>
+    <text x="140" y="790" font-size="18" fill="#9a3412">Zuletzt aktualisiert: heute, 7:45 Uhr</text>
+  </g>
+</svg>

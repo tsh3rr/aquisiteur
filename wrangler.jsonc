@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aquisiteur",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    // Self-reference used by OpenNext for caching and revalidation.
+    { "binding": "WORKER_SELF_REFERENCE", "service": "aquisiteur" },
+  ],
+  "hyperdrive": [
+    {
+      // Supabase Postgres (EU). See docs/DEPLOY.md, step "Hyperdrive".
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur",
+    },
+  ],
+  "vars": {
+    "HOSTING_PROFILE": "cloudflare",
+  },
+  // Everything else is set in the Cloudflare dashboard; deploys must not wipe it (docs/DEPLOY.md).
+  "keep_vars": true,
+  // Hourly jobs, e.g. the daily digest (worker.mjs → /api/jobs/hourly).
+  "triggers": { "crons": ["5 * * * *"] },
+  "observability": { "enabled": true },
+}

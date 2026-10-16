@@ -1,0 +1,148 @@
+{
+  "$schema": "../../schema/expose.schema.json",
+  "schemaVersion": 1,
+  "prospect": {
+    "key": "tischlerei-holzmann",
+    "company": "Tischlerei Holzmann GmbH",
+    "industry": "Handwerk",
+    "website": "https://tischlerei-holzmann.example",
+    "contact": {
+      "salutation": "Herr",
+      "firstName": "Thomas",
+      "lastName": "Holzmann",
+      "role": "Geschäftsführer"
+    },
+    "address": {
+      "street": "Werkstattweg 3",
+      "postalCode": "04229",
+      "city": "Leipzig",
+      "country": "DE"
+    },
+    "phone": "+49 341 4455667"
+  },
+  "meta": {
+    "title": "Ideen für die Tischlerei Holzmann",
+    "description": "Wie die Tischlerei Holzmann online mehr passende Aufträge und Bewerbungen bekommt.",
+    "lang": "de"
+  },
+  "theme": {
+    "accent": "#7fb069",
+    "logo": { "src": "assets/logo-holzmann.svg", "alt": "Tischlerei Holzmann" },
+    "appearance": "light"
+  },
+  "blocks": [
+    {
+      "id": "start",
+      "type": "hero",
+      "eyebrow": "Für die Tischlerei Holzmann",
+      "greeting": "Guten Tag Herr Holzmann,",
+      "headline": "Ihre Arbeit ist Maßarbeit. Ihr Auftritt im Netz kann das auch zeigen.",
+      "lead": "Drei Vorschläge, mit denen Sie mehr passende Anfragen bekommen und leichter Azubis finden.",
+      "showOwnerPhoto": true
+    },
+    {
+      "id": "persoenlich",
+      "type": "personal_note",
+      "body": "Ihre Küchen und Treppen auf Instagram sind beeindruckend. Auf Ihrer Website sieht man davon fast nichts, und wer „Tischler Leipzig“ sucht, landet bei der Konkurrenz.\n\nIch habe mir überlegt, wie sich das mit überschaubarem Aufwand ändern lässt."
+    },
+    {
+      "id": "befund",
+      "type": "findings",
+      "title": "Was mir aufgefallen ist",
+      "items": [
+        {
+          "title": "Referenzen fehlen",
+          "severity": "high",
+          "impact": "Privatkunden entscheiden nach Bildern. Ohne Projekte auf der Website fragen sie woanders an.",
+          "solution": "Eine Referenzseite mit Ihren schönsten Projekten, nach Kategorie sortiert."
+        },
+        {
+          "title": "Keine Karriereseite",
+          "severity": "medium",
+          "impact": "Bewerber finden nicht, dass Sie ausbilden.",
+          "solution": "Eine Seite „Ausbildung bei Holzmann“ mit Fotos aus der Werkstatt und einem kurzen Bewerbungsformular."
+        }
+      ]
+    },
+    {
+      "id": "vorher-nachher",
+      "type": "before_after",
+      "title": "Ihre Startseite, neu gedacht",
+      "before": {
+        "src": "assets/vorher.svg",
+        "alt": "Heutige Startseite mit viel Text und einem kleinen Foto der Werkstatt."
+      },
+      "after": {
+        "src": "assets/nachher.svg",
+        "alt": "Entwurf mit großem Foto einer Massivholzküche und den Bereichen Küchen, Treppen und Möbel."
+      }
+    },
+    {
+      "id": "marke",
+      "type": "brand_preview",
+      "title": "Farben und Schrift",
+      "intro": "Ich würde Ihr Logo behalten und es um warme Holztöne ergänzen.",
+      "colors": [
+        { "name": "Waldgrün", "value": "#2f5d3a", "usage": "Logo und Buttons" },
+        { "name": "Eiche", "value": "#c49a6c", "usage": "Flächen und Akzente" },
+        { "name": "Kalk", "value": "#f6f3ee", "usage": "Hintergrund" }
+      ],
+      "typography": [
+        {
+          "role": "Überschriften",
+          "family": "Fraunces",
+          "style": "serif",
+          "sample": "Maßarbeit aus Leipzig"
+        },
+        {
+          "role": "Fließtext",
+          "family": "Inter",
+          "style": "sans",
+          "sample": "Wir planen, bauen und montieren."
+        }
+      ],
+      "logos": [{ "src": "assets/logo-holzmann.svg", "alt": "Logo Tischlerei Holzmann" }]
+    },
+    {
+      "id": "stimmen",
+      "type": "testimonials",
+      "title": "Was andere Handwerksbetriebe sagen",
+      "items": [
+        {
+          "quote": "Seit der neuen Website kommen die Anfragen mit Fotos und Maßen. Das spart mir jede Woche Stunden.",
+          "author": "Andreas Krüger",
+          "role": "Inhaber",
+          "company": "Krüger Fliesen"
+        },
+        {
+          "quote": "Wir haben über die Karriereseite zwei Azubis gefunden. Vorher kam keine einzige Bewerbung online.",
+          "author": "Petra Lange",
+          "company": "Lange Haustechnik"
+        }
+      ]
+    },
+    {
+      "id": "preise",
+      "type": "pricing",
+      "title": "Preisrahmen",
+      "options": [
+        {
+          "id": "website",
+          "title": "Website mit Referenzen",
+          "price": 3800,
+          "priceTo": 5200,
+          "required": true
+        },
+        { "id": "karriere", "title": "Karriereseite", "price": 900, "selected": true },
+        { "id": "fotos", "title": "Fototag in der Werkstatt", "price": 650, "selected": false }
+      ]
+    },
+    {
+      "id": "kontakt",
+      "type": "contact",
+      "title": "Lassen Sie uns sprechen",
+      "intro": "Am liebsten komme ich kurz in Ihrer Werkstatt vorbei.",
+      "channels": ["phone", "email", "whatsapp"]
+    }
+  ]
+}

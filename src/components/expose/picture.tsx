@@ -1,0 +1,47 @@
+import { clsx } from "clsx";
+import type { ResolvedImage } from "./render-context";
+
+/**
+ * Responsive image with AVIF and WebP sources. Width and height are always
+ * set so the layout does not shift (CLS ≈ 0, §7.3).
+ */
+export function Picture({
+  image,
+  sizes,
+  priority = false,
+  className,
+  imgClassName,
+  sizing = "h-auto w-full",
+}: {
+  image: ResolvedImage;
+  sizes: string;
+  priority?: boolean;
+  className?: string;
+  imgClassName?: string;
+  /** Width/height utilities; replaces the default instead of merging (no tailwind-merge in client bundles). */
+  sizing?: string;
+}) {
+  return (
+    <picture className={className}>
+      {image.avifSrcSet ? (
+        <source type="image/avif" srcSet={image.avifSrcSet} sizes={sizes} />
+      ) : null}
+      {image.webpSrcSet ? (
+        <source type="image/webp" srcSet={image.webpSrcSet} sizes={sizes} />
+      ) : null}
+      {/* Plain <img>: renditions are optimised at publish time (§5), not by next/image. */}
+      <img
+        src={image.src}
+        srcSet={image.pngSrcSet || undefined}
+        sizes={image.pngSrcSet ? sizes : undefined}
+        alt={image.alt}
+        width={image.width}
+        height={image.height}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        decoding={priority ? "sync" : "async"}
+        className={clsx(sizing, imgClassName)}
+      />
+    </picture>
+  );
+}
