@@ -25,9 +25,11 @@ export interface ContactLayerProps {
   phoneHref: string | null;
   /** Id of the contact block, the target when chat is off. */
   contactBlockId: string | null;
+  /** A chat button was pressed before the layer had loaded (ContactLayerLazy). */
+  openWith?: OpenSource;
 }
 
-type OpenSource = "launcher" | "contact" | "nudge" | "bar";
+export type OpenSource = "launcher" | "contact" | "nudge" | "bar";
 const storageKey = (slug: string) => `aq-chat:${slug}`;
 
 function storedChat(slug: string): string | null {
@@ -50,7 +52,7 @@ export function ContactLayer(props: ContactLayerProps) {
   const [exitIntent, setExitIntent] = useState(false);
   const [nudge, setNudge] = useState<NudgeId | null>(null);
   const [nudgeShown, setNudgeShown] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(props.openWith) && chat.enabled);
   const [Panel, setPanel] = useState<ComponentType<ChatPanelProps> | null>(null);
   const [prefill, setPrefill] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
@@ -64,6 +66,21 @@ export function ContactLayer(props: ContactLayerProps) {
   useEffect(() => {
     if (chat.enabled && storedChat(slug)) void loadPanel();
   }, [chat.enabled, slug]);
+
+  // Opened by a chat button before this layer had loaded.
+  const openedEarly = useRef(props.openWith);
+  useEffect(() => {
+    const source = openedEarly.current;
+    if (!source) return;
+    if (chat.enabled) {
+      track({ type: "chat_open", source });
+      void loadPanel();
+    } else if (props.contactBlockId) {
+      document.getElementById(props.contactBlockId)?.scrollIntoView({ behavior: "smooth" });
+    }
+    // Runs once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openChat = (source: OpenSource, text?: string) => {
     if (!chat.enabled) {

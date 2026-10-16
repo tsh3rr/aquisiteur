@@ -3,7 +3,7 @@ import { exposeThemeCss } from "@/domain/expose/theme";
 import { Block, blockTitle } from "./blocks";
 import { displayFont } from "./fonts";
 import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
-import { ContactLayer } from "./contact-layer";
+import { ContactLayerLazy } from "./contact-layer-lazy";
 import { ExposeTracker } from "./expose-tracker";
 import { FooterActions } from "./footer-actions";
 import { ownerName } from "./owner";
@@ -111,7 +111,7 @@ export function ExposeView({
       </main>
 
       {mode === "public" ? (
-        <ContactLayer
+        <ContactLayerLazy
           slug={data.expose.slug}
           chat={data.settings.chat}
           nudges={data.settings.nudges}
