@@ -85,6 +85,20 @@ eingeschränkt. Mitglieder lesen Visits und Events nur (RLS, `GRANT SELECT`).
    Ereignisse sind nur Hinweise; Clients laden den Stand danach von der App.
 4. **Cockpit**: `LiveProvider` hält eine Verbindung pro Tab und schickt den Präsenz-Heartbeat.
 
+## Kontaktabsicht und Benachrichtigungen (Phase 4)
+
+1. **Signal**: Besuch, Events, Entwurf, Nachricht, Rückruf oder Opt-out landen wie bisher über die
+   öffentlichen Routen. Danach plant `defer()` (`after()`) die Auswertung, die Antwort wartet nicht.
+2. **Score**: `processProspect` lädt die Fakten des Kunden (`loadIntentInput`, nur echte Besuche),
+   rechnet rein in `src/domain/intent` und speichert `intent_scores` (ADR-0028). Ändert sich der Score,
+   geht `intent.updated` an das Cockpit.
+3. **Regeln**: `notify()` prüft die Regeln (`src/domain/notifications.ts`), bündelt per `group_key`
+   und speichert in `notifications` (`notification.created`). `dispatch()` schickt Push über `PushPort`
+   an alle Geräte und E-Mail über `EmailPort` (ADR-0029, ADR-0030).
+4. **Zeitgesteuert**: `/api/jobs/hourly` (Cron) verschickt die Tageszusammenfassung (ADR-0032).
+5. **Cockpit**: „Heute“ zeigt `listHotProspects` und den Live-Feed (`visit.activity`), die Glocke den
+   ungelesenen Zähler, `/benachrichtigungen` die Liste; der Service Worker `/sw.js` zeigt Pushes an.
+
 ## Mandantentrennung (§9a)
 
 ```
@@ -125,15 +139,15 @@ Weitere Tabellen (Prospects, Exposés, Touchpoints, Events …) kommen mit ihren
 
 ## Ports in `src/infra`
 
-| Port                     | Phase | Implementierung                        |
-| ------------------------ | ----- | -------------------------------------- |
-| `DatabasePort`           | 0     | Hyperdrive / `DATABASE_URL`            |
-| `EmailPort`              | 0     | Resend, Dev: Log                       |
-| `StoragePort`            | 1     | R2 über S3-API                         |
-| `RateLimiterPort`        | 2     | Cloudflare Rate Limiting Binding       |
-| `CachePort`              | 2     | Workers KV                             |
-| `RealtimePort`           | 3     | Supabase Broadcast, Dev: SSE           |
-| `JobQueuePort`           | 4     | Cloudflare Queues + Cron Triggers      |
-| `PushPort`               | 4     | Web Push (VAPID)                       |
-| `LetterDispatchProvider` | 5     | `manual`, danach Pingen                |
-| `DomainPort`             | 1/6   | Cloudflare for SaaS (Custom Hostnames) |
+| Port                     | Phase  | Implementierung                        |
+| ------------------------ | ------ | -------------------------------------- |
+| `DatabasePort`           | 0      | Hyperdrive / `DATABASE_URL`            |
+| `EmailPort`              | 0      | Resend, Dev: Log                       |
+| `StoragePort`            | 1      | R2 über S3-API                         |
+| `RateLimiterPort`        | 2      | Cloudflare Rate Limiting Binding       |
+| `CachePort`              | 2      | Workers KV                             |
+| `RealtimePort`           | 3      | Supabase Broadcast, Dev: SSE           |
+| `JobQueuePort`           | später | vorerst `after()` + Cron (ADR-0032)    |
+| `PushPort`               | 4      | Web Push (VAPID), Dev: Log             |
+| `LetterDispatchProvider` | 5      | `manual`, danach Pingen                |
+| `DomainPort`             | 1/6    | Cloudflare for SaaS (Custom Hostnames) |

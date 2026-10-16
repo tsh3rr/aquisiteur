@@ -60,8 +60,12 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 ## Phase 4 · Intent & Benachrichtigung
 
-- [ ] Score-Engine (Noisy-OR), Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht
-- [ ] E2E-Kernpfad: QR öffnen → lesen → Chat tippen → Owner sieht Score und Benachrichtigung
+- [x] Score-Engine (Noisy-OR), Erklärung + Empfehlung mit Ein-Klick-Aktionen (ADR-0028), gewichtbar in den Einstellungen
+- [x] Regel-Engine mit Bündelung, Ruhezeit, nur werktags (ADR-0029), Push (ADR-0030, ADR-0034) + E-Mail
+- [x] Tageszusammenfassung über stündlichen Job (ADR-0032), Benachrichtigungsliste mit Live-Zähler
+- [x] „Heute“: wer jetzt eine Reaktion braucht, Live-Feed „Jetzt gerade“; Score auf Kundenseite und in der Liste
+- [x] E2E-Kernpfad: QR öffnen → lesen → Chat tippen → Owner sieht Score und Benachrichtigung
+- [ ] Push auf dem echten Handy nach dem Deploy prüfen (Einstellungen → Benachrichtigungen → „Test senden“)
 
 ## Phase 5 · Brief & Auswertung
 

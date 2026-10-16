@@ -22,6 +22,7 @@ pnpm user:login <email>   # create account + print one-time sign-in link (no mai
 pnpm expose:validate <dir> | expose:publish <dir>   # exposé CLI (docs/EXPOSE_AUTHORING.md)
 pnpm expose:schema       # regenerate schema/expose.schema.json after changing src/domain/expose/schema.ts
 pnpm tokens:build        # regenerate src/styles/tokens.css from src/design/tokens.ts
+pnpm push:keys           # VAPID key pair for Web Push; pnpm jobs:hourly calls /api/jobs/hourly
 pnpm cf:build            # OpenNext Cloudflare bundle; cf:preview / cf:deploy
 ```
 
@@ -45,6 +46,10 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 - Realtime: write through app routes/actions, then `publish()` (`src/server/realtime.ts`); browsers only
   listen via `@/infra/realtime-client` (the one `@/infra/*` import allowed outside infra, ADR-0020).
 - Permissions via `can()` / `assertCan()` (`src/domain/authz.ts`); limits via `entitlements()`.
+- Intent and notifications: after a signal, `defer(() => processProspect(...))`
+  (`src/server/intent/process.ts`) recomputes `intent_scores` and runs the rules; never notify
+  inline in a response. Scoring and rule logic stay pure in `src/domain/intent` and
+  `src/domain/notifications.ts`. Timed work goes into `/api/jobs/hourly` (ADR-0032).
 - Nothing workspace-specific in env or code: it belongs in `workspace_settings` (Zod schemas in
   `src/domain/workspace-settings.ts`).
 - Files go through `getInfra().storage` (keys always start with `<workspace_id>/`); `sharp` only in

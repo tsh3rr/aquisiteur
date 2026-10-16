@@ -3,7 +3,7 @@
 > Keine Rechtsberatung. Vor dem Livegang von einer Fachperson prüfen lassen. Dieses Dokument wird mit
 > jeder Phase ergänzt und ist in Phase 6 vollständig.
 
-## Stand Phase 3
+## Stand Phase 4
 
 | Thema                     | Umsetzung                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,6 +34,16 @@ Neu in Phase 3:
 | Rückrufwunsch | Name, Telefonnummer, Wunschzeit und optionale Nachricht. Spam-Schutz per Honeypot-Feld, keine IP.                                                                                        |
 | Präsenz       | Letzter Heartbeat je Mitglied (`member_presence`), nur für die Anzeige „verfügbar“.                                                                                                      |
 | Realtime      | In Produktion Supabase Realtime (EU). Übertragen werden Nachrichtentext und Tippanzeige; gespeichert wird bei Supabase dabei nichts zusätzlich. Kanalnamen sind nicht erratbar (HMAC).   |
+
+Neu in Phase 4:
+
+| Thema                | Umsetzung                                                                                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Kontaktabsicht       | Score pro Kunde aus Signalen im Exposé (Lesen, Klicks, Entwürfe, Nachrichten). Keine Daten über die Person, kein Profil über Workspaces hinweg. Eigene und Bot-Besuche zählen nicht. |
+| Neue Exposé-Signale  | Hover oder Fokus auf Kontaktwegen (`cta_hover`) und Kopieren von Telefonnummer oder E-Mail-Adresse. Kein Inhalt der Zwischenablage, nur welcher Kontaktweg.                          |
+| Benachrichtigungen   | Gespeichert pro Workspace mit RLS (Titel, Text, Link, Zustellung). Push-Inhalte nennen Firma und Ereignis, nie den Chat-Inhalt in voller Länge (gekürzt auf 140 Zeichen).            |
+| Push-Abos            | Endpoint und Schlüssel des Browsers pro Mitglied und Gerät. Der Push-Dienst des Browsers (Google, Apple, Mozilla) sieht nur verschlüsselte Inhalte (RFC 8291).                       |
+| Tageszusammenfassung | E-Mail an die Mitglieder, nur wenn in den letzten 24 Stunden etwas passiert ist.                                                                                                     |
 
 ## Auftragsverarbeiter
 

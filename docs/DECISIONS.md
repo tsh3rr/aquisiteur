@@ -256,3 +256,57 @@ das. Der Launcher zeigt den Status mit Text, nicht nur mit Farbe.
 Der erste Lauf gegen einen frisch gestarteten Node-Server misst das Kompilieren der Route mit (0,71 statt
 0,88–0,96). In Produktion auf Workers gibt es diesen Kaltstart pro Exposé nicht. Die CI ruft jede URL
 deshalb vorher dreimal ab und nimmt den Median aus fünf statt drei Läufen. Die Grenze bleibt 90.
+
+Nachtrag zu ADR-0027: Gereicht hat erst, die Kontaktebene (Launcher, Nudges, Leiste) nach dem
+`load`-Ereignis im Leerlauf nachzuladen (`ContactLayerLazy`). Ein Klick auf „Live-Chat“ davor lädt sie
+sofort und öffnet den Chat.
+
+## ADR-0028 · Kontaktabsicht als materialisierter Score (2026-10-16)
+
+Der Score (§7.6) wird nach jedem Signal neu berechnet und in `intent_scores` gespeichert (eine Zeile pro
+Kunde: Score, Stufe, Signale, Erklärung). Listen sortieren damit ohne Rechnen, und „Heute“ zeigt
+Erklärung und Empfehlung direkt. Die Quelle bleiben Events, Entwürfe, Nachrichten und Rückrufe; die
+Zeile ist abgeleitet und jederzeit neu berechenbar, etwa nach geänderten Gewichten. Formel: Noisy-OR
+`1 − Π(1 − pᵢ)`, ohne bestätigtes Signal höchstens 99 %. Erklärung und Empfehlung sind Regeln, kein LLM.
+
+## ADR-0029 · Benachrichtigungen: Regeln, Bündelung, Ruhezeit (2026-10-16)
+
+Regeln (`notification_rules`) verbinden Ereignis, Kanäle und Bedingungen. Jede Benachrichtigung wird
+in `notifications` gespeichert, auch in der Ruhezeit oder am Wochenende (dann nur im Cockpit, mit
+Grund). Updates mit gleichem `group_key` innerhalb von 30 Minuten zählen in dieselbe Zeile hoch; nur
+neue Chat-Nachrichten aktualisieren dabei den Push (gleicher `tag`, ersetzt statt stapelt). Löst eine
+Chat-Nachricht oder ein Rückruf zugleich die Score-Schwelle aus, geht nur eine Benachrichtigung raus.
+
+## ADR-0030 · Web Push ohne Bibliothek (2026-10-16)
+
+`web-push` braucht Node-Crypto und läuft nicht auf Workers. Verschlüsselung (RFC 8291, aes128gcm) und
+VAPID (RFC 8292) sind mit WebCrypto in `src/infra/webpush` umgesetzt und gegen den Testvektor der RFC
+geprüft. Dev und Tests nutzen den Log-Adapter (`PUSH_LOG_FILE`). Abgelaufene Abos (404/410) werden
+gelöscht.
+
+## ADR-0031 · E-Mails als schlichte Vorlagen (2026-10-16)
+
+Anmeldelink, Benachrichtigung und Tageszusammenfassung sind kleine Funktionen mit Text- und HTML-Teil,
+ohne React Email oder Bilder. Sie laufen auf Workers, sind in jedem Postfach lesbar und leicht zu testen.
+
+## ADR-0032 · Hintergrundarbeit mit `after()` und stündlichem Cron (2026-10-16)
+
+Score, Benachrichtigung und Push laufen nach der Antwort an den Besucher (`defer()` → `after()`, auf
+Workers `waitUntil`). Eine Queue lohnt sich dafür noch nicht. Zeitgesteuertes (Tageszusammenfassung)
+läuft über `/api/jobs/hourly` mit `CRON_SECRET`. Auf Cloudflare ruft der Cron-Trigger diese Route über
+`worker.mjs` auf, woanders `pnpm jobs:hourly` aus der Crontab. Der Job ist idempotent: pro Workspace
+und lokalem Tag höchstens eine Zusammenfassung, nachgeholt, falls die Stunde verpasst wurde, und
+keine, wenn nichts passiert ist.
+
+## ADR-0033 · Kontakt-Signale aus dem Exposé (2026-10-16)
+
+Neu sind `cta_hover` (Maus oder Fokus mindestens 1 s auf einem Kontaktweg, einmal pro Kanal und
+Besuch) und `blockType` an Abschnitts-Events, damit „Kontaktbereich angesehen“ unabhängig von der
+Block-ID erkannt wird. Kopieren von Telefonnummer oder E-Mail-Adresse meldet `copy_contact`.
+
+## ADR-0034 · Push-Abos pro Gerät und Mitglied (2026-10-16)
+
+Jedes Mitglied aktiviert Push auf seinen Geräten selbst (`push_subscriptions`, mit Gerätename). Eine
+Benachrichtigung geht an alle Geräte des Workspaces. Auf dem iPhone funktioniert Push nur aus der zum
+Home-Bildschirm hinzugefügten App; die Einstellungen sagen das. Der Service Worker (`/sw.js`) macht nur
+Benachrichtigungen, kein Caching.

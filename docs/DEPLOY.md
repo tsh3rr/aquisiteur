@@ -116,6 +116,22 @@ Der Live-Chat braucht auf Cloudflare Supabase Realtime (ADR-0020); ohne bricht d
 2. **Realtime → Settings**: „Allow public access“ muss an sein (Standard). Die App nutzt öffentliche
    Broadcast-Kanäle mit nicht erratbaren Namen, keine Datenbank-Änderungen über Realtime.
 
+## 5d. Push-Benachrichtigungen und stündlicher Job
+
+Für Push aufs Handy braucht der Worker ein VAPID-Schlüsselpaar, für die Tageszusammenfassung ein
+Geheimnis für den stündlichen Job:
+
+```bash
+pnpm push:keys                                  # gibt VAPID_PUBLIC_KEY und VAPID_PRIVATE_KEY aus
+pnpm wrangler secret put VAPID_PRIVATE_KEY      # privaten Schlüssel einfügen
+openssl rand -base64 32 | pnpm wrangler secret put CRON_SECRET
+```
+
+`VAPID_PUBLIC_KEY`, `PUSH_PROVIDER` und `VAPID_SUBJECT` kommen in Schritt 6 zu den `vars`. Den
+Cron-Trigger (`"triggers": { "crons": ["5 * * * *"] }`) bringt `wrangler.jsonc` schon mit; er ruft
+stündlich `/api/jobs/hourly` auf (ADR-0032). Ohne `CRON_SECRET` antwortet die Route mit 401 und es
+gibt keine Tageszusammenfassung, sonst funktioniert alles.
+
 ## 6. Konfiguration im Worker hinterlegen
 
 Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
@@ -133,7 +149,10 @@ Nicht-geheime Werte trägst du in `wrangler.jsonc` unter `vars` ein:
   "S3_BUCKET": "aquisiteur-assets",
   "REALTIME_PROVIDER": "supabase",
   "SUPABASE_URL": "https://<projekt>.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_…"
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_…",
+  "PUSH_PROVIDER": "webpush",
+  "VAPID_PUBLIC_KEY": "B…",
+  "VAPID_SUBJECT": "mailto:deine@adresse.de"
 }
 ```
 
@@ -146,6 +165,8 @@ pnpm wrangler secret put RESEND_API_KEY        # Wert aus Schritt 5 einfügen
 pnpm wrangler secret put S3_ACCESS_KEY_ID      # Werte aus Schritt 5b
 pnpm wrangler secret put S3_SECRET_ACCESS_KEY
 pnpm wrangler secret put SUPABASE_SECRET_KEY   # Wert aus Schritt 5c
+pnpm wrangler secret put VAPID_PRIVATE_KEY     # Wert aus Schritt 5d
+pnpm wrangler secret put CRON_SECRET           # Wert aus Schritt 5d
 ```
 
 `INTEGRATIONS_ENCRYPTION_KEY` gut sichern (Passwortmanager): Ohne ihn lassen sich später gespeicherte
@@ -184,6 +205,9 @@ Das baut die App mit OpenNext und lädt sie als Worker hoch. Danach `https://app
 1. E-Mail-Adresse aus `SIGNUP_ALLOWLIST` eingeben, Anmeldelink aus dem Postfach öffnen.
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
+4. Auf dem Handy: Cockpit öffnen, **Einstellungen → Benachrichtigungen → Push auf diesem Gerät
+   aktivieren**, dann **Test senden**. Auf dem iPhone vorher in Safari „Teilen → Zum Home-Bildschirm“
+   und Aquisiteur von dort öffnen; Push geht dort nur aus der installierten App.
 
 ## 9. Erstes Exposé veröffentlichen
 
