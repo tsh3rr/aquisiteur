@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import type { ExposeDocument } from "@/domain/expose/schema";
 import { exposeOutline } from "@/domain/expose/outline";
+import { listCallbacks, listThreads, unsentDrafts } from "@/server/chat/owner";
 import { buildTimeline, type TimelineAudit, type TimelineVisit } from "@/domain/tracking/timeline";
 import { realVisit } from "./list";
 
@@ -143,6 +144,12 @@ export async function loadProspectDetail(
     .orderBy(desc(auditLog.createdAt))
     .limit(200);
 
+  const [draftRows, threads, callbacks] = await Promise.all([
+    unsentDrafts(tx, workspaceId, prospectId),
+    listThreads(tx, workspaceId, { prospectId, limit: 20 }),
+    listCallbacks(tx, workspaceId, { prospectId }),
+  ]);
+
   const document = (expose?.document as ExposeDocument | undefined) ?? null;
   const outline = exposeOutline(document);
   const timelineVisits: TimelineVisit[] = visitRows;
@@ -153,6 +160,7 @@ export async function loadProspectDetail(
       ...row,
       meta: (row.meta ?? {}) as Record<string, unknown>,
     })),
+    drafts: draftRows,
     outline,
     showBots: options.showBots,
   });
@@ -187,6 +195,8 @@ export async function loadProspectDetail(
     })),
     botCount: visitRows.filter((visit) => visit.isBot).length,
     timeline,
+    threads,
+    callbacks,
   };
 }
 

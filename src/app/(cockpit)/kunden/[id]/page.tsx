@@ -12,6 +12,9 @@ import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
 import { formatDuration } from "@/domain/tracking/timeline";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { loadProspectDetail } from "@/server/prospects/detail";
+import { formatRelative } from "@/lib/relative-time";
+import { CallbackList } from "../../chat/callbacks";
+import { LiveRefresh } from "../../chat/live-refresh";
 import { requireCockpit } from "@/server/session";
 import { touchpointUrls } from "@/server/tracking/touchpoints";
 import { signOwnerLink } from "@/server/tracking/visits";
@@ -71,6 +74,10 @@ export default async function CustomerPage({
 
   return (
     <div className="grid gap-6">
+      <LiveRefresh
+        events={["chat.message", "callback.created", "chat.thread"]}
+        prospectId={prospect.id}
+      />
       <Link
         href="/kunden"
         className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-sm text-foreground-muted hover:text-foreground"
@@ -211,6 +218,46 @@ export default async function CustomerPage({
         </div>
 
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-2 [&>*]:min-w-0">
+          {detail.threads.length > 0 || detail.callbacks.length > 0 ? (
+            <Card id="chat">
+              <CardHeader>
+                <CardTitle>Chat und Rückrufe</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                {detail.threads.length > 0 ? (
+                  <ul className="grid gap-2">
+                    {detail.threads.map((thread) => (
+                      <li key={thread.id}>
+                        <Link
+                          href={`/chat/${thread.id}`}
+                          className="grid gap-0.5 rounded-lg border border-border p-3 text-sm hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        >
+                          <span className="flex flex-wrap items-center justify-between gap-2 font-medium">
+                            <span>
+                              Chat{thread.visitorName ? ` mit ${thread.visitorName}` : ""}
+                            </span>
+                            <span className="flex items-center gap-2 text-xs font-normal text-foreground-muted">
+                              {thread.unread > 0 ? (
+                                <Badge tone="accent">{thread.unread} neu</Badge>
+                              ) : null}
+                              {formatRelative(thread.lastMessageAt)}
+                            </span>
+                          </span>
+                          {thread.preview ? (
+                            <span className="line-clamp-2 text-foreground-muted">
+                              {thread.preview}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {detail.callbacks.length > 0 ? <CallbackList callbacks={detail.callbacks} /> : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle>Links und QR-Codes</CardTitle>

@@ -65,7 +65,47 @@ const CHANNEL_LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
   phone: "Anrufen",
   email: "E-Mail",
+  booking: "Terminbuchung",
+  messenger: "Messenger",
+  sms: "SMS",
 };
+
+const NUDGE_LABELS: Record<string, string> = {
+  read_invite: "Einladung nach dem Lesen",
+  pricing: "Angebot zur Preisauswahl",
+  returning: "Begrüßung beim erneuten Besuch",
+  exit_intent: "Hinweis beim Verlassen",
+};
+
+const CHAT_OPENED_FROM: Record<string, string> = {
+  launcher: "über den Chat-Knopf",
+  contact: "im Kontaktbereich",
+  nudge: "über einen Hinweis",
+  bar: "über die Kontaktleiste",
+};
+
+/** Typed in the chat during a visit (§7.5 „Entwurfserkennung“). */
+export interface TimelineDraft {
+  visitId: string;
+  /** Current, unsent length; 0 once sent or deleted. */
+  length: number;
+  maxLength: number;
+  /** Whether the visit has a chat thread (something was sent). */
+  sent: boolean;
+  content: string | null;
+  updatedAt: Date;
+}
+
+export function describeDraft(draft: TimelineDraft): string | null {
+  if (draft.length > 0) {
+    const text = `${draft.length} Zeichen in den Chat getippt, aber nicht gesendet`;
+    return draft.content ? `${text}: „${draft.content}“` : text;
+  }
+  if (!draft.sent && draft.maxLength > 0) {
+    return `Chat-Nachricht mit ${draft.maxLength} Zeichen angefangen und wieder gelöscht`;
+  }
+  return null;
+}
 
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds} s`;
@@ -129,6 +169,20 @@ export function describeEvent(event: TimelineEvent, outline: ExposeOutline): str
       return "Als PDF gespeichert oder gedruckt";
     case "opt_out":
       return "„Kein Interesse“ angeklickt";
+    case "chat_open":
+      return `Chat geöffnet ${CHAT_OPENED_FROM[String(payload.source)] ?? ""}`.trim();
+    case "chat_message_sent":
+      return `Chat-Nachricht gesendet (${Number(payload.length ?? 0)} Zeichen)`;
+    case "callback_started":
+      return "Rückrufformular geöffnet";
+    case "callback_submitted":
+      return "Rückruf angefordert";
+    case "nudge_shown":
+      return `Hinweis gezeigt: ${NUDGE_LABELS[String(payload.nudge)] ?? "Hinweis"}`;
+    case "nudge_clicked":
+      return `Hinweis angeklickt: ${NUDGE_LABELS[String(payload.nudge)] ?? "Hinweis"}`;
+    case "nudge_dismissed":
+      return `Hinweis geschlossen: ${NUDGE_LABELS[String(payload.nudge)] ?? "Hinweis"}`;
     default:
       // page_view, section_view, scroll_depth and heartbeats feed the visit summary.
       return null;
@@ -144,9 +198,13 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
       const by =
         audit.meta.via === "visit"
           ? "automatisch beim ersten Besuch"
-          : audit.actorName
-            ? `von ${audit.actorName}`
-            : null;
+          : audit.meta.via === "chat"
+            ? "automatisch durch eine Chat-Nachricht"
+            : audit.meta.via === "callback"
+              ? "automatisch durch einen Rückrufwunsch"
+              : audit.actorName
+                ? `von ${audit.actorName}`
+                : null;
       return { ...base, kind: "status", title: `Status: ${label}`, detail: by };
     }
     case "prospect.opted_out":
@@ -181,19 +239,25 @@ export function buildTimeline(input: {
   visits: TimelineVisit[];
   events: TimelineEvent[];
   audits: TimelineAudit[];
+  drafts?: TimelineDraft[];
   outline: ExposeOutline;
   showBots: boolean;
 }): TimelineEntry[] {
   const steps = new Map<string, { at: Date; text: string }[]>();
-  for (const event of [...input.events].sort(
-    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
-  )) {
+  const add = (visitId: string, at: Date, text: string) => {
+    const list = steps.get(visitId) ?? [];
+    list.push({ at, text });
+    steps.set(visitId, list);
+  };
+  for (const event of input.events) {
     const text = describeEvent(event, input.outline);
-    if (!text) continue;
-    const list = steps.get(event.visitId) ?? [];
-    list.push({ at: event.occurredAt, text });
-    steps.set(event.visitId, list);
+    if (text) add(event.visitId, event.occurredAt, text);
   }
+  for (const draft of input.drafts ?? []) {
+    const text = describeDraft(draft);
+    if (text) add(draft.visitId, draft.updatedAt, text);
+  }
+  for (const list of steps.values()) list.sort((a, b) => a.at.getTime() - b.at.getTime());
 
   const entries: TimelineEntry[] = input.visits
     .filter((visit) => input.showBots || !visit.isBot)

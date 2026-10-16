@@ -15,6 +15,7 @@ import { requireCockpit } from "@/server/session";
 import { signOwnerLink } from "@/server/tracking/visits";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
+import { ContactSettingsForm } from "./contact-settings";
 import { PasskeyManager } from "./passkey-manager";
 
 export const metadata: Metadata = { title: "Einstellungen" };
@@ -35,9 +36,8 @@ export default async function SettingsPage() {
       .where(eq(domains.workspaceId, workspace.id)),
   );
   const canEditSettings = can(actor, "settings.update", { workspaceId: workspace.id });
-  const brandImages = await tenant(async (tx) =>
-    loadBrandImages(tx, workspace.id, await loadWorkspaceSettings(tx, workspace.id)),
-  );
+  const settings = await tenant((tx) => loadWorkspaceSettings(tx, workspace.id));
+  const brandImages = await tenant((tx) => loadBrandImages(tx, workspace.id, settings));
   const canManageTokens = can(actor, "apiTokens.manage", { workspaceId: workspace.id });
   const tokens = canManageTokens
     ? await tenant((tx) =>
@@ -71,7 +71,7 @@ export default async function SettingsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Einstellungen"
-        description="Workspace, Anmeldung, Domains und API-Zugang."
+        description="Workspace, Kontaktwege, Anmeldung, Domains und API-Zugang."
       />
 
       <Card>
@@ -129,6 +129,23 @@ export default async function SettingsPage() {
             label="Logo"
             hint="Am besten SVG oder PNG mit transparentem Hintergrund."
             current={brandImages.logo}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="kontakt">
+        <CardHeader>
+          <CardTitle>Kontakt und Chat</CardTitle>
+          <CardDescription>
+            Wie Interessenten Sie aus dem Exposé erreichen, und wann das Exposé dazu einlädt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ContactSettingsForm
+            channels={settings.channels}
+            chat={settings.chat}
+            nudges={settings.nudges}
             canEdit={canEditSettings}
           />
         </CardContent>

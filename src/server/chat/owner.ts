@@ -315,6 +315,7 @@ export async function unsentDrafts(tx: Transaction, workspaceId: string, prospec
       visitId: chatDrafts.visitId,
       length: chatDrafts.length,
       maxLength: chatDrafts.maxLength,
+      sent: sql<boolean>`${chatDrafts.threadId} is not null`,
       content: chatDrafts.content,
       updatedAt: chatDrafts.updatedAt,
     })
