@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { E2E } from "../../playwright.config";
 import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
 /**
@@ -49,6 +50,30 @@ test("the owner exports a customer's data and sets a block marker", async ({ pag
 
   await card.getByRole("button", { name: "Sperrvermerk aufheben" }).click();
   await expect(card.getByRole("button", { name: "Sperrvermerk setzen" })).toBeVisible();
+});
+
+test("the owner writes the legal pages and checks the limits", async ({ page }) => {
+  await owner(page);
+  await page.goto("/settings#rechtliches");
+  const legal = page.locator("#rechtliches");
+  await legal
+    .getByLabel("Impressum")
+    .fill("**Dana Datenschutz**\n\nMusterweg 1, 12345 Musterstadt");
+  await legal.getByRole("button", { name: "Rechtstexte speichern" }).click();
+  await expect(legal.getByText(/Gespeichert/)).toBeVisible();
+
+  const system = page.locator("#system");
+  await expect(system.getByText("Veröffentlichte Exposés")).toBeVisible();
+  await expect(system.getByText("Besuche in diesem Monat")).toBeVisible();
+  await expectAccessible(page, "settings with legal and system cards");
+
+  const host = `http://${account.slug}.localhost:${new URL(E2E.baseURL).port}`;
+  await page.goto(`${host}/impressum`);
+  await expect(page.getByText("Musterweg 1, 12345 Musterstadt")).toBeVisible();
+  await page.goto(`${host}/datenschutz`);
+  await expect(page.getByText(/Was diese Seite misst/)).toBeVisible();
+  await expect(page.getByText(/nach 365 Tagen/)).toBeVisible();
+  await expectAccessible(page, "generated privacy page");
 });
 
 test("the owner sets retention, exports and deletes the workspace", async ({ page }) => {

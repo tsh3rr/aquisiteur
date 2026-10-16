@@ -1,6 +1,7 @@
 import { serverEnv } from "@/config/env";
 import { manualLetters } from "./manual/letters";
 import { cloudflareDatabase } from "./cloudflare/database";
+import { cloudflareMetrics } from "./cloudflare/metrics";
 import { logEmail } from "./dev/email";
 import { fakeGeocoder } from "./dev/geocoder";
 import { consoleMonitor } from "./dev/monitor";
@@ -101,6 +102,14 @@ export function getInfra(): Infra {
           release: env.SENTRY_RELEASE,
         })
       : consoleMonitor(),
+    hostingMetrics:
+      env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_ANALYTICS_TOKEN
+        ? cloudflareMetrics({
+            accountId: env.CLOUDFLARE_ACCOUNT_ID,
+            token: env.CLOUDFLARE_ANALYTICS_TOKEN,
+            workerName: env.CLOUDFLARE_WORKER_NAME,
+          })
+        : null,
   };
   return cached;
 }

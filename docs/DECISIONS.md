@@ -424,3 +424,18 @@ das Routenmuster (`/sites/[host]/[slug]`), nie der konkrete Pfad, Query, Header,
 Nutzerdaten. Fehler beim Senden werden verschluckt, damit Monitoring nie eine Antwort bricht. Browser-
 Fehler werden nicht erfasst. Außerdem vergleicht `/api/jobs/hourly` das Cron-Secret jetzt in konstanter
 Zeit.
+
+## ADR-0045 · Einstellungen → System und Rechtstexte (2026-10-16)
+
+Die Karte „System und Limits“ zeigt jedem Workspace veröffentlichte Exposés, Besuche im Monat (ohne Bots
+und eigene), Mitglieder und Speicher (Summe aus `assets.bytes` und `session_replays.bytes`) gegen
+`entitlements()`; heute alles unbegrenzt. Die Werte der Installation (Datenbankgröße per
+`pg_database_size`, Dateispeicher gesamt, Anfragen und CPU-Zeit p99 von heute) sehen nur Betreiber:
+Konten aus `PLATFORM_ADMIN_EMAILS` oder `platform_admins`. Niemand wird automatisch Betreiber. Anfragen
+und CPU-Zeit kommen über den `HostingMetricsPort` aus der GraphQL-Analytics-API von Cloudflare, nur wenn
+ein Token gesetzt ist; ein Fehler blendet die Zeilen aus statt die Seite zu brechen. Verglichen wird mit
+den Grenzen der Gratis-Pläne (100.000 Anfragen pro Tag, 10 ms CPU, 500 MB Datenbank, 10 GB R2) oder,
+mit `HOSTING_PLAN=paid`, der bezahlten Pläne. Ab 80 % erscheint „Über 80 %“, ab 100 % „Limit erreicht“,
+jeweils mit Symbol und Text. Impressum und Datenschutzerklärung sind in den Einstellungen als Markdown
+bearbeitbar; leer bleibt der aus den Angaben erzeugte Text, der jetzt auch Messwerte, Score, Chat,
+Speicherdauer und Dienstleister nennt und die eingestellten Fristen einsetzt.

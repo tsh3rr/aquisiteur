@@ -204,6 +204,21 @@ export interface MonitorPort {
   ): Promise<void>;
 }
 
+/** Request and CPU figures of the hosting platform, for Settings → System (§5a). */
+export interface HostingUsage {
+  /** Requests since midnight UTC. */
+  requestsToday: number;
+  errorsToday: number;
+  /** CPU time per request in milliseconds over the same window. */
+  cpuMsP50: number;
+  cpuMsP99: number;
+}
+
+export interface HostingMetricsPort {
+  /** Null when the provider cannot be reached; never throws. */
+  usageToday(now?: Date): Promise<HostingUsage | null>;
+}
+
 export interface Infra {
   readonly profile: HostingProfile;
   readonly database: DatabasePort;
@@ -216,4 +231,6 @@ export interface Infra {
   /** Null when geocoding is switched off (GEOCODER_PROVIDER=none). */
   geocoder: GeocoderPort | null;
   monitor: MonitorPort;
+  /** Null when no analytics access is configured. */
+  hostingMetrics: HostingMetricsPort | null;
 }

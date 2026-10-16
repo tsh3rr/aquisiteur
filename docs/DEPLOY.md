@@ -224,6 +224,14 @@ Löschung, sonst funktioniert alles.
 (`https://<key>@o<nr>.ingest.de.sentry.io/<projekt>`). Optional `SENTRY_ENVIRONMENT` (Standard
 `production`) und `SENTRY_RELEASE`. Ohne DSN landen Fehler nur im Worker-Log.
 
+**Limits im Blick (optional, ADR-0045):** Unter Einstellungen → System sieht jeder Workspace seinen
+Verbrauch. Die Werte der ganzen Installation (Datenbankgröße, Dateispeicher, Anfragen, CPU-Zeit) sehen
+nur Betreiber: trage dafür deine E-Mail-Adresse als Variable `PLATFORM_ADMIN_EMAILS` ein. `HOSTING_PLAN`
+ist `free` (Standard) oder `paid` und bestimmt, mit welchen Grenzen verglichen wird. Für Anfragen und
+CPU-Zeit legst du unter **My Profile → API Tokens** einen Token mit **Account Analytics: Read** an und
+trägst ihn als Secret `CLOUDFLARE_ANALYTICS_TOKEN` ein, dazu die Account-ID (rechte Spalte der
+Worker-Übersicht) als Variable `CLOUDFLARE_ACCOUNT_ID`.
+
 ## 8. Domains an den Worker hängen
 
 1. Im Worker **Settings → Domains & Routes → Add → Custom domain**: `app.aquisiteur.de`. Cloudflare

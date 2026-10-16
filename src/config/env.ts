@@ -77,6 +77,16 @@ const serverEnvSchema = z.object({
   SENTRY_DSN: z.url().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
   SENTRY_RELEASE: z.string().optional(),
+  /**
+   * Settings → System (§5a): which quotas to compare against, and optional
+   * read access to Cloudflare's analytics for requests and CPU time.
+   */
+  HOSTING_PLAN: z.enum(["free", "paid"]).default("free"),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_ANALYTICS_TOKEN: z.string().optional(),
+  CLOUDFLARE_WORKER_NAME: z.string().default("aquisiteur"),
+  /** Accounts that see installation-wide figures (DB size, requests). Besides `platform_admins`. */
+  PLATFORM_ADMIN_EMAILS: csv,
   /** Bearer secret for /api/jobs/* (cron: digest). Unset disables the endpoint. */
   CRON_SECRET: z.string().min(24).optional(),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */

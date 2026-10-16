@@ -14,18 +14,23 @@ import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { requireCockpit } from "@/server/session";
 import { signOwnerLink } from "@/server/tracking/visits";
 import { resolveWeights } from "@/domain/intent/score";
+import { imprintMarkdown, privacyMarkdown } from "@/domain/legal";
+import { getDb } from "@/db";
 import { getInfra } from "@/infra";
 import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { ContactSettingsForm } from "./contact-settings";
 import { RetentionForm, WorkspaceDataActions } from "./data-settings";
+import { LegalSettingsForm } from "./legal-settings";
 import { LetterSettingsForm } from "./letter-settings";
 import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
 import { PushDevices } from "./push-device";
 import { ReplaySettingsForm } from "./replay-settings";
 import { ScoreSettingsForm } from "./score-settings";
+import { PlatformUsageList, WorkspaceUsageList } from "./system-usage";
+import { isPlatformAdmin, platformUsage, workspaceUsage } from "@/server/system-usage";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
@@ -78,6 +83,8 @@ export default async function SettingsPage() {
   const ownerLink = `${publicOrigin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
   const plan = entitlements({ id: workspace.id });
   const platformHost = `${workspace.slug}.${serverEnv().PLATFORM_DOMAIN}`;
+  const usage = await tenant((tx) => workspaceUsage(tx, workspace.id));
+  const platform = (await isPlatformAdmin(getDb(), user)) ? await platformUsage(getDb()) : null;
 
   return (
     <div className="grid gap-8">
@@ -265,6 +272,46 @@ export default async function SettingsPage() {
           {can(actor, "workspace.export", { workspaceId: workspace.id }) ? (
             <WorkspaceDataActions slug={workspace.slug} />
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card id="rechtliches">
+        <CardHeader>
+          <CardTitle>Impressum und Datenschutz</CardTitle>
+          <CardDescription>
+            Diese Seiten verlinkt jedes Exposé im Fußbereich. Keine Rechtsberatung: lassen Sie die
+            Texte vor dem ersten Brief prüfen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LegalSettingsForm
+            legal={settings.legal}
+            generated={{
+              imprint: imprintMarkdown(
+                { ...settings, legal: { imprintMarkdown: undefined, privacyMarkdown: undefined } },
+                workspace.name,
+              ),
+              privacy: privacyMarkdown(
+                { ...settings, legal: { imprintMarkdown: undefined, privacyMarkdown: undefined } },
+                workspace.name,
+              ),
+            }}
+            publicOrigin={publicOrigin}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="system">
+        <CardHeader>
+          <CardTitle>System und Limits</CardTitle>
+          <CardDescription>
+            Verbrauch im Verhältnis zu den Limits Ihres Tarifs. Ab 80 % erscheint eine Warnung.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8">
+          <WorkspaceUsageList usage={usage} />
+          {platform ? <PlatformUsageList usage={platform} /> : null}
         </CardContent>
       </Card>
 
