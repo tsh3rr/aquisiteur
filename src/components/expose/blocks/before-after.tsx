@@ -36,22 +36,22 @@ export function BeforeAfterSlider({
         </div>
         <div
           aria-hidden
-          className="bg-white pointer-events-none absolute inset-y-0 w-0.5 shadow-[0_0_0_1px_rgb(0_0_0/0.2)]"
+          className="pointer-events-none absolute inset-y-0 w-0.5 bg-[#fff] shadow-[0_0_0_1px_rgb(0_0_0/0.2)]"
           style={{ left: `${position}%` }}
         >
-          <span className="bg-white text-neutral-900 absolute top-1/2 left-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-lg">
+          <span className="absolute top-1/2 left-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#fff] text-[#171717] shadow-lg">
             ⇆
           </span>
         </div>
         <span
           aria-hidden
-          className="bg-black/70 text-white absolute bottom-3 left-3 rounded-full px-3 py-1 text-sm font-medium"
+          className="absolute bottom-3 left-3 rounded-full bg-[#000]/70 px-3 py-1 text-sm font-medium text-[#fff]"
         >
           {beforeLabel}
         </span>
         <span
           aria-hidden
-          className="bg-black/70 text-white absolute right-3 bottom-3 rounded-full px-3 py-1 text-sm font-medium"
+          className="absolute right-3 bottom-3 rounded-full bg-[#000]/70 px-3 py-1 text-sm font-medium text-[#fff]"
         >
           {afterLabel}
         </span>

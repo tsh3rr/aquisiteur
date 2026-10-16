@@ -180,3 +180,125 @@
     transform: translateY(0.5rem) scale(0.92);
   }
 }
+
+/*
+ * Exposé styles (theme.style). Colours come from styleScheme() in
+ * src/domain/expose/theme.ts; this only changes shape, depth and type.
+ */
+@font-face {
+  font-family: "Aq Anton";
+  src: url("/fonts/expose/anton-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Aq Nunito";
+  src: url("/fonts/expose/nunito-latin-800-normal.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+
+/* Beats the next/font class that sets the editorial face on the same element. */
+[data-expose-theme][data-expose-style="bold"] {
+  --aq-font-display: "Aq Anton", Impact, "Arial Narrow", sans-serif;
+}
+[data-expose-theme][data-expose-style="soft"] {
+  --aq-font-display: "Aq Nunito", ui-rounded, system-ui, sans-serif;
+}
+
+[data-expose-style="bold"] {
+  --aq-radius-sm: 0;
+  --aq-radius-md: 0;
+  --aq-radius-lg: 0;
+  --aq-radius-xl: 0;
+  --aq-shadow-sm: 4px 4px 0 var(--aq-border);
+  --aq-shadow-md: 6px 6px 0 var(--aq-border);
+  --aq-shadow-lg: 10px 10px 0 var(--aq-accent);
+}
+
+[data-expose-style="bold"] .rounded-2xl {
+  border-radius: 0;
+}
+
+[data-expose-style="bold"] .border {
+  border-width: 2px;
+}
+[data-expose-style="bold"] .border-t {
+  border-top-width: 2px;
+}
+[data-expose-style="bold"] .border-b {
+  border-bottom-width: 2px;
+}
+
+[data-expose-theme][data-expose-style="bold"] .font-display {
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.98;
+}
+
+[data-expose-style="bold"] [data-block="hero"] h1 {
+  font-size: clamp(3rem, 2rem + 5vw, 6.5rem);
+  line-height: 0.92;
+}
+
+/* Section titles get a heavy accent bar instead of the editorial whitespace. */
+[data-expose-style="bold"] section > div > header > h2::before {
+  content: "";
+  display: block;
+  width: 3.5rem;
+  height: 0.5rem;
+  margin-bottom: 1rem;
+  background: var(--aq-accent);
+}
+
+/* Hard, offset buttons that lift on hover. */
+[data-expose-style="bold"] :is(a, button).bg-accent {
+  border: 2px solid var(--aq-border);
+  box-shadow: 4px 4px 0 var(--aq-border);
+  transition:
+    transform var(--aq-motion-duration-fast) var(--aq-motion-ease-out),
+    box-shadow var(--aq-motion-duration-fast) var(--aq-motion-ease-out);
+}
+[data-expose-style="bold"] :is(a, button).bg-accent.rounded-full {
+  border-radius: 0;
+}
+[data-expose-style="bold"] :is(a, button).bg-accent:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--aq-border);
+}
+
+[data-expose-style="soft"] {
+  --aq-radius-sm: 0.75rem;
+  --aq-radius-md: 1.125rem;
+  --aq-radius-lg: 1.5rem;
+  --aq-radius-xl: 2rem;
+  --aq-shadow-sm:
+    0 1px 2px oklch(0.3 0.03 165 / 0.04), 0 10px 30px -10px oklch(0.3 0.03 165 / 0.14);
+  --aq-shadow-md:
+    0 2px 4px oklch(0.3 0.03 165 / 0.04), 0 16px 40px -12px oklch(0.3 0.03 165 / 0.18);
+  --aq-shadow-lg:
+    0 4px 8px oklch(0.3 0.03 165 / 0.05), 0 30px 60px -20px oklch(0.3 0.03 165 / 0.24);
+}
+
+[data-expose-style="soft"] .rounded-2xl {
+  border-radius: 2.5rem;
+}
+
+/* Cards float on soft shadows instead of hairlines; form fields keep their borders (WCAG 1.4.11). */
+[data-expose-style="soft"] :is(li, article, figure, div).border-border.shadow-sm {
+  border-color: transparent;
+}
+
+[data-expose-theme][data-expose-style="soft"] .font-display {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+[data-expose-style="soft"] :is(a, button).bg-accent {
+  border-radius: 9999px;
+}
+
+[data-expose-style="bold"] [data-block="before_after"] .rounded-full {
+  box-shadow: 0 0 0 2px var(--aq-border);
+}

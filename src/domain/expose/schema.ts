@@ -475,6 +475,9 @@ export const prospectSchema = z
     "Created in the cockpit on first publish. Later publishes do not overwrite data edited in the cockpit.",
   );
 
+export const EXPOSE_STYLES = ["editorial", "bold", "soft"] as const;
+export type ExposeStyle = (typeof EXPOSE_STYLES)[number];
+
 export const exposeSchema = z
   .object({
     $schema: z.string().optional(),
@@ -496,6 +499,12 @@ export const exposeSchema = z
           ),
         logo: imageSchema.optional().describe("Logo of the prospect, shown in the header."),
         appearance: z.enum(["auto", "light", "dark"]).default("auto"),
+        style: z
+          .enum(EXPOSE_STYLES)
+          .default("editorial")
+          .describe(
+            "Visual style: 'editorial' (magazine, serif headlines), 'bold' (hard edges, heavy condensed type, offset shadows) or 'soft' (rounded shapes, warm neutrals, friendly sans).",
+          ),
       })
       .strict()
       .prefault({}),

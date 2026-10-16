@@ -19,11 +19,11 @@ import { loadExposeFolder, processImage } from "./lib/expose-folder";
 
 /**
  * Demo data for local development: an owner with a fully set-up workspace
- * and the two example exposés from exposes/, published through the same
+ * and the four example exposés from exposes/, published through the same
  * code path as the CLI. Sign in with a magic link for SEED_OWNER_EMAIL (the
  * link is printed in the dev server log). Idempotent.
  */
-const EXAMPLES = ["cafe-mueller", "tischlerei-holzmann"];
+const EXAMPLES = ["cafe-mueller", "tischlerei-holzmann", "eisenwerk-athletics", "physio-lindenhof"];
 
 async function main() {
   const url = process.env.DATABASE_URL;

@@ -1,7 +1,7 @@
 import { List } from "lucide-react";
 import { exposeThemeCss } from "@/domain/expose/theme";
 import { Block, blockTitle } from "./blocks";
-import { displayFont } from "./fonts";
+import { displayFont, styleFontHref } from "./fonts";
 import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
 import { ContactLayerLazy } from "./contact-layer-lazy";
 import { ExposeTracker } from "./expose-tracker";
@@ -48,10 +48,12 @@ export function ExposeView({
   const contactBlock = document.blocks.find((block) => block.type === "contact");
   const channels = data.settings.channels;
   const phone = channels.phone ?? channels.mobile;
+  const styleFont = styleFontHref[document.theme.style];
 
   return (
     <div
       data-expose-theme
+      data-expose-style={document.theme.style}
       lang={document.meta.lang}
       className={`${displayFont.variable} min-h-dvh bg-background text-foreground`}
     >
@@ -59,8 +61,15 @@ export function ExposeView({
       {mode === "public" && data.settings.replay.enabled && links.privacy ? (
         <ReplayConsentLazy privacyHref={links.privacy} />
       ) : null}
+      {styleFont ? (
+        <link rel="preload" href={styleFont} as="font" type="font/woff2" crossOrigin="anonymous" />
+      ) : null}
       <style nonce={nonce}>
-        {exposeThemeCss({ accent, appearance: document.theme.appearance })}
+        {exposeThemeCss({
+          accent,
+          appearance: document.theme.appearance,
+          style: document.theme.style,
+        })}
       </style>
       <a
         href="#inhalt"
@@ -69,41 +78,44 @@ export function ExposeView({
         Zum Inhalt springen
       </a>
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md print:static">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-          {logo ? (
-            <Picture
-              image={{ ...logo, alt: logo.alt || data.prospect.companyName }}
-              sizes="200px"
-              className="block shrink-0 rounded-md bg-(--expose-logo-plate) px-1.5 py-1"
-              sizing="h-9 w-auto"
-              priority
-            />
-          ) : (
-            <span className="font-display text-xl">{data.prospect.companyName}</span>
-          )}
-          <details className="relative print:hidden">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-surface-sunken [&::-webkit-details-marker]:hidden">
-              <List aria-hidden className="size-4" />
-              Inhalt
-            </summary>
-            <nav
-              aria-label="Inhalt"
-              className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-lg"
-            >
-              <ol className="grid">
-                {toc.map((entry) => (
-                  <li key={entry.id}>
-                    <a
-                      href={`#${entry.id}`}
-                      className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface-sunken"
-                    >
-                      {entry.title}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          </details>
+        {/* Padding outside the max width, as in Section, so the logo sits on the text edge. */}
+        <div className="px-5 sm:px-8">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4">
+            {logo ? (
+              <Picture
+                image={{ ...logo, alt: logo.alt || data.prospect.companyName }}
+                sizes="200px"
+                className="ml-(--expose-logo-inset) block shrink-0 rounded-md bg-(--expose-logo-plate) px-1.5 py-1"
+                sizing="h-9 w-auto"
+                priority
+              />
+            ) : (
+              <span className="font-display text-xl">{data.prospect.companyName}</span>
+            )}
+            <details className="relative -mr-3 print:hidden">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 text-sm font-medium hover:bg-surface-sunken [&::-webkit-details-marker]:hidden">
+                <List aria-hidden className="size-4" />
+                Inhalt
+              </summary>
+              <nav
+                aria-label="Inhalt"
+                className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-lg"
+              >
+                <ol className="grid">
+                  {toc.map((entry) => (
+                    <li key={entry.id}>
+                      <a
+                        href={`#${entry.id}`}
+                        className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface-sunken"
+                      >
+                        {entry.title}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            </details>
+          </div>
         </div>
         <div aria-hidden className="expose-progress h-0.5 origin-left bg-accent" />
       </header>

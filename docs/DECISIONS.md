@@ -494,3 +494,20 @@ S3 bleibt per Konfiguration möglich und ist auf Cloudflare Pflicht. E-Mail blei
 sperrt Port 25 bei neuen Konten, und Mails von einer frischen Server-IP landen oft im Spam. Der Server
 braucht mindestens 2 vCPU, 4 GB RAM und 40 GB SSD; die Anleitung nennt bewusst keinen Typnamen, weil
 Hetzner Typen und Preise ändert.
+
+## ADR-0050 · Gestaltungsstile für Exposés (2026-10-16)
+
+Akzentfarbe und Logo allein ließen jedes Exposé wie dasselbe Magazin aussehen. `theme.style` wählt
+deshalb einen von drei Stilen: `editorial` (bisheriges Aussehen, Standard), `bold` (Neo-Brutalismus:
+keine Rundungen, 2-px-Linien, harte versetzte Schatten, Anton in Versalien) und `soft` (große Radien,
+weiche Schatten, cremige Flächen, Nunito in den Überschriften). Das Feld ist optional, deshalb bleibt
+`schemaVersion` 1. Die Flächen- und Textfarben jedes Stils kommen aus `styleScheme()` in
+`src/domain/expose/theme.ts`, damit die Akzentkorrektur gegen die richtigen Flächen rechnet; ein
+Unit-Test prüft alle `contrastPairs` je Stil in hell und dunkel. Formen, Schatten und Schrift setzt
+`globals.css` unter `[data-expose-style]`. Die beiden zusätzlichen Schriften (Anton 19 KB, Nunito
+17 KB, nur der Schnitt 800) liegen unter `public/fonts/expose/` und gelten nur für Überschriften. Jedes Exposé lädt per
+`<link rel="preload">` im Seitenkopf nur die Schrift seines Stils vor; mit `next/font` würden alle
+Schriften auf jedem Exposé vorgeladen. Ohne Vorladen kam die Schrift erst nach dem ersten Zeichnen,
+Text brach um und das Heldenbild sprang (CLS bis 0,06 in Lighthouse CI, Grenze 0,02).
+Bewusst kein freies CSS oder freie Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und
+schnell.

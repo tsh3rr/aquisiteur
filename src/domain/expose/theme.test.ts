@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { dark, light } from "@/design/tokens";
+import { contrastPairs, dark, light } from "@/design/tokens";
+import { EXPOSE_STYLES } from "./schema";
 import { contrastRatio, hexToOklch, inSrgbGamut } from "@/lib/color";
-import { deriveAccent, exposeThemeCss } from "./theme";
+import { deriveAccent, exposeThemeCss, styleScheme } from "./theme";
 
 const samples = [
   "#ffeb3b", // pale yellow: far too light on white
@@ -62,5 +63,38 @@ describe("exposeThemeCss()", () => {
       "prefers-color-scheme:dark",
     );
     expect(exposeThemeCss({ appearance: "dark" })).toContain("color-scheme:dark");
+  });
+});
+
+describe("styleScheme()", () => {
+  it.each(EXPOSE_STYLES)("keeps every token pair at WCAG AA in style %s", (style) => {
+    for (const mode of ["light", "dark"] as const) {
+      const scheme = styleScheme(style, mode);
+      for (const pair of contrastPairs) {
+        expect(
+          contrastRatio(scheme[pair.fg], scheme[pair.bg]),
+          `${mode} ${pair.fg}/${pair.bg}`,
+        ).toBeGreaterThanOrEqual(pair.min);
+      }
+    }
+  });
+
+  it.each(EXPOSE_STYLES)("fits brand accents to the surfaces of style %s", (style) => {
+    for (const hex of samples) {
+      for (const mode of ["light", "dark"] as const) {
+        const scheme = styleScheme(style, mode);
+        const accent = deriveAccent(hexToOklch(hex), mode, style);
+        for (const surface of [scheme.surface, scheme.background, scheme.surfaceSunken]) {
+          expect(contrastRatio(accent.accent, surface)).toBeGreaterThanOrEqual(4.5);
+        }
+        expect(contrastRatio(accent.accentForeground, accent.accent)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("emits the neutrals of the chosen style", () => {
+    expect(exposeThemeCss({ appearance: "dark", style: "bold" })).toContain(
+      "--aq-background:oklch(12% 0 0);",
+    );
   });
 });

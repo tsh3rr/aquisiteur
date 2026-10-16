@@ -23,6 +23,7 @@ async function signIn(page: Page) {
 test.describe.configure({ mode: "serial" });
 
 let publicUrl = "";
+let apiToken = "";
 
 test("owner creates an API token and publishes an exposé with the CLI", async ({ page }) => {
   test.setTimeout(180_000);
@@ -33,6 +34,7 @@ test("owner creates an API token and publishes an exposé with the CLI", async (
   await expectAccessible(page, "empty exposé list");
 
   const token = await createApiToken(page, "E2E CLI");
+  apiToken = token;
   await expectAccessible(page, "settings with new token");
 
   const output = publishWithCli("exposes/tischlerei-holzmann", token);
@@ -137,4 +139,22 @@ test("a nudge expands the chat button and folds back when the visitor reads on",
   await page.mouse.wheel(0, 900);
   await expect(nudge).toBeHidden();
   await expect(launcher).toBeVisible();
+});
+
+test("the bold and soft exposé styles render accessibly in light and dark", async ({ page }) => {
+  test.setTimeout(180_000);
+  expect(apiToken).not.toBe("");
+  for (const [folder, headline] of [
+    ["exposes/eisenwerk-athletics", "Starke Box"],
+    ["exposes/physio-lindenhof", "Ihre Patienten buchen selbst"],
+  ] as const) {
+    const url = publishWithCli(folder, apiToken).match(/Öffentlich:\s+(\S+)/)?.[1] ?? "";
+    expect(url).toContain(workspaceHost);
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme });
+      await page.goto(url);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(headline);
+      await expectAccessible(page, `${folder} (${colorScheme})`);
+    }
+  }
 });

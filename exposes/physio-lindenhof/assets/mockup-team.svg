@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <rect width="1200" height="900" fill="#f4efe3"/>
+  <g font-family="'Nunito', 'Trebuchet MS', sans-serif">
+    <text x="80" y="130" font-size="56" font-weight="800" fill="#24453b">Unser Team</text>
+    <g text-anchor="middle">
+      <rect x="80" y="190" width="320" height="600" rx="56" fill="#fdfbf6"/>
+      <circle cx="240" cy="350" r="100" fill="#dcebe2"/><circle cx="240" cy="330" r="46" fill="#f6dccb"/><path d="M160 430c12-50 44-62 80-62s68 12 80 62z" fill="#3f8f7a"/>
+      <text x="240" y="530" font-size="30" font-weight="800" fill="#24453b">Katrin Albrecht</text><text x="240" y="572" font-size="20" fill="#4d6b61">Inhaberin, Manuelle Therapie</text>
+      <rect x="440" y="190" width="320" height="600" rx="56" fill="#fdfbf6"/>
+      <circle cx="600" cy="350" r="100" fill="#f6dccb"/><circle cx="600" cy="330" r="46" fill="#e8c4ad"/><path d="M520 430c12-50 44-62 80-62s68 12 80 62z" fill="#2f6f5e"/>
+      <text x="600" y="530" font-size="30" font-weight="800" fill="#24453b">Tobias Wendt</text><text x="600" y="572" font-size="20" fill="#4d6b61">Sportphysiotherapie</text>
+      <rect x="800" y="190" width="320" height="600" rx="56" fill="#fdfbf6"/>
+      <circle cx="960" cy="350" r="100" fill="#dcebe2"/><circle cx="960" cy="330" r="46" fill="#f6dccb"/><path d="M880 430c12-50 44-62 80-62s68 12 80 62z" fill="#5fa58f"/>
+      <text x="960" y="530" font-size="30" font-weight="800" fill="#24453b">Aylin Demir</text><text x="960" y="572" font-size="20" fill="#4d6b61">Lymphdrainage</text>
+    </g>
+  </g>
+</svg>

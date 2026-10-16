@@ -181,7 +181,7 @@ exposes/
 | `cta` | Zwischen-Call-to-Action |
 
 - Jeder Block hat eine stabile `id`, damit Tracking pro Abschnitt funktioniert.
-- **Theming pro Exposé**: Akzentfarbe und optional Logo des Prospects, damit das Exposé „für ihn gemacht“ wirkt. Kontraste werden automatisch geprüft (WCAG AA), ungenügende Farben werden angepasst.
+- **Theming pro Exposé**: Akzentfarbe und optional Logo des Prospects, damit das Exposé „für ihn gemacht“ wirkt. Kontraste werden automatisch geprüft (WCAG AA), ungenügende Farben werden angepasst. Dazu ein Gestaltungsstil (`theme.style`: `editorial` als Magazin-Standard, `bold` kantig und laut, `soft` rund und warm), der Flächenfarben, Formen, Schatten und Headline-Schrift wechselt; jeder Stil hält WCAG AA in hell und dunkel.
 
 ### 7.3 Exposé-Erlebnis (öffentlich)
 

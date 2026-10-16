@@ -1,0 +1,279 @@
+{
+  "$schema": "../../schema/expose.schema.json",
+  "schemaVersion": 1,
+  "prospect": {
+    "key": "physio-lindenhof",
+    "company": "Physiotherapie Lindenhof",
+    "industry": "Gesundheit",
+    "website": "https://physio-lindenhof.example",
+    "contact": {
+      "salutation": "Frau",
+      "firstName": "Katrin",
+      "lastName": "Albrecht",
+      "role": "Praxisinhaberin"
+    },
+    "address": {
+      "street": "Rathausstraße 18",
+      "postalCode": "04416",
+      "city": "Markkleeberg",
+      "country": "DE"
+    },
+    "phone": "+49 341 3589020",
+    "email": "praxis@physio-lindenhof.example"
+  },
+  "meta": {
+    "title": "Ideen für die Praxis Lindenhof",
+    "description": "Wie Patientinnen und Patienten ihren Termin selbst buchen und Ihr Telefon ruhiger wird.",
+    "lang": "de"
+  },
+  "theme": {
+    "accent": "#3f8f7a",
+    "logo": { "src": "assets/logo-lindenhof.svg", "alt": "Physiotherapie Lindenhof" },
+    "appearance": "light",
+    "style": "soft"
+  },
+  "letter": {
+    "subject": "Weniger Telefon, mehr Zeit für Ihre Patienten",
+    "body": "Sehr geehrte Frau Albrecht,\n\nauf Ihrer Website steht: „Termine nur nach telefonischer Vereinbarung“. Gleichzeitig behandeln Sie den ganzen Tag und können gar nicht ans Telefon gehen. Das kenne ich von vielen Praxen, und es lässt sich freundlich lösen.\n\nIch habe Ihnen ein paar Ideen zusammengestellt, ganz in Ruhe zum Durchsehen. Scannen Sie einfach den QR-Code."
+  },
+  "blocks": [
+    {
+      "id": "start",
+      "type": "hero",
+      "eyebrow": "Für die Praxis Lindenhof",
+      "greeting": "Guten Tag, Frau Albrecht,",
+      "headline": "Ihre Patienten buchen selbst. Sie behandeln in Ruhe.",
+      "lead": "Ein paar freundliche Ideen, wie Ihre Website Termine vergibt, Fragen beantwortet und Ihr Telefon entlastet, ohne dass Ihre Praxis ihren persönlichen Charakter verliert.",
+      "image": {
+        "src": "assets/mockup-startseite.svg",
+        "alt": "Entwurf der Startseite auf dem Smartphone: helle Farben, die Zeile „Wieder schmerzfrei bewegen“, Hinweis „Termine ab morgen“ und zwei runde Buttons „Termin online buchen“ und „Rückruf anfordern“."
+      },
+      "showOwnerPhoto": true
+    },
+    {
+      "id": "persoenlich",
+      "type": "personal_note",
+      "title": "Warum ich Ihnen schreibe",
+      "body": "Ich bin Jeremiasz und gestalte Websites für Praxen und kleine Betriebe rund um Leipzig. Meine Mutter ist seit dem Frühjahr bei Ihnen in Behandlung und schwärmt von Ihrem Team.\n\nSie hat mir aber auch erzählt, dass sie für ihren Folgetermin **vier Tage** lang versucht hat, Sie telefonisch zu erreichen. Ich glaube, das geht vielen so, und es lässt sich leicht ändern.",
+      "showSignature": true
+    },
+    {
+      "id": "beobachtungen",
+      "type": "findings",
+      "title": "Was mir aufgefallen ist",
+      "intro": "Kein Vorwurf, nur Beobachtungen. Die meisten Praxis-Websites haben genau diese Punkte.",
+      "items": [
+        {
+          "title": "Termine nur per Telefon",
+          "severity": "high",
+          "impact": "Patienten versuchen es oft tagelang. Manche geben auf und gehen zu einer anderen Praxis.",
+          "solution": "Online-Terminbuchung für Folge- und Ersttermine, die Sie jederzeit freigeben oder sperren."
+        },
+        {
+          "title": "Kein Rückrufwunsch möglich",
+          "severity": "medium",
+          "impact": "Wer nicht durchkommt, kann keine Nachricht hinterlassen, außer auf dem Anrufbeantworter.",
+          "solution": "Ein kurzes Rückruf-Formular: Name, Nummer, Anliegen, Sie rufen zurück, wenn es passt."
+        },
+        {
+          "title": "Seite auf dem Handy schwer lesbar",
+          "severity": "medium",
+          "impact": "Viele Ihrer Patienten sind über 60 und brauchen große Schrift und klare Knöpfe.",
+          "solution": "Große Schrift, viel Abstand, gut tippbare Buttons, geprüft nach Barrierefreiheits-Standard."
+        },
+        {
+          "title": "Fachbegriffe ohne Erklärung",
+          "severity": "low",
+          "impact": "KG, MT, MLD sagen Patienten wenig. Sie wissen nicht, ob Sie ihnen helfen können.",
+          "solution": "Leistungen in Alltagssprache: „Rücken und Nacken“, „Nach der Operation“, „Schwere Beine“."
+        }
+      ]
+    },
+    {
+      "id": "vorher-nachher",
+      "type": "before_after",
+      "title": "Vorher und nachher",
+      "intro": "Ziehen Sie den Regler, um Ihre heutige Startseite mit meinem Vorschlag zu vergleichen.",
+      "before": {
+        "src": "assets/vorher.svg",
+        "alt": "Heutige Startseite: blaue Kopfzeile, viel kleiner Text mit Abkürzungen, rot der Hinweis „Bitte keine Terminanfragen per E-Mail“."
+      },
+      "after": {
+        "src": "assets/nachher.svg",
+        "alt": "Vorschlag: warme, helle Farben, große Überschrift „Wieder schmerzfrei bewegen“, Buttons für Online-Termin und Rückruf, darunter drei Karten mit Leistungen und Google-Bewertung."
+      },
+      "beforeLabel": "Heute",
+      "afterLabel": "Vorschlag"
+    },
+    {
+      "id": "ideen",
+      "type": "proposal",
+      "title": "Meine Ideen für Sie",
+      "items": [
+        {
+          "title": "Termine online",
+          "description": "Patienten wählen Behandlung und Uhrzeit selbst. Sie legen fest, welche Zeiten frei buchbar sind.",
+          "benefit": "Weniger Anrufe während der Behandlung.",
+          "icon": "calendar"
+        },
+        {
+          "title": "Freundliche Website",
+          "description": "Große Schrift, warme Farben, Ihr Team mit Foto und Leistungen in verständlicher Sprache.",
+          "benefit": "Patienten fühlen sich schon vor dem ersten Termin gut aufgehoben.",
+          "icon": "website"
+        },
+        {
+          "title": "Gut gefunden werden",
+          "description": "Ihr Google-Profil mit Öffnungszeiten, Fotos und Buchungslink, dazu Seiten für „Physiotherapie Markkleeberg“.",
+          "benefit": "Neue Patienten aus der Nachbarschaft.",
+          "icon": "map"
+        }
+      ]
+    },
+    {
+      "id": "entwuerfe",
+      "type": "mockup_gallery",
+      "title": "So könnte es aussehen",
+      "images": [
+        {
+          "src": "assets/mockup-termin.svg",
+          "alt": "Terminbuchung: Auswahl zwischen Physiotherapie, Manueller Therapie und Lymphdrainage, darunter freie Uhrzeiten von Montag bis Freitag und der Button „Di 20. um 09:30 buchen“.",
+          "caption": "Termin in einer Minute"
+        },
+        {
+          "src": "assets/mockup-team.svg",
+          "alt": "Teamseite mit drei runden Karten: Katrin Albrecht, Inhaberin, Tobias Wendt, Sportphysiotherapie, und Aylin Demir, Lymphdrainage.",
+          "caption": "Ihr Team stellt sich vor"
+        }
+      ]
+    },
+    {
+      "id": "zwischendurch",
+      "type": "cta",
+      "headline": "Lieber kurz sprechen?",
+      "text": "Hinterlassen Sie Ihre Nummer, ich rufe Sie in Ihrer Mittagspause zurück. Ganz unverbindlich.",
+      "label": "Rückruf vereinbaren",
+      "target": "kontakt"
+    },
+    {
+      "id": "ablauf",
+      "type": "roadmap",
+      "title": "Ganz entspannt in drei Schritten",
+      "steps": [
+        {
+          "title": "Kennenlernen",
+          "description": "Eine halbe Stunde in Ihrer Praxis, gern nach Feierabend. Sie erzählen, was Sie im Alltag stört.",
+          "duration": "1 Termin"
+        },
+        {
+          "title": "Fotos und Texte",
+          "description": "Ich fotografiere Praxis und Team und schreibe die Texte. Sie lesen nur noch gegen.",
+          "duration": "1 Woche"
+        },
+        {
+          "title": "Online",
+          "description": "Wir schalten gemeinsam frei, ich zeige Ihrem Team in 20 Minuten, wie die Terminbuchung funktioniert.",
+          "duration": "2 Wochen"
+        }
+      ]
+    },
+    {
+      "id": "stimmen",
+      "type": "testimonials",
+      "title": "Andere Praxen erzählen",
+      "items": [
+        {
+          "quote": "Unsere Rezeption hat endlich wieder Zeit für die Patienten vor Ort. Die Hälfte der Termine kommt inzwischen online.",
+          "author": "Dr. Miriam Hoffmann",
+          "role": "Inhaberin",
+          "company": "Ergotherapie am Park"
+        },
+        {
+          "quote": "Gerade ältere Patienten loben, wie gut sie die Seite lesen können. Das hat mich am meisten gefreut.",
+          "author": "Stefan Richter",
+          "company": "Physio Richter, Borna"
+        }
+      ]
+    },
+    {
+      "id": "preise",
+      "type": "pricing",
+      "title": "Was es kostet",
+      "intro": "Stellen Sie sich zusammen, was zu Ihrer Praxis passt.",
+      "options": [
+        {
+          "id": "website",
+          "title": "Neue Website",
+          "description": "Bis zu 6 Seiten, Team, Leistungen, Anfahrt, barrierefrei, Hosting im ersten Jahr inklusive.",
+          "price": 2600,
+          "priceTo": 3400,
+          "billing": "once",
+          "selected": true,
+          "required": true
+        },
+        {
+          "id": "termine",
+          "title": "Online-Terminbuchung",
+          "description": "Einrichtung und Anbindung an Ihren Praxiskalender.",
+          "price": 590,
+          "billing": "once",
+          "selected": true
+        },
+        {
+          "id": "google",
+          "title": "Google-Profil einrichten",
+          "price": 290,
+          "billing": "once",
+          "selected": false
+        },
+        {
+          "id": "pflege",
+          "title": "Pflege",
+          "description": "Urlaubszeiten, neue Kolleginnen, kleine Änderungen auf Zuruf.",
+          "price": 49,
+          "billing": "monthly",
+          "selected": false
+        }
+      ],
+      "note": "Ein genaues Angebot bekommen Sie nach unserem Kennenlernen, natürlich kostenlos."
+    },
+    {
+      "id": "fragen",
+      "type": "faq",
+      "title": "Was Praxen mich oft fragen",
+      "items": [
+        {
+          "question": "Ist die Online-Buchung datenschutzkonform?",
+          "answer": "Ja. Die Buchung läuft über einen Anbieter mit Servern in Deutschland, abgefragt werden nur Name, Kontakt und gewünschte Behandlung, keine Diagnosen."
+        },
+        {
+          "question": "Können ältere Patienten weiterhin anrufen?",
+          "answer": "Natürlich. Telefon und Rückrufwunsch bleiben gleichwertig sichtbar, niemand wird zur Online-Buchung gezwungen."
+        },
+        {
+          "question": "Muss ich mich um Technik kümmern?",
+          "answer": "Nein. Ich kümmere mich um Hosting, Updates und Sicherheit. Sie bekommen nur Bescheid, wenn ein Termin gebucht wurde."
+        }
+      ]
+    },
+    {
+      "id": "ueber-mich",
+      "type": "about",
+      "title": "Über mich",
+      "body": "Ich gestalte seit 2016 Websites für kleine Betriebe und Praxen im Leipziger Süden.\n\nMir ist wichtig, dass Sie einen festen Ansprechpartner haben, der auch in einem Jahr noch ans Telefon geht.",
+      "facts": [
+        { "label": "Seit", "value": "2016" },
+        { "label": "Praxen betreut", "value": "14" },
+        { "label": "Vor Ort", "value": "Leipzig und Umland" }
+      ]
+    },
+    {
+      "id": "kontakt",
+      "type": "contact",
+      "title": "Ich freue mich auf Sie",
+      "intro": "Wählen Sie, was für Sie am bequemsten ist. Am einfachsten zwischen zwei Behandlungen: Rückruf anfordern, ich melde mich dann zu Ihrer Wunschzeit.",
+      "channels": ["callback", "chat", "phone", "email", "whatsapp"],
+      "message": "Guten Tag, ich habe Ihre Ideen für die Praxis Lindenhof gesehen."
+    }
+  ]
+}

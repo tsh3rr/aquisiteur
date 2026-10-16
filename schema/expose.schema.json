@@ -169,6 +169,16 @@
             "light",
             "dark"
           ]
+        },
+        "style": {
+          "default": "editorial",
+          "description": "Visual style: 'editorial' (magazine, serif headlines), 'bold' (hard edges, heavy condensed type, offset shadows) or 'soft' (rounded shapes, warm neutrals, friendly sans).",
+          "type": "string",
+          "enum": [
+            "editorial",
+            "bold",
+            "soft"
+          ]
         }
       },
       "additionalProperties": false
