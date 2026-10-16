@@ -185,6 +185,28 @@
  * Exposé styles (theme.style). Colours come from styleScheme() in
  * src/domain/expose/theme.ts; this only changes shape, depth and type.
  */
+@font-face {
+  font-family: "Aq Anton";
+  src: url("/fonts/expose/anton-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Aq Nunito";
+  src: url("/fonts/expose/nunito-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-display: swap;
+}
+
+/* Beats the next/font class that sets the editorial face on the same element. */
+[data-expose-theme][data-expose-style="bold"] {
+  --aq-font-display: "Aq Anton", Impact, "Arial Narrow", sans-serif;
+}
+[data-expose-theme][data-expose-style="soft"] {
+  --aq-font-display: "Aq Nunito", ui-rounded, system-ui, sans-serif;
+}
+
 [data-expose-style="bold"] {
   --aq-radius-sm: 0;
   --aq-radius-md: 0;

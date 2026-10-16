@@ -499,8 +499,10 @@ weiche Schatten, cremige Flächen, Nunito in den Überschriften). Das Feld ist o
 `schemaVersion` 1. Die Flächen- und Textfarben jedes Stils kommen aus `styleScheme()` in
 `src/domain/expose/theme.ts`, damit die Akzentkorrektur gegen die richtigen Flächen rechnet; ein
 Unit-Test prüft alle `contrastPairs` je Stil in hell und dunkel. Formen, Schatten und Schrift setzt
-`globals.css` unter `[data-expose-style]`. Die beiden zusätzlichen Schriften (19 KB und 39 KB) werden
-nicht vorgeladen und nur von Exposés im jeweiligen Stil geladen. Sie gelten nur für Überschriften:
-Nunito auch im Fließtext ließ beim späten Nachladen den ganzen Text umbrechen und das Heldenbild
-springen (CLS 0,06 in Lighthouse CI, Grenze 0,02). Bewusst kein freies CSS oder freie
-Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und schnell.
+`globals.css` unter `[data-expose-style]`. Die beiden zusätzlichen Schriften (Anton 19 KB, Nunito
+39 KB) liegen unter `public/fonts/expose/` und gelten nur für Überschriften. Jedes Exposé lädt per
+`<link rel="preload">` im Seitenkopf nur die Schrift seines Stils vor; mit `next/font` würden alle
+Schriften auf jedem Exposé vorgeladen. Ohne Vorladen kam die Schrift erst nach dem ersten Zeichnen,
+Text brach um und das Heldenbild sprang (CLS bis 0,06 in Lighthouse CI, Grenze 0,02).
+Bewusst kein freies CSS oder freie Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und
+schnell.

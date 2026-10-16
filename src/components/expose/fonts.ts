@@ -10,34 +10,14 @@ export const displayFont = localFont({
   fallback: ["Georgia", "Times New Roman", "serif"],
 });
 
-/** Heavy condensed face of the "bold" style (~19 KB). */
-const boldFont = localFont({
-  src: "../../../node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2",
-  variable: "--aq-font-display",
-  display: "swap",
-  weight: "400",
-  preload: false,
-  fallback: ["Impact", "Arial Narrow", "sans-serif"],
-});
-
-/** Rounded variable sans for the headlines of the "soft" style (~39 KB). */
-const softFont = localFont({
-  src: "../../../node_modules/@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2",
-  variable: "--aq-font-display",
-  display: "swap",
-  weight: "200 1000",
-  preload: false,
-  fallback: ["ui-rounded", "system-ui", "sans-serif"],
-});
-
-/** Class that sets --aq-font-display for the exposé's style. */
-export function displayFontClass(style: ExposeStyle): string {
-  switch (style) {
-    case "bold":
-      return boldFont.variable;
-    case "soft":
-      return softFont.variable;
-    default:
-      return displayFont.variable;
-  }
-}
+/**
+ * Headline faces of the other styles, served from public/fonts/expose and
+ * declared in globals.css. The exposé preloads only the face of its own
+ * style; next/font would preload every face on every exposé, and a face
+ * that arrives after the first paint shifts the layout (ADR-0050).
+ */
+export const styleFontHref: Record<ExposeStyle, string | null> = {
+  editorial: null,
+  bold: "/fonts/expose/anton-latin-400-normal.woff2",
+  soft: "/fonts/expose/nunito-latin-wght-normal.woff2",
+};
