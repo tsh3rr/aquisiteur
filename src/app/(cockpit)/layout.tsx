@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { LiveProvider } from "@/components/cockpit/live";
 import { CockpitNav } from "@/components/cockpit/nav";
+import { NotificationBell } from "@/components/cockpit/notification-bell";
 import { SignOutButton } from "@/components/cockpit/sign-out-button";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { parseTheme, THEME_COOKIE } from "@/components/theme/theme";
 import { unreadThreadCount } from "@/server/chat/owner";
+import { unreadNotificationCount } from "@/server/notifications/manage";
 import { liveSubscription, workspaceTopic } from "@/server/realtime";
 import { requireCockpit } from "@/server/session";
 
@@ -17,8 +19,9 @@ export const metadata: Metadata = { manifest: "/manifest.webmanifest" };
 export default async function CockpitLayout({ children }: { children: ReactNode }) {
   const { user, workspace, tenant } = await requireCockpit();
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
-  const [unread, live] = await Promise.all([
+  const [unread, notifications, live] = await Promise.all([
     tenant((tx) => unreadThreadCount(tx, workspace.id)),
+    tenant((tx) => unreadNotificationCount(tx, workspace.id)),
     liveSubscription(workspaceTopic(workspace.id)),
   ]);
 
@@ -33,8 +36,9 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
         </a>
 
         <aside className="hidden border-r border-border bg-surface-sunken/60 lg:flex lg:flex-col">
-          <div className="flex h-16 items-center px-5">
+          <div className="flex h-16 items-center justify-between pr-2 pl-5">
             <Logo />
+            <NotificationBell initial={notifications} />
           </div>
           <div className="px-3 pb-3">
             <p
@@ -60,7 +64,10 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/85 px-4 backdrop-blur lg:hidden">
             <Logo compact />
             <p className="truncate text-sm font-medium">{workspace.name}</p>
-            <ThemeToggle initial={theme} />
+            <div className="flex items-center">
+              <NotificationBell initial={notifications} />
+              <ThemeToggle initial={theme} />
+            </div>
           </header>
           <main
             id="main"

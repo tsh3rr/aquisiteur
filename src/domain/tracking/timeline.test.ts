@@ -71,6 +71,10 @@ describe("timeline wording", () => {
       "Preisoption „Neue Website“ gewählt",
     );
     expect(event("cta_click", "kontakt-cta")).toBe("Button „Jetzt sprechen“ geklickt");
+    expect(event("cta_hover", null, { channel: "whatsapp" })).toBe(
+      "WhatsApp-Button angesteuert, nicht geklickt",
+    );
+    expect(event("copy_contact", null, { channel: "email" })).toBe("E-Mail-Adresse kopiert");
     expect(event("section_view", "preise")).toBeNull();
     expect(event("heartbeat", null)).toBeNull();
   });

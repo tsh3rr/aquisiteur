@@ -16,7 +16,8 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { exposes, prospects, savedViews, visits } from "@/db/schema";
+import { exposes, intentScores, prospects, savedViews, visits } from "@/db/schema";
+import type { IntentLevel } from "@/domain/intent/score";
 import type { ListQuery } from "@/domain/prospects/list-query";
 
 export const LIST_LIMIT = 500;
@@ -41,6 +42,8 @@ export interface ProspectRow {
   lastActivityAt: Date | null;
   visitCount: number;
   exposeSlug: string | null;
+  score: number | null;
+  level: IntentLevel | null;
 }
 
 /** The customer list (§7.8), filtered and sorted as in the URL. Runs as tenant. */
@@ -84,6 +87,10 @@ export async function listProspects(
   const direction = query.dir === "asc" ? asc : desc;
   const order = {
     activity: [sql`${activity.last} ${sql.raw(query.dir === "asc" ? "asc" : "desc")} nulls last`],
+    score: [
+      sql`${intentScores.score} ${sql.raw(query.dir === "asc" ? "asc" : "desc")} nulls last`,
+      desc(intentScores.lastSignalAt),
+    ],
     company: [direction(prospects.companyName)],
     status: [direction(prospects.status)],
     city: [direction(prospects.city)],
@@ -104,9 +111,18 @@ export async function listProspects(
       lastActivityAt: activity.last,
       visitCount: activity.visitCount,
       exposeSlug: exposes.slug,
+      score: intentScores.score,
+      level: intentScores.level,
     })
     .from(prospects)
     .leftJoin(activity, eq(activity.prospectId, prospects.id))
+    .leftJoin(
+      intentScores,
+      and(
+        eq(intentScores.workspaceId, prospects.workspaceId),
+        eq(intentScores.prospectId, prospects.id),
+      ),
+    )
     .leftJoin(
       exposes,
       and(eq(exposes.workspaceId, prospects.workspaceId), eq(exposes.prospectId, prospects.id)),

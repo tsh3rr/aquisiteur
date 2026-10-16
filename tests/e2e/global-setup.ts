@@ -20,4 +20,5 @@ export default async function globalSetup() {
   }
   mkdirSync("test-results", { recursive: true });
   writeFileSync(E2E.mailLog, "");
+  writeFileSync(E2E.pushLog, "");
 }

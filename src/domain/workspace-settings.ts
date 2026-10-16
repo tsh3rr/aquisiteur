@@ -115,21 +115,20 @@ export const retentionSchema = z.object({
   optOutTrackingDays: z.number().int().min(1).max(90).default(30),
 });
 
+/** An IANA time zone the runtime knows, e.g. "Europe/Berlin". */
+export const timezoneSchema = z.string().refine((zone) => {
+  try {
+    new Intl.DateTimeFormat("de-DE", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}, "Unbekannte Zeitzone.");
+
 /** Owner notifications (§7.7). The rules themselves live in notification_rules. */
 export const notificationSettingsSchema = z.object({
   /** Quiet hours, weekdays and the digest hour are read in this zone. */
-  timezone: z
-    .string()
-    .refine((zone) => {
-      try {
-        new Intl.DateTimeFormat("de-DE", { timeZone: zone });
-        return true;
-      } catch {
-        return false;
-      }
-    }, "Unbekannte Zeitzone.")
-    .catch("Europe/Berlin")
-    .default("Europe/Berlin"),
+  timezone: timezoneSchema.catch("Europe/Berlin").default("Europe/Berlin"),
 });
 
 export const workspaceSettingsSchema = z.object({

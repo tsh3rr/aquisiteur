@@ -57,6 +57,7 @@ export function CustomerFilters({ query, tags }: { query: ListQuery; tags: strin
         <Field label="Sortieren nach">
           <Select name="sort" defaultValue={`${query.sort}`}>
             <option value="activity">Letzter Aktivität</option>
+            <option value="score">Kontaktabsicht</option>
             <option value="company">Firma</option>
             <option value="status">Status</option>
             <option value="city">Ort</option>

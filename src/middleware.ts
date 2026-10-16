@@ -14,11 +14,13 @@ import { buildContentSecurityPolicy, realtimeConnectSrc } from "@/lib/security-h
  * Also sets a per-request CSP nonce.
  */
 
-// /api/v1 authenticates with workspace API tokens instead of the session cookie.
+// /api/v1 authenticates with workspace API tokens, /api/jobs with CRON_SECRET.
 const PUBLIC_COCKPIT_PATHS = [
   "/login",
   "/api/auth",
   "/api/v1",
+  "/api/jobs",
+  "/sw.js",
   "/manifest.webmanifest",
   "/robots.txt",
 ];

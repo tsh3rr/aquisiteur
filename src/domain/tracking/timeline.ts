@@ -68,6 +68,8 @@ const CHANNEL_LABELS: Record<string, string> = {
   booking: "Terminbuchung",
   messenger: "Messenger",
   sms: "SMS",
+  chat: "Chat",
+  callback: "Rückruf",
 };
 
 const NUDGE_LABELS: Record<string, string> = {
@@ -151,6 +153,8 @@ export function describeEvent(event: TimelineEvent, outline: ExposeOutline): str
       return `„${blockName(outline, event.blockId)}“ ${formatDuration(Number(payload.seconds ?? 0))} gelesen`;
     case "contact_click":
       return `Kontakt per ${CHANNEL_LABELS[String(payload.channel)] ?? "Kontaktlink"} angeklickt`;
+    case "cta_hover":
+      return `${CHANNEL_LABELS[String(payload.channel)] ?? "Kontakt"}-Button angesteuert, nicht geklickt`;
     case "copy_contact":
       return `${payload.channel === "email" ? "E-Mail-Adresse" : "Telefonnummer"} kopiert`;
     case "cta_click":

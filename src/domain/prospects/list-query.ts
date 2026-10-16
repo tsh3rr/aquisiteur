@@ -7,15 +7,24 @@ import { isProspectStatus, type ProspectStatus } from "./status";
 export const ACTIVITY_FILTERS = ["24h", "7d", "30d", "never"] as const;
 export type ActivityFilter = (typeof ACTIVITY_FILTERS)[number];
 
-export const SORT_KEYS = ["activity", "company", "status", "city", "created"] as const;
+export const SORT_KEYS = ["activity", "score", "company", "status", "city", "created"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 
-export const COLUMNS = ["status", "city", "activity", "visits", "tags", "created"] as const;
+export const COLUMNS = [
+  "status",
+  "score",
+  "city",
+  "activity",
+  "visits",
+  "tags",
+  "created",
+] as const;
 export type Column = (typeof COLUMNS)[number];
-export const DEFAULT_COLUMNS: Column[] = ["status", "city", "activity", "visits", "tags"];
+export const DEFAULT_COLUMNS: Column[] = ["status", "score", "city", "activity", "visits", "tags"];
 
 export const COLUMN_LABELS: Record<Column, string> = {
   status: "Status",
+  score: "Kontaktabsicht",
   city: "Ort",
   activity: "Letzte Aktivität",
   visits: "Besuche",

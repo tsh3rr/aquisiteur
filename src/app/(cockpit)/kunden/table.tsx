@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/input";
+import { LEVEL_LABELS, type IntentLevel } from "@/domain/intent/score";
 import { COLUMN_LABELS, type Column } from "@/domain/prospects/list-query";
 import {
   PROSPECT_STATUSES,
@@ -26,6 +27,8 @@ export interface CustomerRow {
   createdAt: string;
   lastActivityAt: string | null;
   visitCount: number;
+  score: number | null;
+  level: IntentLevel | null;
 }
 
 const dateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
@@ -35,6 +38,15 @@ function Cell({ column, row }: { column: Column; row: CustomerRow }) {
   switch (column) {
     case "status":
       return <Badge tone={STATUS_TONES[row.status]}>{STATUS_LABELS[row.status]}</Badge>;
+    case "score":
+      return row.score && row.level ? (
+        <span className="grid">
+          <span className="font-medium tabular-nums">{row.score} %</span>
+          <span className="text-xs text-foreground-muted">{LEVEL_LABELS[row.level]}</span>
+        </span>
+      ) : (
+        <span className="text-foreground-muted">–</span>
+      );
     case "city":
       return <>{row.city ?? "–"}</>;
     case "activity":

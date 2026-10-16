@@ -123,6 +123,8 @@ export default async function CustomersPage({
             createdAt: row.createdAt.toISOString(),
             lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
             visitCount: row.visitCount,
+            score: row.score,
+            level: row.level,
           }))}
         />
       )}

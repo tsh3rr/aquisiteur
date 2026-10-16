@@ -1,12 +1,15 @@
 import { FileJson, Inbox, MailOpen, MessageCircle } from "lucide-react";
 import { eq } from "drizzle-orm";
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { workspaceSettings } from "@/db/schema";
 import { profileSchema } from "@/domain/workspace-settings";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { IntentSummary } from "@/components/cockpit/intent";
+import { LiveFeed } from "@/components/cockpit/live-feed";
 import { listCallbacks, listThreads } from "@/server/chat/owner";
+import { listHotProspects } from "@/server/intent/list";
 import { requireCockpit } from "@/server/session";
 import { CallbackList } from "./chat/callbacks";
 import { LiveRefresh } from "./chat/live-refresh";
@@ -21,14 +24,15 @@ export default async function TodayPage() {
       .from(workspaceSettings)
       .where(eq(workspaceSettings.workspaceId, workspace.id)),
   );
-  const [threads, callbacks] = await tenant(async (tx) =>
+  const [threads, callbacks, hot] = await tenant(async (tx) =>
     Promise.all([
       listThreads(tx, workspace.id, { limit: 50 }),
       listCallbacks(tx, workspace.id, { openOnly: true }),
+      listHotProspects(tx, workspace.id, { minScore: 24, limit: 8 }),
     ]),
   );
   const unreadThreads = threads.filter((thread) => thread.unread > 0);
-  const waiting = unreadThreads.length + callbacks.length;
+  const waiting = unreadThreads.length + callbacks.length + hot.length;
   const displayName = profileSchema.safeParse(row?.profile).data?.displayName || user.name || "";
   const firstName = displayName.split(" ")[0];
 
@@ -45,7 +49,9 @@ export default async function TodayPage() {
         <h1 className="text-3xl font-semibold">{firstName ? `Hallo ${firstName}.` : "Hallo."}</h1>
       </header>
 
-      <LiveRefresh events={["chat.message", "callback.created"]} />
+      <LiveRefresh
+        events={["chat.message", "callback.created", "intent.updated", "notification.created"]}
+      />
       <section aria-labelledby="needs-reaction" className="grid gap-4">
         <div className="flex items-center gap-2">
           <h2 id="needs-reaction" className="text-lg font-semibold">
@@ -62,14 +68,33 @@ export default async function TodayPage() {
               <div className="grid max-w-md gap-1.5">
                 <p className="font-medium">Noch ist es ruhig in {workspace.name}.</p>
                 <p className="text-sm text-foreground-muted">
-                  Neue Chat-Nachrichten und Rückrufwünsche erscheinen hier sofort. Wer gerade Ihr
-                  Exposé liest, sehen Sie unter Kunden.
+                  Wer Ihr Exposé intensiv liest, im Chat tippt oder einen Rückruf wünscht, erscheint
+                  hier sofort, mit einer Empfehlung, wie Sie am besten reagieren.
                 </p>
               </div>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-3">
+            {hot.length > 0 ? (
+              <ul className="grid gap-3" aria-label="Nach Kontaktabsicht sortiert">
+                {hot.map((item) => (
+                  <li key={item.prospectId}>
+                    <Card>
+                      <CardContent>
+                        <IntentSummary
+                          score={item.score}
+                          level={item.level}
+                          explanation={item.explanation}
+                          company={item.company}
+                          href={`/kunden/${item.prospectId}` as Route}
+                        />
+                      </CardContent>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {unreadThreads.length > 0 ? (
               <ul className="grid gap-2">
                 {unreadThreads.map((thread) => (
@@ -102,6 +127,8 @@ export default async function TodayPage() {
           </div>
         )}
       </section>
+
+      <LiveFeed />
 
       <section aria-labelledby="next-steps" className="grid gap-4">
         <h2 id="next-steps" className="text-lg font-semibold">

@@ -5,7 +5,18 @@ import * as schema from "@/db/schema";
 import { getInfra } from "@/infra";
 import { recordVisitorTyping } from "@/server/chat/visitor";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
+import { localClock } from "@/domain/notifications";
 import { recomputeIntent } from "@/server/intent/recompute";
+import { runDigest } from "@/server/notifications/digest";
+import {
+  deleteRule,
+  listNotifications,
+  listRules,
+  markNotificationsRead,
+  recomputeAllScores,
+  saveRule,
+  unreadNotificationCount,
+} from "@/server/notifications/manage";
 import { notify } from "@/server/notifications/notify";
 import { ingestEvents, startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
@@ -246,6 +257,82 @@ describe("intent score and notifications", () => {
     expect((await scoreOf(wsJ, cafe.prospectId))?.score).toBe(before?.score);
     expect(await notificationsOf(wsJ)).toHaveLength(count);
     expect(pushes).not.toHaveBeenCalled();
+  });
+
+  it("sends the daily digest once, after its hour, only when something happened", async () => {
+    const digestRule = async (workspaceId: string) => {
+      const [rule] = await db
+        .select()
+        .from(schema.notificationRules)
+        .where(
+          and(
+            eq(schema.notificationRules.workspaceId, workspaceId),
+            eq(schema.notificationRules.trigger, "daily_digest"),
+          ),
+        );
+      return rule!;
+    };
+    // A moment today in Berlin at the given hour, close to now so the visits count.
+    const at = (hour: number) => {
+      const now = new Date();
+      const local = localClock(now, "Europe/Berlin");
+      return new Date(now.getTime() + (hour - local.hour) * 3_600_000 - local.minute * 60_000);
+    };
+    const rule = await digestRule(wsJ);
+    expect(await runDigest(db, rule, at(6))).toBe("not_due");
+    expect(await runDigest(db, rule, at(9))).toBe("sent");
+    expect(await runDigest(db, rule, at(10))).toBe("done");
+    expect(mails).toHaveBeenCalledTimes(1);
+    const mail = mails.mock.calls[0]![0];
+    expect(mail.subject).toMatch(/^Aquisiteur: Ihr Überblick für /);
+    expect(mail.text).toContain("In den letzten 24 Stunden:");
+    expect(mail.text).toContain("Café Müller:");
+    expect(await runDigest(db, await digestRule(wsK), at(9))).toBe("nothing");
+  });
+
+  it("lets the owner manage rules and read the list as tenant", async () => {
+    await withTenant(db, { userId: jana.id, workspaceId: wsJ }, async (tx) => {
+      expect(
+        await saveRule(tx, {
+          workspaceId: wsJ,
+          userId: jana.id,
+          rule: {
+            trigger: "callback",
+            threshold: null,
+            channels: ["push", "email"],
+            enabled: true,
+            quietFrom: "22:00",
+            quietTo: "07:00",
+            weekdaysOnly: true,
+          },
+        }),
+      ).toBe(true);
+      const rules = await listRules(tx, wsJ);
+      const callback = rules.find((rule) => rule.trigger === "callback")!;
+      expect(callback).toMatchObject({ quietFrom: "22:00", weekdaysOnly: true });
+      await deleteRule(tx, { workspaceId: wsJ, userId: jana.id, id: callback.id });
+      expect((await listRules(tx, wsJ)).some((rule) => rule.trigger === "callback")).toBe(false);
+
+      expect(await unreadNotificationCount(tx, wsJ)).toBeGreaterThan(0);
+      await markNotificationsRead(tx, wsJ);
+      expect(await unreadNotificationCount(tx, wsJ)).toBe(0);
+      expect((await listNotifications(tx, wsJ)).length).toBeGreaterThan(0);
+      expect(await recomputeAllScores(tx, wsJ)).toBe(1);
+    });
+    // Kai's workspace cannot change Jana's rules.
+    const [rule] = await db
+      .select()
+      .from(schema.notificationRules)
+      .where(eq(schema.notificationRules.workspaceId, wsJ));
+    await withTenant(db, { userId: kai.id, workspaceId: wsK }, (tx) =>
+      deleteRule(tx, { workspaceId: wsJ, userId: kai.id, id: rule!.id }),
+    );
+    expect(
+      await db
+        .select()
+        .from(schema.notificationRules)
+        .where(eq(schema.notificationRules.id, rule!.id)),
+    ).toHaveLength(1);
   });
 
   it("keeps scores and notifications inside the workspace", async () => {

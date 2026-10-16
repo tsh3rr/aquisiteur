@@ -13,10 +13,16 @@ import { loadBrandImages } from "@/server/brand-images";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { requireCockpit } from "@/server/session";
 import { signOwnerLink } from "@/server/tracking/visits";
+import { resolveWeights } from "@/domain/intent/score";
+import { getInfra } from "@/infra";
+import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { ApiTokens } from "./api-tokens";
 import { ContactSettingsForm } from "./contact-settings";
+import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
+import { PushDevices } from "./push-device";
+import { ScoreSettingsForm } from "./score-settings";
 
 export const metadata: Metadata = { title: "Einstellungen" };
 
@@ -28,7 +34,7 @@ const statusLabel = {
 const statusTone = { pending: "warning", active: "success", failed: "danger" } as const;
 
 export default async function SettingsPage() {
-  const { workspace, actor, tenant } = await requireCockpit();
+  const { workspace, actor, user, tenant } = await requireCockpit();
   const customDomains = await tenant((tx) =>
     tx
       .select({ hostname: domains.hostname, status: domains.status })
@@ -38,6 +44,9 @@ export default async function SettingsPage() {
   const canEditSettings = can(actor, "settings.update", { workspaceId: workspace.id });
   const settings = await tenant((tx) => loadWorkspaceSettings(tx, workspace.id));
   const brandImages = await tenant((tx) => loadBrandImages(tx, workspace.id, settings));
+  const [rules, devices] = await tenant((tx) =>
+    Promise.all([listRules(tx, workspace.id), listPushDevices(tx, workspace.id, user.id)]),
+  );
   const canManageTokens = can(actor, "apiTokens.manage", { workspaceId: workspace.id });
   const tokens = canManageTokens
     ? await tenant((tx) =>
@@ -71,7 +80,7 @@ export default async function SettingsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Einstellungen"
-        description="Workspace, Kontaktwege, Anmeldung, Domains und API-Zugang."
+        description="Workspace, Kontaktwege, Benachrichtigungen, Anmeldung, Domains und API-Zugang."
       />
 
       <Card>
@@ -146,6 +155,55 @@ export default async function SettingsPage() {
             channels={settings.channels}
             chat={settings.chat}
             nudges={settings.nudges}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="benachrichtigungen">
+        <CardHeader>
+          <CardTitle>Benachrichtigungen</CardTitle>
+          <CardDescription>
+            Wann Sie per Push oder E-Mail erfahren, dass sich ein Kunde rührt. Alles landet
+            zusätzlich unter Benachrichtigungen im Cockpit.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-8">
+          <section aria-labelledby="push-heading" className="grid gap-3">
+            <h3 id="push-heading" className="text-base font-semibold">
+              Push auf Ihren Geräten
+            </h3>
+            <PushDevices
+              publicKey={getInfra().push.publicKey}
+              devices={devices.map((device) => ({
+                id: device.id,
+                endpoint: device.endpoint,
+                label: device.label,
+                lastSuccessAt: device.lastSuccessAt?.toISOString() ?? null,
+              }))}
+            />
+          </section>
+          <section aria-labelledby="rules-heading" className="grid gap-3">
+            <h3 id="rules-heading" className="text-base font-semibold">
+              Regeln
+            </h3>
+            <NotificationRules rules={rules} canEdit={canEditSettings} />
+          </section>
+        </CardContent>
+      </Card>
+
+      <Card id="kontaktabsicht">
+        <CardHeader>
+          <CardTitle>Kontaktabsicht</CardTitle>
+          <CardDescription>
+            Der Score schätzt, wie wahrscheinlich ein Kunde Sie gerade kontaktieren will. Er beruht
+            nur auf Signalen aus dem Exposé, nie auf Daten über die Person.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScoreSettingsForm
+            weights={resolveWeights(settings.scoreWeights)}
+            timezone={settings.notifications.timezone}
             canEdit={canEditSettings}
           />
         </CardContent>

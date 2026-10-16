@@ -7,6 +7,7 @@ export const E2E = {
     process.env.E2E_DATABASE_URL ??
     "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e",
   mailLog: "test-results/mails.jsonl",
+  pushLog: "test-results/pushes.jsonl",
 };
 
 // Locally a preinstalled Chromium can be used instead of `playwright install`.
@@ -51,6 +52,8 @@ export default defineConfig({
       EMAIL_PROVIDER: "log",
       ALLOW_LOG_EMAIL: "1",
       EMAIL_LOG_FILE: E2E.mailLog,
+      PUSH_PROVIDER: "log",
+      PUSH_LOG_FILE: E2E.pushLog,
     },
   },
 });

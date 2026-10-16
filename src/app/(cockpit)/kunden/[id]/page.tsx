@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink, Globe, Mail, Phone } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { IntentSummary } from "@/components/cockpit/intent";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollRegion } from "@/components/ui/misc";
@@ -11,6 +12,8 @@ import { can } from "@/domain/authz";
 import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
 import { formatDuration } from "@/domain/tracking/timeline";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { SIGNAL_LABELS } from "@/domain/intent/score";
+import { loadIntent } from "@/server/intent/list";
 import { loadProspectDetail } from "@/server/prospects/detail";
 import { formatRelative } from "@/lib/relative-time";
 import { CallbackList } from "../../chat/callbacks";
@@ -63,10 +66,15 @@ export default async function CustomerPage({
       .select({ id: workspaces.id, slug: workspaces.slug })
       .from(workspaces)
       .where(eq(workspaces.id, workspace.id));
-    return detail && ws ? { detail, origin: await workspacePublicOrigin(tx, ws) } : null;
+    if (!detail || !ws) return null;
+    return {
+      detail,
+      origin: await workspacePublicOrigin(tx, ws),
+      intent: await loadIntent(tx, workspace.id, id),
+    };
   });
   if (!loaded) notFound();
-  const { detail, origin } = loaded;
+  const { detail, origin, intent } = loaded;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const ownerLink = `${origin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
@@ -75,7 +83,7 @@ export default async function CustomerPage({
   return (
     <div className="grid gap-6">
       <LiveRefresh
-        events={["chat.message", "callback.created", "chat.thread"]}
+        events={["chat.message", "callback.created", "chat.thread", "intent.updated"]}
         prospectId={prospect.id}
       />
       <Link
@@ -127,6 +135,41 @@ export default async function CustomerPage({
           {canManage ? <StatusSelect id={prospect.id} status={prospect.status} /> : null}
         </div>
       </header>
+
+      {intent && intent.score > 0 ? (
+        <Card aria-labelledby="intent-heading">
+          <CardHeader>
+            <CardTitle id="intent-heading">Kontaktabsicht</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <IntentSummary
+              score={intent.score}
+              level={intent.level}
+              explanation={intent.explanation}
+            />
+            {intent.signals.length > 0 ? (
+              <details className="text-sm">
+                <summary className="min-h-11 cursor-pointer py-2.5 text-foreground-muted">
+                  Woraus sich der Score ergibt
+                </summary>
+                <ul className="grid gap-1 pt-1">
+                  {intent.signals.map((signal) => (
+                    <li key={`${signal.id}-${signal.at}`} className="flex flex-wrap gap-x-2">
+                      <span className="font-medium tabular-nums">
+                        {Math.round(signal.p * 100)} %
+                      </span>
+                      <span>{SIGNAL_LABELS[signal.id]}</span>
+                      <span className="text-foreground-muted">
+                        · {dateTime.format(new Date(signal.at))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid items-start gap-6 xl:grid-cols-5">
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-3 [&>*]:min-w-0">

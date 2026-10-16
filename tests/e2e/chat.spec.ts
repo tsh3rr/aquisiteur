@@ -30,10 +30,11 @@ test("the owner sets up contact channels and publishes an exposé", async ({ pag
   test.setTimeout(180_000);
   await owner(page);
   await page.goto("/settings#kontakt");
-  await page.getByLabel("WhatsApp").fill("+49 170 1234567");
-  await page.getByRole("textbox", { name: /^Telefon/ }).fill("+49 341 1234567");
-  await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByText(/^Gespeichert\./)).toBeVisible();
+  const contact = page.locator("#kontakt");
+  await contact.getByLabel("WhatsApp").fill("+49 170 1234567");
+  await contact.getByRole("textbox", { name: /^Telefon/ }).fill("+49 341 1234567");
+  await contact.getByRole("button", { name: "Speichern" }).click();
+  await expect(contact.getByText(/^Gespeichert\./)).toBeVisible();
   await expectAccessible(page, "settings with contact and chat");
 
   const output = publishWithCli("exposes/cafe-mueller", await createApiToken(page, "Chat"));
@@ -151,8 +152,8 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
   await phoneContext.close();
 
   await owner(page);
-  await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr")).toBeVisible();
+  await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr", { exact: true })).toBeVisible();
   await expectAccessible(page, "today with a callback");
   await page.getByRole("button", { name: /Erledigt\W+Rückruf für Sabine Müller/ }).click();
-  await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr")).toHaveCount(0);
+  await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr", { exact: true })).toHaveCount(0);
 });
