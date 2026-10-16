@@ -112,11 +112,25 @@ export interface DomainPort {
   remove(providerRef: string): Promise<void>;
 }
 
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
 /** Phase 4: Web Push (VAPID) to the owner's devices. */
 export interface PushPort {
+  /** VAPID public key browsers subscribe with; null when push is not configured. */
+  readonly publicKey: string | null;
   send(
-    subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-    payload: { title: string; body: string; url: string; tag?: string },
+    subscription: { endpoint: string; keys: PushSubscriptionKeys },
+    payload: {
+      title: string;
+      body: string;
+      url: string;
+      tag?: string;
+      renotify?: boolean;
+      actions?: { action: string; title: string; url: string }[];
+    },
   ): Promise<{ gone: boolean }>;
 }
 
@@ -155,4 +169,5 @@ export interface Infra {
   readonly email: EmailPort;
   readonly storage: StoragePort;
   readonly realtime: RealtimePort;
+  readonly push: PushPort;
 }

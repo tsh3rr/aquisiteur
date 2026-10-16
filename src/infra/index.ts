@@ -1,13 +1,15 @@
 import { serverEnv } from "@/config/env";
 import { cloudflareDatabase } from "./cloudflare/database";
 import { logEmail } from "./dev/email";
+import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
 import { localStorage } from "./dev/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
 import { s3Storage } from "./s3/storage";
 import { supabaseRealtime } from "./supabase/realtime";
-import type { EmailPort, Infra, RealtimePort, StoragePort } from "./types";
+import type { EmailPort, Infra, PushPort, RealtimePort, StoragePort } from "./types";
+import { webPush } from "./webpush/push";
 
 export type * from "./types";
 
@@ -62,6 +64,15 @@ export function getInfra(): Infra {
     throw new Error("REALTIME_PROVIDER=memory cannot reach other Worker isolates; use supabase");
   }
 
+  const push: PushPort =
+    env.PUSH_PROVIDER === "webpush"
+      ? webPush({
+          publicKey: required(env.VAPID_PUBLIC_KEY, "VAPID_PUBLIC_KEY"),
+          privateKey: required(env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY"),
+          subject: env.VAPID_SUBJECT,
+        })
+      : logPush(env.PUSH_LOG_FILE);
+
   cached = {
     profile: env.HOSTING_PROFILE,
     database:
@@ -71,6 +82,7 @@ export function getInfra(): Infra {
     email,
     storage,
     realtime,
+    push,
   };
   return cached;
 }

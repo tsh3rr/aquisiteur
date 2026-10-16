@@ -9,6 +9,7 @@ import {
   chatThreads,
   events,
   exposes,
+  prospects,
   visits,
 } from "@/db/schema";
 import {
@@ -22,9 +23,13 @@ import {
   visitorTypingSchema,
 } from "@/domain/chat";
 import { contactLinks } from "@/domain/expose/contact-links";
+import { LONG_DRAFT, SHORT_DRAFT } from "@/domain/intent/score";
+import { notificationCopy } from "@/domain/notifications";
 import type { ChatMessageView } from "@/domain/realtime";
 import { signToken, verifyToken } from "@/domain/tracking/signed-token";
 import type { RealtimeSubscription } from "@/infra";
+import { defer } from "@/server/defer";
+import { processProspect } from "@/server/intent/process";
 import { advanceStatus } from "@/server/prospects/auto-status";
 import { liveSubscription, publish, threadTopic, workspaceTopic } from "@/server/realtime";
 import { loadWorkspaceSettings } from "@/server/workspaces";
@@ -167,6 +172,26 @@ export async function postVisitorMessage(
     "chat.message",
     { message: view, prospectId: result.thread.prospectId },
   );
+  if (!visit.quiet) {
+    const { thread } = result;
+    await defer(async () => {
+      const company = await companyOf(db, input.workspaceId, thread.prospectId);
+      await processProspect(db, {
+        workspaceId: input.workspaceId,
+        prospectId: thread.prospectId,
+        cause: {
+          workspaceId: input.workspaceId,
+          trigger: "chat_message",
+          prospectId: thread.prospectId,
+          // One notification per conversation burst; each message updates the push.
+          groupKey: `chat:${thread.id}`,
+          url: `/kunden/${thread.prospectId}`,
+          action: { title: "Antworten", url: `/chat/${thread.id}` },
+          ...notificationCopy({ trigger: "chat_message", company, message: parsed.data.body }),
+        },
+      });
+    });
+  }
   return {
     message: view,
     ...(result.created || !parsed.data.chat ? { access: await access(result.thread.id) } : {}),
@@ -267,6 +292,10 @@ export async function recordVisitorTyping(
       ? parsed.data.content
       : null;
   const { length } = parsed.data;
+  const [before] = await db
+    .select({ maxLength: chatDrafts.maxLength })
+    .from(chatDrafts)
+    .where(and(eq(chatDrafts.workspaceId, input.workspaceId), eq(chatDrafts.visitId, visit.id)));
   await db
     .insert(chatDrafts)
     .values({
@@ -294,6 +323,13 @@ export async function recordVisitorTyping(
     author: "visitor",
     length,
   });
+  // The score only changes when the draft passes 3 or 20 characters (§7.6).
+  const previous = before?.maxLength ?? 0;
+  if (!visit.quiet && [SHORT_DRAFT, LONG_DRAFT].some((n) => previous < n && length >= n)) {
+    await defer(() =>
+      processProspect(db, { workspaceId: input.workspaceId, prospectId: visit.prospectId }),
+    );
+  }
   return "ok";
 }
 
@@ -446,5 +482,36 @@ export async function createCallbackRequest(
     prospectId: expose.prospectId,
     name: parsed.data.name,
   });
+  if (!input.internal && !ownVisit?.quiet) {
+    await defer(async () => {
+      const company = await companyOf(db, input.workspaceId, expose.prospectId);
+      await processProspect(db, {
+        workspaceId: input.workspaceId,
+        prospectId: expose.prospectId,
+        cause: {
+          workspaceId: input.workspaceId,
+          trigger: "callback",
+          prospectId: expose.prospectId,
+          groupKey: `callback:${request.id}`,
+          url: `/kunden/${expose.prospectId}`,
+          ...notificationCopy({
+            trigger: "callback",
+            company,
+            name: parsed.data.name,
+            phone: parsed.data.phone,
+            preferredTime: parsed.data.preferredTime ?? null,
+          }),
+        },
+      });
+    });
+  }
   return { ok: true };
+}
+
+async function companyOf(db: Database, workspaceId: string, prospectId: string) {
+  const [row] = await db
+    .select({ company: prospects.companyName })
+    .from(prospects)
+    .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)));
+  return row?.company ?? "Ein Interessent";
 }

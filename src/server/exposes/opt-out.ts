@@ -2,19 +2,22 @@ import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@/db";
 import { auditLog, exposes, prospects } from "@/db/schema";
+import { notificationCopy } from "@/domain/notifications";
+import { defer } from "@/server/defer";
+import { notifyAndDispatch } from "@/server/notifications/notify";
 
 /**
  * "Kein Interesse, bitte nicht mehr kontaktieren" (§7.3): marks the prospect
  * and blocks follow-ups. Called by an anonymous visitor, so it runs on the
  * system connection, scoped to the host's workspace and the exposé slug.
- * Notifying the owner arrives with the notification engine (phase 4).
+ * The owner hears about it when an „opt_out“ rule is enabled (§7.7).
  */
 export async function optOutByExposeSlug(
   db: Database,
   workspaceId: string,
   slug: string,
 ): Promise<boolean> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [expose] = await tx
       .select({ id: exposes.id, prospectId: exposes.prospectId })
       .from(exposes)
@@ -25,7 +28,7 @@ export async function optOutByExposeSlug(
           isNull(exposes.unpublishedAt),
         ),
       );
-    if (!expose) return false;
+    if (!expose) return null;
     const updated = await tx
       .update(prospects)
       .set({ status: "no_interest", doNotContactAt: new Date() })
@@ -36,7 +39,7 @@ export async function optOutByExposeSlug(
           isNull(prospects.doNotContactAt),
         ),
       )
-      .returning({ id: prospects.id });
+      .returning({ id: prospects.id, company: prospects.companyName });
     if (updated.length > 0) {
       await tx.insert(auditLog).values({
         workspaceId,
@@ -47,6 +50,21 @@ export async function optOutByExposeSlug(
         meta: { exposeId: expose.id, via: "expose" },
       });
     }
-    return true;
+    return { prospectId: expose.prospectId, company: updated[0]?.company ?? null };
   });
+  if (!result) return false;
+  const { prospectId, company } = result;
+  if (company) {
+    await defer(() =>
+      notifyAndDispatch(db, {
+        workspaceId,
+        trigger: "opt_out",
+        prospectId,
+        groupKey: `opt_out:${prospectId}`,
+        url: `/kunden/${prospectId}`,
+        ...notificationCopy({ trigger: "opt_out", company }),
+      }),
+    );
+  }
+  return true;
 }

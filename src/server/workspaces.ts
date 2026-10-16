@@ -4,7 +4,15 @@ import { validateSlug, type SlugProblem } from "@/domain/slug";
 import { workspaceSettingsSchema } from "@/domain/workspace-settings";
 import type { Role } from "@/domain/authz";
 import type { Database, Transaction } from "@/db";
-import { auditLog, domains, memberships, workspaceSettings, workspaces } from "@/db/schema";
+import { DEFAULT_RULES } from "@/domain/notifications";
+import {
+  auditLog,
+  domains,
+  memberships,
+  notificationRules,
+  workspaceSettings,
+  workspaces,
+} from "@/db/schema";
 
 export interface WorkspaceSummary {
   id: string;
@@ -42,6 +50,9 @@ export async function createWorkspace(
       .insert(memberships)
       .values({ workspaceId: workspace.id, userId: input.userId, role: "owner" });
     await tx.insert(workspaceSettings).values({ workspaceId: workspace.id });
+    await tx
+      .insert(notificationRules)
+      .values(DEFAULT_RULES.map((rule) => ({ ...rule, workspaceId: workspace.id })));
     await tx.insert(auditLog).values({
       workspaceId: workspace.id,
       actorUserId: input.userId,

@@ -4,3 +4,4 @@ export * from "./prospects";
 export * from "./exposes";
 export * from "./tracking";
 export * from "./chat";
+export * from "./intent";

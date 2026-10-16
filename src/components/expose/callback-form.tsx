@@ -66,6 +66,7 @@ export function CallbackOption({
       <button
         type="button"
         aria-expanded={open}
+        data-callback
         aria-controls={`${id}-form`}
         onClick={() => {
           setOpen((value) => !value);

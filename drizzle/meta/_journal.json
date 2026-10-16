@@ -64,6 +64,20 @@
       "when": 1792109491939,
       "tag": "0008_chat_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792128239739,
+      "tag": "0009_intent_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792128247325,
+      "tag": "0010_intent_grants",
+      "breakpoints": true
     }
   ]
 }

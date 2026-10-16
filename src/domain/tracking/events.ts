@@ -9,6 +9,11 @@ import { z } from "zod";
  */
 const blockId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
 const nudgeId = z.enum(["read_invite", "pricing", "returning", "exit_intent"]);
+/** `data-block` of the section, e.g. `contact`; the score needs it (§7.6). */
+const blockType = z
+  .string()
+  .regex(/^[a-z][a-z_]{1,31}$/)
+  .optional();
 const at = z.number().int().nonnegative().describe("Milliseconds since the visit started.");
 
 export const EVENT_SCHEMAS = {
@@ -18,11 +23,12 @@ export const EVENT_SCHEMAS = {
     at,
     seconds: z.number().int().min(1).max(60),
   }),
-  section_view: z.object({ type: z.literal("section_view"), at, blockId }),
+  section_view: z.object({ type: z.literal("section_view"), at, blockId, blockType }),
   section_dwell: z.object({
     type: z.literal("section_dwell"),
     at,
     blockId,
+    blockType,
     seconds: z.number().int().min(3).max(3600),
   }),
   scroll_depth: z.object({
@@ -31,6 +37,15 @@ export const EVENT_SCHEMAS = {
     percent: z.number().int().min(0).max(100),
   }),
   cta_click: z.object({ type: z.literal("cta_click"), at, blockId }),
+  /** Pointer or focus on a contact button for at least a second. */
+  cta_hover: z.object({
+    type: z.literal("cta_hover"),
+    at,
+    blockId: blockId.optional(),
+    channel: z
+      .enum(["chat", "whatsapp", "phone", "email", "booking", "messenger", "sms", "callback"])
+      .optional(),
+  }),
   contact_click: z.object({
     type: z.literal("contact_click"),
     at,
@@ -78,6 +93,7 @@ export const trackedEventSchema = z.discriminatedUnion("type", [
   EVENT_SCHEMAS.section_dwell,
   EVENT_SCHEMAS.scroll_depth,
   EVENT_SCHEMAS.cta_click,
+  EVENT_SCHEMAS.cta_hover,
   EVENT_SCHEMAS.contact_click,
   EVENT_SCHEMAS.copy_contact,
   EVENT_SCHEMAS.pricing_change,

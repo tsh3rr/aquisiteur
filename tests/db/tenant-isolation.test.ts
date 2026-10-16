@@ -43,6 +43,10 @@ const tenantTables = {
   chat_drafts: schema.chatDrafts,
   callback_requests: schema.callbackRequests,
   member_presence: schema.memberPresence,
+  intent_scores: schema.intentScores,
+  notification_rules: schema.notificationRules,
+  notifications: schema.notifications,
+  push_subscriptions: schema.pushSubscriptions,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -101,6 +105,29 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     .insert(schema.callbackRequests)
     .values({ ...chat, name: `Kunde ${tag}`, phone: "0341 123456" });
   await db.insert(schema.memberPresence).values({ workspaceId, userId });
+  // notification_rules come from createWorkspace.
+  await db.insert(schema.intentScores).values({
+    workspaceId,
+    prospectId: chat.prospectId,
+    score: 42,
+    explanation: { headline: tag, detail: "", recommendation: "", actions: [] },
+  });
+  await db.insert(schema.notifications).values({
+    workspaceId,
+    prospectId: chat.prospectId,
+    trigger: "first_visit",
+    groupKey: `visit:${tag}`,
+    title: `Kunde ${tag}`,
+    body: "",
+    url: "/heute",
+  });
+  await db.insert(schema.pushSubscriptions).values({
+    workspaceId,
+    userId,
+    endpoint: `https://push.example/${tag}`,
+    p256dh: "key",
+    auth: "auth",
+  });
 }
 
 beforeAll(async () => {

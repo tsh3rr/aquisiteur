@@ -9,6 +9,7 @@ type TrackEvent = { type: string; [key: string]: unknown };
 
 const HEARTBEAT_MS = 15_000;
 const DWELL_MIN_MS = 3_000;
+const HOVER_MS = 1_000;
 const SCROLL_MARKS = [25, 50, 75, 100];
 
 let started = 0;
@@ -108,6 +109,13 @@ function blockOf(element: Element | null): string | undefined {
   return element?.closest("section[data-block]")?.id || undefined;
 }
 
+const typeOf = (id: string) =>
+  (document.getElementById(id) as HTMLElement | null)?.dataset.block || undefined;
+
+const CONTACT_TARGET = "[data-contact-channel],[data-open-chat],[data-callback]";
+const channelOf = (element: HTMLElement) =>
+  element.dataset.contactChannel ?? ("openChat" in element.dataset ? "chat" : "callback");
+
 /** Starts tracking for the exposé `slug`; returns the cleanup function. */
 export function start(slug: string): () => void {
   if (active) return () => {};
@@ -164,7 +172,12 @@ export function start(slug: string): () => void {
     if (since === undefined) return;
     const ms = Date.now() - since;
     if (ms >= DWELL_MIN_MS) {
-      track({ type: "section_dwell", blockId: id, seconds: Math.min(Math.round(ms / 1000), 3600) });
+      track({
+        type: "section_dwell",
+        blockId: id,
+        blockType: typeOf(id),
+        seconds: Math.min(Math.round(ms / 1000), 3600),
+      });
     }
   };
   const observer = new IntersectionObserver(
@@ -175,7 +188,7 @@ export function start(slug: string): () => void {
         if (entry.isIntersecting && document.visibilityState === "visible") {
           if (!seen.has(id)) {
             seen.add(id);
-            track({ type: "section_view", blockId: id });
+            track({ type: "section_view", blockId: id, blockType: typeOf(id) });
             update({ sectionsSeen: seen.size });
           }
           if (!visibleSince.has(id)) visibleSince.set(id, Date.now());
@@ -235,6 +248,41 @@ export function start(slug: string): () => void {
     track({ type: "media_play", blockId: blockOf(event.target as Element) });
   };
   const onPrint = () => track({ type: "pdf_download" });
+
+  // Lingering on a contact button (≥ 1 s, pointer or keyboard focus), once per channel.
+  const hovered = new Set<string>();
+  let hoverTimer = 0;
+  let hoverTarget: HTMLElement | null = null;
+  const targetOf = (node: EventTarget | null) =>
+    node instanceof Element ? node.closest<HTMLElement>(CONTACT_TARGET) : null;
+  const onEnter = (event: Event) => {
+    const button = targetOf(event.target);
+    if (!button || button === hoverTarget) return;
+    const channel = channelOf(button);
+    if (hovered.has(channel)) return;
+    window.clearTimeout(hoverTimer);
+    hoverTarget = button;
+    hoverTimer = window.setTimeout(() => {
+      hovered.add(channel);
+      track({ type: "cta_hover", channel, blockId: blockOf(button) });
+    }, HOVER_MS);
+  };
+  const onLeave = (event: Event) => {
+    const to = targetOf((event as PointerEvent | FocusEvent).relatedTarget);
+    if (to && to === hoverTarget) return;
+    window.clearTimeout(hoverTimer);
+    hoverTarget = null;
+  };
+  // Copying the owner's number or address from the contact block.
+  const onCopy = () => {
+    const node = document.getSelection()?.anchorNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    const channel = element?.closest<HTMLElement>("[data-contact-channel]")?.dataset.contactChannel;
+    if (channel === "email" || channel === "phone" || channel === "whatsapp" || channel === "sms") {
+      track({ type: "copy_contact", channel: channel === "email" ? "email" : "phone" });
+      flush();
+    }
+  };
   const onHide = () => {
     if (document.visibilityState === "hidden") {
       for (const id of [...visibleSince.keys()]) endDwell(id);
@@ -245,6 +293,11 @@ export function start(slug: string): () => void {
 
   window.addEventListener("scroll", onScroll, { passive: true });
   document.addEventListener("click", onClick);
+  document.addEventListener("pointerover", onEnter);
+  document.addEventListener("focusin", onEnter);
+  document.addEventListener("pointerout", onLeave);
+  document.addEventListener("focusout", onLeave);
+  document.addEventListener("copy", onCopy);
   document.addEventListener("change", onChange);
   document.addEventListener("play", onPlay, true);
   window.addEventListener("beforeprint", onPrint);
@@ -256,6 +309,12 @@ export function start(slug: string): () => void {
     observer.disconnect();
     window.removeEventListener("scroll", onScroll);
     document.removeEventListener("click", onClick);
+    document.removeEventListener("pointerover", onEnter);
+    document.removeEventListener("focusin", onEnter);
+    document.removeEventListener("pointerout", onLeave);
+    document.removeEventListener("focusout", onLeave);
+    document.removeEventListener("copy", onCopy);
+    window.clearTimeout(hoverTimer);
     document.removeEventListener("change", onChange);
     document.removeEventListener("play", onPlay, true);
     window.removeEventListener("beforeprint", onPrint);

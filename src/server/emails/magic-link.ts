@@ -1,4 +1,4 @@
-/** Sign-in mail. Kept as a plain template; React Email arrives with the notification mails (phase 4). */
+/** Sign-in mail. Plain template like all mails (ADR-0031): no images, readable everywhere. */
 export function magicLinkEmail({ url }: { url: string }): {
   subject: string;
   html: string;

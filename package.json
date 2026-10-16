@@ -30,7 +30,9 @@
     "tokens:build": "tsx scripts/build-tokens.ts",
     "expose:schema": "tsx scripts/build-expose-schema.ts",
     "expose:validate": "tsx scripts/expose.ts validate",
-    "expose:publish": "tsx scripts/expose.ts publish"
+    "expose:publish": "tsx scripts/expose.ts publish",
+    "push:keys": "tsx scripts/push-keys.ts",
+    "jobs:hourly": "tsx scripts/jobs-hourly.ts"
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.10",

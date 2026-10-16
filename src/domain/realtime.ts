@@ -29,7 +29,16 @@ export type RealtimeEvent =
     }
   /** Contact details or status of a thread changed. */
   | { event: "chat.thread"; payload: { threadId: string; prospectId: string } }
-  | { event: "callback.created"; payload: { id: string; prospectId: string; name: string } };
+  | { event: "callback.created"; payload: { id: string; prospectId: string; name: string } }
+  /** The contact-intent score of a prospect was recomputed (§7.6). */
+  | { event: "intent.updated"; payload: { prospectId: string; score: number; level: string } }
+  /** A new owner notification (§7.7); grouped updates do not repeat it. */
+  | { event: "notification.created"; payload: { id: string; title: string; url: string } }
+  /** Live feed on „Heute“: what a prospect is doing right now. */
+  | {
+      event: "visit.activity";
+      payload: { prospectId: string; company: string; text: string; at: string };
+    };
 
 export type RealtimeEventName = RealtimeEvent["event"];
 

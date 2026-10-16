@@ -52,6 +52,18 @@ const serverEnvSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),
+  /**
+   * Owner notifications (§7.7). `log`: print (and append to PUSH_LOG_FILE),
+   * dev and tests. `webpush`: Web Push with the VAPID key pair from
+   * `pnpm push:keys`.
+   */
+  PUSH_PROVIDER: z.enum(["log", "webpush"]).default("log"),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:noreply@aquisiteur.app"),
+  PUSH_LOG_FILE: z.string().optional(),
+  /** Bearer secret for /api/jobs/* (cron: digest). Unset disables the endpoint. */
+  CRON_SECRET: z.string().min(24).optional(),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
 });

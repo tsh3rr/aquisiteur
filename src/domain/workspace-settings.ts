@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { scoreWeightsSchema } from "./intent/score";
 
 /**
  * Typed shapes of the JSON columns in workspace_settings. Everything the
@@ -114,6 +115,23 @@ export const retentionSchema = z.object({
   optOutTrackingDays: z.number().int().min(1).max(90).default(30),
 });
 
+/** Owner notifications (§7.7). The rules themselves live in notification_rules. */
+export const notificationSettingsSchema = z.object({
+  /** Quiet hours, weekdays and the digest hour are read in this zone. */
+  timezone: z
+    .string()
+    .refine((zone) => {
+      try {
+        new Intl.DateTimeFormat("de-DE", { timeZone: zone });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Unbekannte Zeitzone.")
+    .catch("Europe/Berlin")
+    .default("Europe/Berlin"),
+});
+
 export const workspaceSettingsSchema = z.object({
   profile: profileSchema.prefault({}),
   channels: channelsSchema.prefault({}),
@@ -122,6 +140,8 @@ export const workspaceSettingsSchema = z.object({
   legal: legalSchema.prefault({}),
   chat: chatSettingsSchema.prefault({}),
   nudges: nudgeSettingsSchema.prefault({}),
+  scoreWeights: scoreWeightsSchema.prefault({}),
+  notifications: notificationSettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 365, replaysDays: 90, optOutTrackingDays: 30 }),
 });
 
@@ -131,3 +151,4 @@ export type ChannelSettings = z.infer<typeof channelsSchema>;
 export type SenderAddress = z.infer<typeof senderAddressSchema>;
 export type ChatSettings = z.infer<typeof chatSettingsSchema>;
 export type NudgeSettings = z.infer<typeof nudgeSettingsSchema>;
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;

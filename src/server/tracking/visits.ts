@@ -2,7 +2,9 @@ import "server-only";
 import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
-import { events, exposes, touchpoints, visits } from "@/db/schema";
+import { events, exposes, prospects, touchpoints, visits } from "@/db/schema";
+import { notificationCopy } from "@/domain/notifications";
+import { activityPhrase } from "@/domain/tracking/activity";
 import {
   eventBatchSchema,
   parseEvents,
@@ -17,6 +19,10 @@ import {
 import { signToken, verifyToken } from "@/domain/tracking/signed-token";
 import { detectBot, geoFromHeaders, parseUserAgent } from "@/domain/tracking/user-agent";
 import { workspaceAvailable } from "@/server/chat/presence";
+import { defer } from "@/server/defer";
+import { processProspect } from "@/server/intent/process";
+import type { NotifyInput } from "@/server/notifications/notify";
+import { publish, workspaceTopic } from "@/server/realtime";
 import { advanceStatus } from "@/server/prospects/auto-status";
 import { hitRateLimit } from "./rate-limit";
 import { createTouchpoint } from "./touchpoints";
@@ -221,7 +227,7 @@ export async function startVisit(
       ? "Kein sichtbares Fenster"
       : null);
 
-  return db.transaction(async (tx) => {
+  const started = await db.transaction(async (tx) => {
     /** `quiet`: bot or owner; such visits never change the status. */
     let visit: { id: string; quiet: boolean } | undefined;
     const ticketVisitId = ticket ? await verifyToken(secret(), "ticket", ticket) : null;
@@ -295,11 +301,88 @@ export async function startVisit(
         ),
       )
       .limit(1);
+    const [{ count } = { count: 0 }] = current.quiet
+      ? []
+      : await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(visits)
+          .where(
+            and(
+              eq(visits.workspaceId, input.workspaceId),
+              eq(visits.prospectId, expose.prospectId),
+              isNotNull(visits.confirmedAt),
+              eq(visits.isBot, false),
+              eq(visits.isInternal, false),
+            ),
+          );
     return {
-      token: await signToken(secret(), "visit", current.id, VISIT_TTL),
-      returning: Boolean(earlier),
-      available: await workspaceAvailable(db, input.workspaceId),
+      result: {
+        token: await signToken(secret(), "visit", current.id, VISIT_TTL),
+        returning: Boolean(earlier),
+        available: await workspaceAvailable(db, input.workspaceId),
+      },
+      visitId: current.id,
+      quiet: current.quiet,
+      trigger: count === 1 ? ("first_visit" as const) : earlier ? ("return_visit" as const) : null,
     };
+  });
+
+  if (!started.quiet) {
+    await defer(() =>
+      visitSignal(db, {
+        workspaceId: input.workspaceId,
+        prospectId: expose.prospectId,
+        visitId: started.visitId,
+        trigger: started.trigger,
+      }),
+    );
+  }
+  return started.result;
+}
+
+/** Score and the „opened“ / „reading again“ notification for a real visit (§7.7). */
+async function visitSignal(
+  db: Database,
+  input: {
+    workspaceId: string;
+    prospectId: string;
+    visitId: string;
+    trigger: "first_visit" | "return_visit" | null;
+  },
+) {
+  let cause: NotifyInput | null = null;
+  if (input.trigger) {
+    const [visit] = await db
+      .select({
+        source: visits.source,
+        device: visits.device,
+        city: visits.city,
+        company: prospects.companyName,
+      })
+      .from(visits)
+      .innerJoin(
+        prospects,
+        and(eq(prospects.workspaceId, visits.workspaceId), eq(prospects.id, visits.prospectId)),
+      )
+      .where(and(eq(visits.workspaceId, input.workspaceId), eq(visits.id, input.visitId)));
+    if (visit) {
+      cause = {
+        workspaceId: input.workspaceId,
+        trigger: input.trigger,
+        prospectId: input.prospectId,
+        groupKey:
+          input.trigger === "first_visit"
+            ? `first_visit:${input.prospectId}`
+            : `return_visit:${input.visitId}`,
+        url: `/kunden/${input.prospectId}`,
+        ...notificationCopy({ trigger: input.trigger, company: visit.company, visit }),
+      };
+    }
+  }
+  await processProspect(db, {
+    workspaceId: input.workspaceId,
+    prospectId: input.prospectId,
+    cause,
   });
 }
 
@@ -373,7 +456,35 @@ export async function ingestEvents(
       })
       .where(and(eq(visits.workspaceId, input.workspaceId), eq(visits.id, visit.id)));
   });
+  if (!visit.quiet) {
+    const latest = [...stored].reverse().find((row) => activityPhrase(row));
+    await defer(async () => {
+      if (latest) await publishActivity(db, input.workspaceId, visit.prospectId, latest);
+      await processProspect(db, { workspaceId: input.workspaceId, prospectId: visit.prospectId });
+    });
+  }
   return "ok";
+}
+
+/** „Jetzt gerade: Café Müller liest die Preise“ for the live feed on „Heute“. */
+async function publishActivity(
+  db: Database,
+  workspaceId: string,
+  prospectId: string,
+  event: { type: string; payload: Record<string, unknown>; occurredAt: Date },
+) {
+  const [prospect] = await db
+    .select({ company: prospects.companyName })
+    .from(prospects)
+    .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)));
+  const phrase = activityPhrase(event);
+  if (!prospect || !phrase) return;
+  await publish([workspaceTopic(workspaceId)], "visit.activity", {
+    prospectId,
+    company: prospect.company,
+    text: phrase,
+    at: event.occurredAt.toISOString(),
+  });
 }
 
 /**

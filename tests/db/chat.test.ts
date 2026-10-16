@@ -135,10 +135,24 @@ describe("live chat", () => {
     expect(result.access?.live.kind).toBe("sse");
     chat = result.access!.chat;
 
+    // The message, its notification and the new score; the score crossing 50 %
+    // sends no second notification (one moment, one notification, §7.7).
     expect(live.received).toEqual([
       {
         event: "chat.message",
         payload: { message: result.message, prospectId: cafe.prospectId },
+      },
+      {
+        event: "notification.created",
+        payload: {
+          id: expect.any(String),
+          title: "Café Müller schreibt im Chat",
+          url: `/kunden/${cafe.prospectId}`,
+        },
+      },
+      {
+        event: "intent.updated",
+        payload: { prospectId: cafe.prospectId, score: 100, level: "confirmed" },
       },
     ]);
     expect(await prospectStatus(cafe.prospectId)).toBe("contacted");
