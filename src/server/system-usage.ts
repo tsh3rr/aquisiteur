@@ -4,7 +4,12 @@ import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
 import { assets, exposes, memberships, platformAdmins, sessionReplays, visits } from "@/db/schema";
 import { entitlements } from "@/domain/entitlements";
-import { PLATFORM_LIMITS, usageReading, type UsageReading } from "@/domain/system-limits";
+import {
+  PLATFORM_LIMITS,
+  usageReading,
+  type HostingPlan,
+  type UsageReading,
+} from "@/domain/system-limits";
 import { getInfra } from "@/infra";
 
 /** Settings → System (§5a, §9a): usage against limits. */
@@ -69,7 +74,7 @@ export async function workspaceUsage(
 }
 
 export interface PlatformUsage {
-  plan: "free" | "paid";
+  plan: HostingPlan;
   databaseBytes: UsageReading;
   storageBytes: UsageReading;
   /** Null when no analytics access is configured or it failed. */

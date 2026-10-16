@@ -52,7 +52,7 @@ Die Fristen stellt der Owner unter Einstellungen → Daten und Aufbewahrung ein 
 
 | Thema                     | Umsetzung                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Speicherort               | Alle personenbezogenen Daten in Postgres bei Supabase, Region Frankfurt.                                                                                                                                                                                                                                                                                                        |
+| Speicherort               | Alle personenbezogenen Daten in Postgres auf dem eigenen Server bei Hetzner in Deutschland (ADR-0047); Dateien in Cloudflare R2, Region EU.                                                                                                                                                                                                                                     |
 | Cockpit-Cookies           | Nur technisch notwendige: Session (`aq.session_token`, httpOnly, SameSite=Lax), aktiver Workspace (`aq_ws`), Farbschema (`aq_theme`), Passkey-Challenge während der Anmeldung.                                                                                                                                                                                                  |
 | IP-Adressen               | Werden in Sessions nicht gespeichert. Für das Rate Limiting der Anmeldung kurzzeitig als Schlüssel in `rate_limits`, für den Schutz der Kurzlinks nur als Hash mit Secret; beides löscht der stündliche Job nach einem Tag.                                                                                                                                                     |
 | Anmeldelinks              | 10 Minuten gültig, einmalig, nur als Hash gespeichert.                                                                                                                                                                                                                                                                                                                          |
@@ -71,14 +71,14 @@ Die Fristen stellt der Owner unter Einstellungen → Daten und Aufbewahrung ein 
 
 Neu in Phase 3:
 
-| Thema         | Umsetzung                                                                                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chat          | Interessenten schreiben anonym. Nachrichten liegen pro Workspace mit RLS in Postgres. Der Token des Verlaufs liegt nur in `sessionStorage` dieses Tabs (kein Cookie, endet mit dem Tab). |
-| Rückkanal     | Name, Nummer oder E-Mail nur, wenn die Person sie im Chat freiwillig angibt.                                                                                                             |
-| Entwürfe      | Standardmäßig nur die Länge getippter, nicht gesendeter Nachrichten. Inhalt nur bei `chat.storeDraftContent`, dann mit sichtbarem Hinweis im Widget.                                     |
-| Rückrufwunsch | Name, Telefonnummer, Wunschzeit und optionale Nachricht. Spam-Schutz per Honeypot-Feld, keine IP.                                                                                        |
-| Präsenz       | Letzter Heartbeat je Mitglied (`member_presence`), nur für die Anzeige „verfügbar“.                                                                                                      |
-| Realtime      | In Produktion Supabase Realtime (EU). Übertragen werden Nachrichtentext und Tippanzeige; gespeichert wird bei Supabase dabei nichts zusätzlich. Kanalnamen sind nicht erratbar (HMAC).   |
+| Thema         | Umsetzung                                                                                                                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat          | Interessenten schreiben anonym. Nachrichten liegen pro Workspace mit RLS in Postgres. Der Token des Verlaufs liegt nur in `sessionStorage` dieses Tabs (kein Cookie, endet mit dem Tab).                                                                             |
+| Rückkanal     | Name, Nummer oder E-Mail nur, wenn die Person sie im Chat freiwillig angibt.                                                                                                                                                                                         |
+| Entwürfe      | Standardmäßig nur die Länge getippter, nicht gesendeter Nachrichten. Inhalt nur bei `chat.storeDraftContent`, dann mit sichtbarem Hinweis im Widget.                                                                                                                 |
+| Rückrufwunsch | Name, Telefonnummer, Wunschzeit und optionale Nachricht. Spam-Schutz per Honeypot-Feld, keine IP.                                                                                                                                                                    |
+| Präsenz       | Letzter Heartbeat je Mitglied (`member_presence`), nur für die Anzeige „verfügbar“.                                                                                                                                                                                  |
+| Realtime      | Auf dem eigenen Server direkt aus der App (Server-Sent Events); bei der Cloudflare-Variante Supabase Realtime (EU). Übertragen werden Nachrichtentext und Tippanzeige; gespeichert wird bei Supabase dabei nichts zusätzlich. Kanalnamen sind nicht erratbar (HMAC). |
 
 Neu in Phase 4:
 
@@ -113,19 +113,20 @@ Neu in Phase 6:
 
 ## Auftragsverarbeiter
 
-| Dienst          | Zweck                                             | Region                 | AVV                                     |
-| --------------- | ------------------------------------------------- | ---------------------- | --------------------------------------- |
-| Supabase        | Datenbank, Realtime (Chat)                        | EU (Frankfurt)         | DPA im Dashboard abschließen            |
-| Cloudflare      | Hosting, Hyperdrive, R2 (Dateien)                 | global, R2 in EU       | DPA ist Teil der Self-Serve-Bedingungen |
-| Resend          | E-Mail-Versand (Anmeldelinks, Benachrichtigungen) | EU (Irland)            | DPA im Dashboard                        |
-| Sentry          | Fehler-Monitoring (ohne personenbezogene Daten)   | EU (Frankfurt)         | DPA in den Organisationseinstellungen   |
-| Pingen (später) | Briefdruck und Versand                            | Schweiz / Österreich   | AV-Vertrag vor Produktivbetrieb         |
-| OpenStreetMap   | Ortssuche (Nominatim) und Kartenkacheln           | EU (UK-Stiftung)       | Keine AVV; nur Firmenanschriften        |
-| Push-Dienste    | Web Push an Geräte der Mitglieder                 | Google, Apple, Mozilla | Inhalte Ende-zu-Ende verschlüsselt      |
+| Dienst              | Zweck                                                | Region                 | AVV                                     |
+| ------------------- | ---------------------------------------------------- | ---------------------- | --------------------------------------- |
+| Hetzner             | Server und Datenbank (inkl. Server-Backups)          | Deutschland            | AVV in der Hetzner-Konsole abschließen  |
+| Cloudflare          | R2 (Dateien, Datenbank-Backups); optional DNS        | R2 in EU               | DPA ist Teil der Self-Serve-Bedingungen |
+| Resend              | E-Mail-Versand (Anmeldelinks, Benachrichtigungen)    | EU (Irland)            | DPA im Dashboard                        |
+| Sentry              | Fehler-Monitoring (ohne personenbezogene Daten)      | EU (Frankfurt)         | DPA in den Organisationseinstellungen   |
+| Pingen (später)     | Briefdruck und Versand                               | Schweiz / Österreich   | AV-Vertrag vor Produktivbetrieb         |
+| OpenStreetMap       | Ortssuche (Nominatim) und Kartenkacheln              | EU (UK-Stiftung)       | Keine AVV; nur Firmenanschriften        |
+| Push-Dienste        | Web Push an Geräte der Mitglieder                    | Google, Apple, Mozilla | Inhalte Ende-zu-Ende verschlüsselt      |
+| Supabase (Variante) | Nur bei der Cloudflare-Variante: Datenbank, Realtime | EU (Frankfurt)         | DPA im Dashboard                        |
 
 ## Vor dem Livegang
 
-1. AV-Verträge mit Supabase, Cloudflare, Resend und Sentry abschließen.
+1. AV-Verträge mit Hetzner, Cloudflare, Resend und Sentry abschließen.
 2. Impressum und Datenschutzerklärung in den Einstellungen prüfen lassen oder durch eigene Texte ersetzen.
 3. Fristen unter Einstellungen → Daten und Aufbewahrung festlegen.
 4. Verzeichnis von Verarbeitungstätigkeiten um „Akquise per Brief mit Exposé“ ergänzen.

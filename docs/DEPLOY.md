@@ -1,265 +1,217 @@
-# Deployment: Cloudflare Workers + Supabase
+# Deployment: eigener Server (Hetzner + Coolify)
 
-Schritt-für-Schritt-Anleitung, um Aquisiteur produktiv zu betreiben, **komplett über die
-Weboberflächen** von Cloudflare, Supabase, Resend und GitHub. Ein Terminal brauchst du nicht; die
-zwei Befehle, die es ohne Klickweg nicht gibt, laufen im Browser (GitHub Codespaces, siehe unten).
+Schritt-für-Schritt-Anleitung, um Aquisiteur auf einem eigenen Server zu betreiben (ADR-0047). Coolify
+ist eine Weboberfläche auf dem Server: Sie verbindet das GitHub-Repo, baut jeden Push selbst, holt
+TLS-Zertifikate und verwaltet die Datenbank samt Backups. Ein Server reicht für mehrere Prototypen.
 Zeitaufwand beim ersten Mal: etwa eine Stunde.
 
-> Kurz gesagt: Supabase liefert die Postgres-Datenbank in Frankfurt, Cloudflare Hyperdrive verbindet
-> den Worker schnell mit ihr, Cloudflare Workers führt die Next.js-App aus. Cloudflare baut die App bei
-> jedem Push auf `main` selbst aus GitHub, spielt dabei die Datenbank-Migrationen ein und
-> veröffentlicht sie (Workers Builds, ADR-0036).
+Die frühere Variante mit Cloudflare Workers und Supabase steht in
+[DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
 
 ## Überblick
 
 ```
-GitHub (main) ──► Cloudflare Workers Builds: bauen → migrieren → deployen
-                                                         │
-Browser ──► Cloudflare Worker (Next.js via OpenNext) ◄───┘
-                 │  Binding HYPERDRIVE
-                 ▼
-           Cloudflare Hyperdrive (Connection-Pool an der Edge)
-                 │
-                 ▼
-           Supabase Postgres (Region eu-central-1, Frankfurt)
+GitHub (main) ──► Coolify auf dem Server: bauen (Nixpacks) → migrieren → starten
+                                                                  │
+Browser ──► Traefik (TLS, Let's Encrypt) ──► Aquisiteur (Node, Port 3000)
+                                                  │            │
+                                                  ▼            ▼
+                                        Postgres 16 (Coolify)  Cloudflare R2 (Bilder, Aufzeichnungen)
+                                                  │
+                                                  └── tägliches Backup ──► R2
 ```
 
-| Was           | Wo                             | Wofür                                                     |
-| ------------- | ------------------------------ | --------------------------------------------------------- |
-| Datenbank     | Supabase, Region **Frankfurt** | Alle Daten inkl. Logins (Better Auth)                     |
-| App           | Cloudflare Workers             | Cockpit, Exposés, Kurzlinks                               |
-| DB-Verbindung | Cloudflare Hyperdrive          | Pooling, damit der Worker nicht pro Anfrage neu verbindet |
-| E-Mail        | Resend (EU-Region)             | Anmeldelinks und Benachrichtigungen                       |
-| Dateien       | Cloudflare R2 (Region EU)      | Bilder und Videos der Exposés                             |
+| Was       | Wo                                  | Wofür                                      |
+| --------- | ----------------------------------- | ------------------------------------------ |
+| Server    | Hetzner Cloud, Standort Deutschland | App und Datenbank                          |
+| App       | Coolify-Anwendung aus GitHub        | Cockpit, Exposés, Kurzlinks, Live-Chat     |
+| Datenbank | Postgres 16 als Coolify-Ressource   | Alle Daten inkl. Logins (Better Auth)      |
+| Dateien   | Cloudflare R2 (Region EU)           | Bilder, Videos, Aufzeichnungen; DB-Backups |
+| E-Mail    | Resend (EU-Region)                  | Anmeldelinks und Benachrichtigungen        |
 
 ## Voraussetzungen
 
-- Ein Cloudflare-Konto mit deiner Domain als Zone in Cloudflare; zum Testen reicht der Free-Plan, für
-  den Betrieb **Workers Paid** (5 $/Monat, siehe Kosten)
-- Ein Supabase-Konto
+- Ein Hetzner-Cloud-Konto und eine Domain, deren DNS du bearbeiten kannst
+- Ein Cloudflare-Konto (nur für R2; der Free-Plan reicht)
 - Ein Resend-Konto (kostenloser Plan reicht für den Anfang)
-- Zugriff auf das GitHub-Repo `tsh3rr/aquisiteur`; der Stand, den du betreiben willst, liegt auf `main`
-  (Pull Request vorher mergen)
+- Zugriff auf das GitHub-Repo `tsh3rr/aquisiteur`; betrieben wird der Stand auf `main`
+- Ein SSH-Schlüssel auf deinem Rechner (`ssh-keygen -t ed25519`, falls noch keiner existiert)
 - Ein Passwortmanager für die Schlüssel, die du unterwegs bekommst
-
-### Befehle im Browser: GitHub Codespaces
-
-An zwei Stellen (Schlüssel erzeugen, Exposé veröffentlichen) brauchst du einen Befehl. Dafür öffnest
-du im Repo auf GitHub **Code → Codespaces → Create codespace on main**. Nach einer Minute hast du VS
-Code mit Terminal im Browser. Darin einmalig:
-
-```bash
-corepack enable && pnpm install
-```
-
-Für Privatkonten ist Codespaces bis 120 Kernstunden im Monat kostenlos; den Codespace danach unter
-**github.com/codespaces** stoppen oder löschen.
 
 ## 1. Domains festlegen
 
-Du brauchst zwei Dinge (Beispiel mit `aquisiteur.de`, ersetze durch deine Domain):
+Beispiel mit `aquisiteur.de`, ersetze durch deine Domain:
 
 | Zweck                           | Beispiel                                                           | Variable                            |
 | ------------------------------- | ------------------------------------------------------------------ | ----------------------------------- |
 | Cockpit                         | `app.aquisiteur.de`                                                | `APP_URL=https://app.aquisiteur.de` |
 | Plattform-Domain für Workspaces | `aquisiteur.de` → Workspace-Adressen wie `pixelwerk.aquisiteur.de` | `PLATFORM_DOMAIN=aquisiteur.de`     |
+| Coolify selbst                  | `coolify.aquisiteur.de`                                            | (nur in Coolify)                    |
 
-Später kann jeder Workspace zusätzlich eine eigene Domain bekommen (z. B. `go.pixelwerk.de`).
+## 2. Server anlegen und absichern
 
-## 2. Supabase-Datenbank anlegen
+1. In der Hetzner Cloud Console **Add Server**: Standort **Nürnberg** oder **Falkenstein**, Image
+   **Ubuntu 24.04**, Typ **CX22** (2 vCPU, 4 GB RAM) oder größer. Unter **SSH keys** deinen öffentlichen
+   Schlüssel hinterlegen. **Backups** anhaken (etwa 20 % Aufpreis, tägliche Server-Abbilder).
+2. Unter **Firewalls** eine Firewall anlegen und dem Server zuweisen: eingehend nur TCP **22**, **80**,
+   **443**. Port 8000 (Coolify vor dem Domain-Setup) nur vorübergehend und nur für deine eigene IP.
+3. Per SSH anmelden (`ssh root@<server-ip>`) und die Grundabsicherung einschalten:
 
-1. Auf [supabase.com](https://supabase.com) → **New project**.
-2. Name: `aquisiteur`, **Region: Central EU (Frankfurt)**, ein starkes Datenbank-Passwort erzeugen und im
-   Passwortmanager speichern.
-3. Nach dem Anlegen: **Project Settings → Data API** → bei _Exposed schemas_ `public` entfernen (oder die
-   Data API ganz deaktivieren). Aquisiteur spricht nur direkt per Postgres mit der Datenbank; die
-   REST-API von Supabase wird nicht gebraucht. Alle Tabellen haben zusätzlich Row Level Security.
-4. **Connect** (oben im Projekt) → **Connection string** → **Session pooler** kopieren und dein Passwort
-   einsetzen. Er sieht so aus:
-
+   ```bash
+   apt update && apt -y upgrade
+   apt -y install unattended-upgrades && dpkg-reconfigure -plow unattended-upgrades
+   # Anmeldung nur noch per Schlüssel
+   sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
+   systemctl restart ssh
    ```
-   postgres://postgres.<project-ref>:<DEIN-PASSWORT>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
-   ```
 
-   Den Session Pooler (Port **5432**) nutzen, nicht den Transaction Pooler (Port 6543): Aquisiteur setzt
-   pro Transaktion eine Datenbankrolle und Variablen für die Mandantentrennung. Diesen String nennt die
-   Anleitung ab hier **Datenbank-URL**.
+## 3. Coolify installieren
 
-5. Für den Live-Chat (Supabase Realtime, ADR-0020): unter **Project Settings → API Keys** den
-   _Publishable key_ (`sb_publishable_…`) und den _Secret key_ (`sb_secret_…`) notieren, unter **Data
-   API** die Projekt-URL (`https://<projekt>.supabase.co`). Unter **Realtime → Settings** muss „Allow
-   public access“ an sein (Standard). Die App nutzt nur Broadcast-Kanäle mit nicht erratbaren Namen.
+```bash
+curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+```
 
-Die Tabellen legst du nicht von Hand an: Das erledigt jeder Deploy (Schritt 6).
+Danach `http://<server-ip>:8000` öffnen, Admin-Konto anlegen. Unter **Settings** die Instanz-Domain
+`https://coolify.aquisiteur.de` eintragen (DNS-Eintrag aus Schritt 4 zuerst). Danach Port 8000 in der
+Hetzner-Firewall wieder schließen.
 
-## 3. Hyperdrive anlegen
+## 4. DNS-Einträge
 
-1. Im Cloudflare-Dashboard **Storage & Databases → Hyperdrive → Create configuration**.
-2. Name `aquisiteur-db`, als Verbindung die Datenbank-URL aus Schritt 2 (oder die Felder einzeln: Host
-   `aws-0-eu-central-1.pooler.supabase.com`, Port `5432`, Datenbank `postgres`, Benutzer
-   `postgres.<project-ref>`, dein Passwort).
-3. **Caching ausschalten** (beim Anlegen oder danach in den Einstellungen der Konfiguration): Das
-   Cockpit soll immer frische Daten sehen.
-4. Die **ID** der Konfiguration kopieren (32 Zeichen).
-5. Auf GitHub im Repo die Datei `wrangler.jsonc` öffnen, auf den Stift (**Edit**) klicken,
-   `REPLACE_WITH_HYPERDRIVE_ID` durch die ID ersetzen und direkt auf `main` committen
-   (**Commit changes**). Das ist die einzige Datei, die du anfasst.
+Bei deinem DNS-Anbieter (auch Cloudflare-DNS geht) A-Einträge auf die Server-IP (und AAAA auf die IPv6):
 
-## 4. Resend und R2 anlegen
+| Name                  | Typ      | Ziel      |
+| --------------------- | -------- | --------- |
+| `app`                 | A / AAAA | Server-IP |
+| `coolify`             | A / AAAA | Server-IP |
+| `*` (alle Workspaces) | A / AAAA | Server-IP |
+
+Bei Cloudflare-DNS die Einträge auf **DNS only** (graue Wolke) stellen, damit Coolify die Zertifikate
+selbst holen kann. Mit oranger Wolke (Proxy) zeigt die Timeline zusätzlich die Stadt eines Besuchs
+(**Rules → Managed Transforms → Add visitor location headers**); dann SSL/TLS auf **Full (strict)**
+stellen.
+
+## 5. R2 und Resend anlegen
+
+**R2 (Dateien und Backups):**
+
+1. Im Cloudflare-Dashboard **R2 Object Storage → Create bucket**: `aquisiteur-assets`, Location **EU**.
+   Einen zweiten Bucket `aquisiteur-backups` (EU) für die Datenbank-Backups.
+2. **R2 → Manage API tokens → Create API token** mit _Object Read & Write_ für beide Buckets. Notiere
+   _Access Key ID_, _Secret Access Key_ und den Endpoint `https://<account-id>.eu.r2.cloudflarestorage.com`.
+
+Die Buckets bleiben privat; die App liefert Dateien selbst aus, nur für den passenden Workspace.
 
 **Resend (E-Mail):**
 
-1. In Resend **Domains → Add domain**, Region **EU (Ireland)**, z. B. `mail.aquisiteur.de`.
-2. Die angezeigten DNS-Einträge (SPF, DKIM) in Cloudflare unter **DNS → Records** anlegen und in Resend
-   verifizieren lassen.
-3. **API Keys → Create** mit Berechtigung _Sending access_, Schlüssel im Passwortmanager speichern.
+1. **Domains → Add domain**, Region **EU (Ireland)**, z. B. `mail.aquisiteur.de`; die DNS-Einträge (SPF,
+   DKIM) anlegen und verifizieren lassen.
+2. **API Keys → Create** mit _Sending access_.
 
 Zum ersten Ausprobieren geht es auch ohne Resend, siehe „Ohne E-Mail-Versand testen“.
 
-**R2 (Bilder):**
+## 6. Datenbank in Coolify
 
-1. Im Cloudflare-Dashboard **R2 Object Storage → Create bucket**, Name `aquisiteur-assets`, Location
-   **EU** (Jurisdiction „European Union“).
-2. **R2 → Manage API tokens → Create API token** mit _Object Read & Write_, nur für diesen Bucket.
-   Notiere _Access Key ID_, _Secret Access Key_ und den S3-Endpoint
-   (`https://<account-id>.eu.r2.cloudflarestorage.com`).
+1. In Coolify **Projects → New** `aquisiteur`, darin **New resource → Database → PostgreSQL 16**.
+2. Name `aquisiteur-db`, **Start**. Coolify erzeugt Benutzer und Passwort. Die **interne URL**
+   (`postgres://postgres:…@aquisiteur-db:5432/postgres`, nur im Server-Netz erreichbar) ist die
+   **Datenbank-URL** für Schritt 8. Die Datenbank bleibt von außen unerreichbar („Make it publicly
+   available“ aus lassen).
+3. **Backups**: unter **S3 Storages** (in den Coolify-Einstellungen) den Bucket `aquisiteur-backups` mit
+   den R2-Zugangsdaten anlegen, dann in der Datenbank **Backups → Scheduled backup**: täglich
+   (`0 3 * * *`), **Save to S3** an, Aufbewahrung z. B. 14 Tage. Einmal **Backup now** und prüfen, dass
+   die Datei im Bucket liegt.
 
-Der Bucket bleibt privat. Die App liefert die Dateien selbst aus, nur für den passenden Workspace.
+Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schritt 7).
 
-## 5. Schlüssel erzeugen
+## 7. App aus GitHub anlegen
 
-Aquisiteur braucht ein paar zufällige Geheimnisse und ein Schlüsselpaar für Push aufs Handy. Im
-Codespace (siehe Voraussetzungen):
+1. Im Projekt **New resource → Application → Private repository (with GitHub App)**. Coolify führt durch
+   die Installation seiner GitHub-App; Zugriff nur auf `tsh3rr/aquisiteur` geben.
+2. Branch `main`, Build Pack **Nixpacks**. Die Datei `nixpacks.toml` im Repo legt Node 22, den Build
+   (`pnpm build`) und den Start fest: erst `pnpm db:migrate`, dann `pnpm start`.
+3. **Ports Exposes**: `3000`.
+4. **Domains**: `https://app.aquisiteur.de,https://pixelwerk.aquisiteur.de` (Cockpit plus die Adresse
+   jedes Workspaces, kommagetrennt; nach dem Einrichtungs-Assistenten ergänzen). Coolify holt für jede
+   ein Zertifikat.
+5. **Health check**: Pfad `/healthz`, Port 3000 (antwortet erst, wenn die Datenbank erreichbar ist). So geht eine neue Version erst live, wenn sie antwortet.
+6. **Auto deploy** an: jeder Push auf `main` baut und veröffentlicht neu.
 
-```bash
-pnpm deploy:secrets
-```
+Die App läuft als **eine** Instanz. Live-Chat und Live-Feed laufen dann direkt aus dem Node-Prozess
+(Server-Sent Events, `REALTIME_PROVIDER=memory`), ohne weiteren Dienst.
 
-Die Ausgabe enthält `BETTER_AUTH_SECRET`, `INTEGRATIONS_ENCRYPTION_KEY`, `CRON_SECRET`,
-`VAPID_PUBLIC_KEY` und `VAPID_PRIVATE_KEY`. Alles in den Passwortmanager; es wird nirgends
-gespeichert. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern: Ohne ihn lassen sich später
-gespeicherte Zugangsdaten (z. B. für Pingen) nicht mehr entschlüsseln.
+## 8. Umgebungsvariablen
 
-Ohne Codespace geht es auch: Die drei Geheimnisse kann dein Passwortmanager erzeugen (zufällig, mindestens
-40 Zeichen, nur Buchstaben und Ziffern). Nur das Push-Schlüsselpaar braucht den Befehl; ohne es läuft
-alles außer Push.
+Im Projekt `aquisiteur` unter **Environment Variables** (Secrets mit „Is secret?“ markieren).
+Die Geheimnisse erzeugt `pnpm deploy:secrets` lokal (`BETTER_AUTH_SECRET`,
+`INTEGRATIONS_ENCRYPTION_KEY`, `CRON_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`); alles in den
+Passwortmanager. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern.
 
-## 6. Worker aus GitHub anlegen (Workers Builds)
+| Name                          | Wert                                               | Secret |
+| ----------------------------- | -------------------------------------------------- | ------ |
+| `HOSTING_PROFILE`             | `node`                                             |        |
+| `HOSTING_PLAN`                | `vps`                                              |        |
+| `DATABASE_URL`                | interne Datenbank-URL aus Schritt 6                | ja     |
+| `APP_URL`                     | `https://app.aquisiteur.de`                        |        |
+| `PLATFORM_DOMAIN`             | `aquisiteur.de`                                    |        |
+| `SIGNUP_ALLOWLIST`            | deine E-Mail-Adresse                               |        |
+| `PLATFORM_ADMIN_EMAILS`       | deine E-Mail-Adresse (Einstellungen → System)      |        |
+| `EMAIL_PROVIDER`              | `resend`                                           |        |
+| `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`        |        |
+| `RESEND_API_KEY`              | aus Schritt 5                                      | ja     |
+| `STORAGE_PROVIDER`            | `s3`                                               |        |
+| `S3_ENDPOINT`                 | `https://<account-id>.eu.r2.cloudflarestorage.com` |        |
+| `S3_BUCKET`                   | `aquisiteur-assets`                                |        |
+| `S3_ACCESS_KEY_ID`            | aus Schritt 5                                      | ja     |
+| `S3_SECRET_ACCESS_KEY`        | aus Schritt 5                                      | ja     |
+| `REALTIME_PROVIDER`           | `memory`                                           |        |
+| `PUSH_PROVIDER`               | `webpush`                                          |        |
+| `VAPID_PUBLIC_KEY`            | aus `pnpm deploy:secrets`                          |        |
+| `VAPID_PRIVATE_KEY`           | aus `pnpm deploy:secrets`                          | ja     |
+| `VAPID_SUBJECT`               | `mailto:deine@adresse.de`                          |        |
+| `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                          | ja     |
+| `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                          | ja     |
+| `CRON_SECRET`                 | aus `pnpm deploy:secrets`                          | ja     |
+| `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim)    |        |
+| `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU          | ja     |
 
-1. Im Cloudflare-Dashboard **Workers & Pages → Create → Import a repository** (bzw. „Connect to Git“).
-   GitHub verbinden und `tsh3rr/aquisiteur` auswählen.
-2. Einstellungen:
+Dann **Deploy**. Der erste Build dauert einige Minuten (**Deployments → Logs**).
 
-   | Feld                         | Wert                                                      |
-   | ---------------------------- | --------------------------------------------------------- |
-   | Project name                 | `aquisiteur` (muss zum `name` in `wrangler.jsonc` passen) |
-   | Production branch            | `main`                                                    |
-   | Build command                | `pnpm cf:build`                                           |
-   | Deploy command               | `pnpm cf:release`                                         |
-   | Non-production branch builds | aus                                                       |
+**Fehler-Monitoring (optional, ADR-0044):** Sentry-Projekt in einer Organisation mit Datenregion EU
+anlegen, DSN (`https://<key>@o<nr>.ingest.de.sentry.io/<projekt>`) als `SENTRY_DSN`. Ohne DSN landen
+Fehler im Log der App in Coolify.
 
-3. Unter **Advanced settings → Build variables** anlegen:
+## 9. Stündlicher Job
 
-   | Name           | Wert                      | Typ    |
-   | -------------- | ------------------------- | ------ |
-   | `DATABASE_URL` | Datenbank-URL (Schritt 2) | Secret |
-   | `NODE_VERSION` | `22`                      | Text   |
+Tageszusammenfassung, automatische Löschung nach Fristen und die Karte brauchen einen stündlichen
+Aufruf (ADR-0032, ADR-0043). In der App **Scheduled Tasks → Add**:
 
-   `pnpm cf:release` spielt mit `DATABASE_URL` zuerst die Migrationen ein und veröffentlicht danach
-   die neue Version. So läuft nie neuer Code gegen ein altes Schema.
+| Feld      | Wert               |
+| --------- | ------------------ |
+| Name      | `hourly`           |
+| Command   | `pnpm jobs:hourly` |
+| Frequency | `5 * * * *`        |
 
-4. **Deploy**. Der erste Build dauert einige Minuten (Fortschritt unter **Deployments**). Die App
-   antwortet danach noch mit Fehlern, weil die Konfiguration fehlt; die kommt im nächsten Schritt.
+Der Befehl läuft im Container der App und ruft `/api/jobs/hourly` mit `CRON_SECRET` auf. Unter
+**Scheduled Tasks → Executions** siehst du die Antwort (`200 {"digests":…}`).
 
-Ab jetzt baut und veröffentlicht Cloudflare jeden Push auf `main` von selbst.
-
-## 7. Konfiguration im Worker hinterlegen
-
-Im Worker **Settings → Variables and Secrets → Add**. Typ **Text** für normale Werte, **Secret** für
-Geheimnisse (werden verschlüsselt gespeichert und sind danach nicht mehr lesbar). Nach dem Speichern
-übernimmt Cloudflare die Werte sofort, ohne neuen Build.
-
-**Text:**
-
-| Name                       | Wert                                               |
-| -------------------------- | -------------------------------------------------- |
-| `APP_URL`                  | `https://app.aquisiteur.de`                        |
-| `PLATFORM_DOMAIN`          | `aquisiteur.de`                                    |
-| `EMAIL_PROVIDER`           | `resend`                                           |
-| `EMAIL_FROM`               | `Aquisiteur <anmeldung@mail.aquisiteur.de>`        |
-| `SIGNUP_ALLOWLIST`         | deine E-Mail-Adresse                               |
-| `STORAGE_PROVIDER`         | `s3`                                               |
-| `S3_ENDPOINT`              | `https://<account-id>.eu.r2.cloudflarestorage.com` |
-| `S3_BUCKET`                | `aquisiteur-assets`                                |
-| `REALTIME_PROVIDER`        | `supabase`                                         |
-| `SUPABASE_URL`             | `https://<projekt>.supabase.co`                    |
-| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…`                                 |
-| `PUSH_PROVIDER`            | `webpush`                                          |
-| `VAPID_PUBLIC_KEY`         | aus Schritt 5                                      |
-| `VAPID_SUBJECT`            | `mailto:deine@adresse.de`                          |
-| `GEOCODER_CONTACT`         | deine E-Mail-Adresse (für die Karte, Nominatim)    |
-
-**Secret:**
-
-| Name                          | Wert                        |
-| ----------------------------- | --------------------------- |
-| `BETTER_AUTH_SECRET`          | aus Schritt 5               |
-| `INTEGRATIONS_ENCRYPTION_KEY` | aus Schritt 5               |
-| `CRON_SECRET`                 | aus Schritt 5               |
-| `VAPID_PRIVATE_KEY`           | aus Schritt 5               |
-| `RESEND_API_KEY`              | aus Schritt 4               |
-| `S3_ACCESS_KEY_ID`            | aus Schritt 4 (R2)          |
-| `S3_SECRET_ACCESS_KEY`        | aus Schritt 4 (R2)          |
-| `SUPABASE_SECRET_KEY`         | `sb_secret_…` aus Schritt 2 |
-
-`HOSTING_PROFILE` steht schon in `wrangler.jsonc`. Dort steht auch `keep_vars: true`, damit spätere
-Deploys deine Werte aus dem Dashboard nicht löschen.
-
-Der stündliche Job (Tageszusammenfassung, Aufbewahrung, ADR-0032/0043) ist ebenfalls schon eingerichtet;
-er läuft nur mit `CRON_SECRET`. Ohne es gibt es keine Tageszusammenfassung und keine automatische
-Löschung, sonst funktioniert alles.
-
-**Fehler-Monitoring (optional, ADR-0044):** Lege bei Sentry ein Projekt in der Region **EU** an
-(`sentry.io` → Organisation mit Datenregion Frankfurt) und trage dessen DSN als Secret `SENTRY_DSN` ein
-(`https://<key>@o<nr>.ingest.de.sentry.io/<projekt>`). Optional `SENTRY_ENVIRONMENT` (Standard
-`production`) und `SENTRY_RELEASE`. Ohne DSN landen Fehler nur im Worker-Log.
-
-**Limits im Blick (optional, ADR-0045):** Unter Einstellungen → System sieht jeder Workspace seinen
-Verbrauch. Die Werte der ganzen Installation (Datenbankgröße, Dateispeicher, Anfragen, CPU-Zeit) sehen
-nur Betreiber: trage dafür deine E-Mail-Adresse als Variable `PLATFORM_ADMIN_EMAILS` ein. `HOSTING_PLAN`
-ist `free` (Standard) oder `paid` und bestimmt, mit welchen Grenzen verglichen wird. Für Anfragen und
-CPU-Zeit legst du unter **My Profile → API Tokens** einen Token mit **Account Analytics: Read** an und
-trägst ihn als Secret `CLOUDFLARE_ANALYTICS_TOKEN` ein, dazu die Account-ID (rechte Spalte der
-Worker-Übersicht) als Variable `CLOUDFLARE_ACCOUNT_ID`.
-
-## 8. Domains an den Worker hängen
-
-1. Im Worker **Settings → Domains & Routes → Add → Custom domain**: `app.aquisiteur.de`. Cloudflare
-   legt DNS-Eintrag und Zertifikat selbst an.
-2. **Add → Route**: `*.aquisiteur.de/*`, Zone `aquisiteur.de`.
-3. Für die Workspace-Adressen (`<workspace>.aquisiteur.de`) in Cloudflare **DNS → Records → Add
-   record**: Typ `AAAA`, Name `*`, IPv6-Adresse `100::`, **Proxy aktiv** (orange Wolke).
-4. Damit die Timeline die Stadt eines Besuchs zeigt: **Rules → Settings → Managed Transforms →
-   Add visitor location headers** einschalten. Ohne fehlt nur die Stadt. Die IP-Adresse liest
-   Aquisiteur nie.
-
-## 9. Erster Login
+## 10. Erster Login
 
 `https://app.aquisiteur.de` öffnen:
 
 1. E-Mail-Adresse aus `SIGNUP_ALLOWLIST` eingeben, Anmeldelink aus dem Postfach öffnen.
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
-4. Auf dem Handy: Cockpit öffnen, **Einstellungen → Benachrichtigungen → Push auf diesem Gerät
-   aktivieren**, dann **Test senden**. Auf dem iPhone vorher in Safari „Teilen → Zum Home-Bildschirm“
-   und Aquisiteur von dort öffnen; Push geht dort nur aus der installierten App.
-5. Unter **Einstellungen → Eigene Besuche** auf jedem eigenen Gerät „Dieses Gerät als meines markieren“,
-   damit eigene Aufrufe nicht als Kundenbesuche zählen.
+4. Die Workspace-Adresse (z. B. `pixelwerk.aquisiteur.de`) in Coolify unter **Domains** ergänzen
+   (Schritt 7.4) und neu deployen.
+5. Auf dem Handy: Cockpit öffnen, **Einstellungen → Benachrichtigungen → Push auf diesem Gerät
+   aktivieren**, dann **Test senden**. Auf dem iPhone vorher in Safari „Teilen → Zum Home-Bildschirm“.
+6. Unter **Einstellungen → Eigene Besuche** auf jedem eigenen Gerät „Dieses Gerät als meines markieren“.
+7. Unter **Einstellungen → Impressum und Datenschutz** die Texte prüfen.
 
-## 10. Erstes Exposé veröffentlichen
+## 11. Erstes Exposé veröffentlichen
 
 1. Im Cockpit **Einstellungen → API-Tokens** einen Token anlegen und kopieren.
-2. Im Codespace:
+2. Auf deinem Rechner im Repo:
 
    ```bash
    export AQUISITEUR_API_TOKEN=aq_…
@@ -267,91 +219,65 @@ Worker-Übersicht) als Variable `CLOUDFLARE_ACCOUNT_ID`.
    pnpm expose:publish exposes/cafe-mueller
    ```
 
-3. Die Ausgabe nennt den öffentlichen Link, den Kurzlink für den Brief (z. B.
-   `pixelwerk.aquisiteur.de/k7m2`) und den QR-Link. QR-Codes als SVG oder PNG (300 dpi) gibt es im
-   Cockpit unter **Kunden → Kunde → Links und QR-Codes**.
-
-Wie du eigene Exposés schreibst: [EXPOSE_AUTHORING.md](./EXPOSE_AUTHORING.md).
+3. Die Ausgabe nennt den öffentlichen Link, den Kurzlink für den Brief und den QR-Link. QR-Codes als SVG
+   oder PNG gibt es im Cockpit unter **Kunden → Kunde → Links und QR-Codes**.
 
 ## Ohne E-Mail-Versand testen
 
-Resend ist für einen ersten Test nicht nötig. Die Anmeldung läuft über Better Auth in der eigenen
-Datenbank, nicht über Supabase Auth; ein Nutzer, den du im Supabase-Dashboard anlegst, hilft deshalb
-nicht.
+In Schritt 8 `EMAIL_PROVIDER=log` und zusätzlich `ALLOW_LOG_EMAIL=1` setzen; der Anmeldelink erscheint
+dann im Log der App (**Logs** in Coolify). Vor dem echten Betrieb auf `resend` umstellen und
+`ALLOW_LOG_EMAIL` löschen, sonst kann jeder mit Zugriff auf die Logs Anmeldelinks lesen.
 
-**Link im Worker-Log (nur Dashboard):**
-
-1. In Schritt 7 `EMAIL_PROVIDER` = `log` setzen, zusätzlich `ALLOW_LOG_EMAIL` = `1` (Text).
-   `RESEND_API_KEY` weglassen.
-2. Im Worker **Observability → Logs** (bzw. **Logs → Live**) öffnen.
-3. Im Cockpit deine Adresse eingeben; der Anmeldelink erscheint im Log.
-4. Vor dem echten Betrieb auf `resend` umstellen und `ALLOW_LOG_EMAIL` löschen, denn jeder mit Zugriff
-   auf die Logs könnte sonst Anmeldelinks lesen.
-
-**Oder per Befehl im Codespace:** legt den Account an und gibt einen Anmeldelink aus, der 30 Minuten
-und nur einmal gilt. Funktioniert jederzeit erneut, z. B. wenn du den Passkey verlierst.
+Oder im **Terminal** der App in Coolify (legt den Account an, Link 30 Minuten gültig, einmalig):
 
 ```bash
-DATABASE_URL='<Datenbank-URL>' APP_URL='https://app.aquisiteur.de' \
-  pnpm user:login deine@adresse.de --name "Vorname Nachname"
+pnpm user:login deine@adresse.de --name "Vorname Nachname"
 ```
 
 ## Updates einspielen
 
-Nichts zu tun: Sobald ein Pull Request auf `main` gemergt ist, baut Cloudflare die App, spielt die
-Migrationen ein und veröffentlicht sie. Den Verlauf siehst du im Worker unter **Deployments**; schlägt
-ein Build fehl, bleibt die vorige Version online. Migrationen sind so geschrieben, dass die alte
-App-Version mit dem neuen Schema weiterläuft. Zurück auf eine frühere Version: **Deployments →
-Version → Rollback** (Datenbank-Änderungen bleiben dabei bestehen).
+Nichts zu tun: Sobald ein Pull Request auf `main` gemergt ist, baut Coolify die App, startet sie, spielt
+dabei die Migrationen ein und schaltet erst um, wenn der Health Check antwortet. Schlägt der Build fehl,
+bleibt die vorige Version online. Zurück auf eine frühere Version: **Deployments → Redeploy** bei einem
+älteren Commit (Datenbank-Änderungen bleiben dabei bestehen; Migrationen halten die alte Version
+lauffähig).
+
+## Wiederherstellen
+
+- **Datenbank:** in Coolify **Backups → Restore**, oder eine Backup-Datei aus R2 mit
+  `pg_restore --no-owner -d "$DATABASE_URL" backup.dump` einspielen, danach `pnpm db:migrate`.
+- **Ganzer Server:** Hetzner-Backup des Servers wiederherstellen.
+- **Dateien** liegen in R2 und sind vom Server unabhängig.
+
+## Überwachung
+
+- **Erreichbarkeit:** ein kostenloser Monitor (z. B. UptimeRobot) auf `https://app.aquisiteur.de/healthz`.
+- **Fehler:** Sentry (optional, siehe Schritt 8) oder die Logs in Coolify.
+- **Platz und Limits:** Einstellungen → System zeigt Datenbankgröße und Dateispeicher (nur für
+  `PLATFORM_ADMIN_EMAILS`). Plattenplatz des Servers zeigt Coolify unter **Servers**.
 
 ## Fehlerbehebung
 
-| Symptom                                       | Ursache und Lösung                                                                                                                              |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build bricht mit `DATABASE_URL is not set` ab | Build-Variable aus Schritt 6 fehlt: Worker **Settings → Build → Variables and secrets**.                                                        |
-| Build: Hyperdrive-ID ungültig                 | `REPLACE_WITH_HYPERDRIVE_ID` in `wrangler.jsonc` steht noch drin oder die ID ist falsch (Schritt 3).                                            |
-| `Invalid environment configuration` im Log    | Eine Variable aus Schritt 7 fehlt. Das Log (**Observability → Logs**) nennt, welche.                                                            |
-| Login-Mail kommt nicht                        | `EMAIL_PROVIDER` steht noch auf `log`, oder die Absender-Domain ist in Resend nicht verifiziert. Die Adresse muss in `SIGNUP_ALLOWLIST` stehen. |
-| Passkey-Fehler „origin“                       | `APP_URL` muss exakt der Adresse im Browser entsprechen (https, ohne Schrägstrich am Ende).                                                     |
-| `permission denied for table …`               | Migrationen fehlen. Im Worker unter **Deployments** den letzten Build prüfen oder ihn neu starten (**Retry build**).                            |
-| Workspace-Adresse liefert 404                 | Route oder Wildcard-DNS aus Schritt 8 fehlt, oder der Assistent wurde nicht abgeschlossen.                                                      |
-| Werte aus dem Dashboard nach Deploy weg       | `keep_vars` fehlt in `wrangler.jsonc`.                                                                                                          |
-
-## Alternativ per Kommandozeile
-
-Wer lieber im Terminal arbeitet: `pnpm wrangler hyperdrive create … --caching-disabled`,
-`pnpm wrangler secret put <NAME>`, `DATABASE_URL=… pnpm db:migrate` und `pnpm cf:deploy` ersetzen die
-Schritte 3, 6 und 7. Variablen setzt du dann im Dashboard oder unter `vars` in `wrangler.jsonc`.
-
-Lokal wie in Produktion testen:
-
-```bash
-cp .env.example .dev.vars        # Werte anpassen, APP_URL=http://localhost:8787
-pnpm cf:build && pnpm wrangler dev --port 8787
-```
-
-`wrangler dev` nutzt für Hyperdrive die `localConnectionString` aus `wrangler.jsonc` (lokales Postgres).
+| Symptom                                    | Ursache und Lösung                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Start bricht mit `DATABASE_URL` ab         | Variable fehlt oder zeigt nicht auf die interne URL aus Schritt 6.                                                              |
+| `Invalid environment configuration` im Log | Eine Variable aus Schritt 8 fehlt; das Log nennt, welche.                                                                       |
+| Zertifikat fehlt / Browser warnt           | DNS-Eintrag zeigt nicht auf den Server, Port 80 ist zu, oder bei Cloudflare-DNS ist der Proxy an, ohne SSL „Full (strict)“.     |
+| Workspace-Adresse liefert 404              | Domain in Coolify nicht eingetragen (Schritt 7.4), oder der Assistent wurde nicht abgeschlossen.                                |
+| Login-Mail kommt nicht                     | `EMAIL_PROVIDER` steht auf `log`, oder die Absender-Domain ist in Resend nicht verifiziert; Adresse muss in `SIGNUP_ALLOWLIST`. |
+| Passkey-Fehler „origin“                    | `APP_URL` muss exakt der Adresse im Browser entsprechen (https, ohne Schrägstrich am Ende).                                     |
+| Live-Chat hängt                            | Mehr als eine Instanz läuft; im Node-Profil genau eine Instanz betreiben.                                                       |
 
 ## Kosten (Stand Oktober 2026, ungefähr)
 
-| Dienst                  | Kosten                                                                              |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| Cloudflare Workers Paid | 5 $/Monat inkl. 10 Mio. Anfragen                                                    |
-| Hyperdrive              | im Workers-Paid-Plan enthalten                                                      |
-| Workers Builds          | im Free-Plan 3.000 Build-Minuten/Monat, reicht weit                                 |
-| Supabase                | Free-Tarif reicht zum Start; Pro 25 $/Monat für tägliche Backups und kein Pausieren |
-| Resend                  | Free bis 3.000 Mails/Monat                                                          |
-
-**Ohne Workers Paid starten:** Der Worker passt mit 2,6 MB in die 3-MB-Grenze des Free-Plans
-(ADR-0035), und Hyperdrive gibt es dort ebenfalls (mit kleineren Kontingenten). Zum Ausprobieren reicht
-das. Die Grenze von 10 ms CPU pro Anfrage kann bei Exposés, dem Cockpit oder der Anmeldung überschritten
-werden; dann bricht die Anfrage mit einem Fehler ab. Sobald echte Briefe rausgehen oder solche Fehler in
-den Worker-Logs auftauchen, auf Workers Paid wechseln (im Dashboard unter **Workers & Pages → Plans**,
-ohne neues Deployment).
-
-Hinweis: Supabase pausiert Free-Projekte nach einer Woche ohne Aktivität. Für den echten Betrieb ist
-der Pro-Tarif sinnvoll (Backups, kein Pausieren).
+| Dienst                     | Kosten                                         |
+| -------------------------- | ---------------------------------------------- |
+| Hetzner CX22 inkl. Backups | etwa 5–6 €/Monat, für alle Prototypen zusammen |
+| Coolify (selbst betrieben) | kostenlos                                      |
+| Cloudflare R2              | kostenlos bis 10 GB                            |
+| Resend                     | kostenlos bis 3.000 Mails/Monat                |
+| Sentry                     | kostenloser Developer-Plan                     |
 
 ## Umzug zu einem anderen Hoster
 
-Siehe [HOSTING.md](./HOSTING.md). Kurzfassung: `HOSTING_PROFILE=node`, `DATABASE_URL` setzen, `pnpm build && pnpm start`.
+Siehe [HOSTING.md](./HOSTING.md) und [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).

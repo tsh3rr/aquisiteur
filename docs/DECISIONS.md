@@ -440,7 +440,7 @@ jeweils mit Symbol und Text. Impressum und Datenschutzerklärung sind in den Ein
 bearbeitbar; leer bleibt der aus den Angaben erzeugte Text, der jetzt auch Messwerte, Score, Chat,
 Speicherdauer und Dienstleister nennt und die eingestellten Fristen einsetzt.
 
-## ADR-0046 · Exposés weiter pro Aufruf gerendert, Betrieb auf Workers Paid (2026-10-16)
+## ADR-0046 · Exposés weiter pro Aufruf gerendert, Betrieb auf Workers Paid (2026-10-16, abgelöst durch ADR-0047)
 
 Gemessen mit `next start` (Node, Produktions-Build): ein Exposé-Aufruf kostet rund 33 ms CPU, eine
 schlichte Seite wie das Impressum rund 15 ms. Der Gratis-Plan von Cloudflare erlaubt 10 ms. Vorrendern
@@ -449,3 +449,18 @@ dem Cache können keine Nonce tragen, die CSP für Exposés würde also schwäch
 erst nach der Invalidierung. Entscheidung: ADR-0012 bleibt, für den Betrieb wird Workers Paid empfohlen
 (5 $ im Monat, 30 s CPU). Das Vorrendern steht unter „Später“, falls der Gratis-Plan Pflicht wird.
 Einstellungen → System zeigt die CPU-Zeit pro Anfrage gegen die Grenze des gewählten Plans.
+
+## ADR-0047 · Betrieb auf eigenem Server (Hetzner + Coolify) statt Cloudflare Workers (2026-10-16)
+
+Der Owner will günstig und planbar prototypen; ein Server mit festen Kosten (etwa 5 €/Monat) trägt
+mehrere Projekte, ohne Kontingente, CPU-Grenzen pro Anfrage oder pausierende Datenbanken. Aquisiteur
+läuft dort mit `HOSTING_PROFILE=node` als eine Next.js-Instanz, gebaut von Coolify mit Nixpacks
+(`nixpacks.toml`), Postgres 16 als Coolify-Ressource auf demselben Server mit täglichem Backup nach R2,
+Dateien weiter in R2. Live-Chat und Live-Feed laufen aus dem Prozess (`REALTIME_PROVIDER=memory`), was
+genau eine Instanz voraussetzt. Der stündliche Job ist eine geplante Aufgabe in Coolify
+(`pnpm jobs:hourly`); `tsx` und `dotenv` sind deshalb Laufzeit-Abhängigkeiten, ebenso für die
+Migrationen beim Start (`pnpm db:migrate && pnpm start`). `/healthz` antwortet auf jedem Host, sobald die
+Datenbank erreichbar ist, damit Coolify erst dann umschaltet. Die Cloudflare-Variante bleibt im Code und
+in der CI (Größen-Check) erhalten, Anleitung in `docs/DEPLOY_CLOUDFLARE.md`. Damit ist die Frage aus
+ADR-0046 (Workers Paid oder Vorrendern) für den Betrieb hinfällig. Einstellungen → System vergleicht mit
+`HOSTING_PLAN=vps` (20 GB Datenbank, 10 GB R2, keine CPU-Grenze pro Anfrage).

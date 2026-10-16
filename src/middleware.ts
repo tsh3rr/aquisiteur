@@ -30,6 +30,10 @@ const PUBLIC_COCKPIT_PATHS = [
 ];
 
 export function middleware(request: NextRequest) {
+  // Health checks call the container directly (Host: localhost), before any host routing.
+  if (request.nextUrl.pathname === "/healthz") {
+    return NextResponse.rewrite(new URL("/api/health", request.url));
+  }
   const appUrl = process.env.APP_URL;
   const platformDomain = process.env.PLATFORM_DOMAIN;
   if (!appUrl || !platformDomain) {

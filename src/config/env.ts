@@ -81,7 +81,7 @@ const serverEnvSchema = z.object({
    * Settings → System (§5a): which quotas to compare against, and optional
    * read access to Cloudflare's analytics for requests and CPU time.
    */
-  HOSTING_PLAN: z.enum(["free", "paid"]).default("free"),
+  HOSTING_PLAN: z.enum(["vps", "free", "paid"]).default("vps"),
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
   CLOUDFLARE_ANALYTICS_TOKEN: z.string().optional(),
   CLOUDFLARE_WORKER_NAME: z.string().default("aquisiteur"),

@@ -151,3 +151,13 @@ test("cockpit responses carry the security headers", async ({ request }) => {
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["x-frame-options"]).toBe("DENY");
 });
+
+test("the health check answers on any host, as the server's deployment calls it", async ({
+  request,
+}) => {
+  for (const host of ["localhost:3100", "nobody.localhost:3100"]) {
+    const response = await request.get("/healthz", { headers: { host } });
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toBe("ok");
+  }
+});

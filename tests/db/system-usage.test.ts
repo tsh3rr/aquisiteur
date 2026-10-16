@@ -68,9 +68,9 @@ describe("system usage", () => {
     expect(await isPlatformAdmin(db, sven)).toBe(false);
 
     const platform = await platformUsage(db);
-    expect(platform.plan).toBe("free");
+    expect(platform.plan).toBe("vps");
     expect(platform.databaseBytes.used).toBeGreaterThan(0);
-    expect(platform.databaseBytes.limit).toBe(500 * 1024 * 1024);
+    expect(platform.databaseBytes.limit).toBe(20 * 1024 ** 3);
     expect(platform.metricsConfigured).toBe(false);
     expect(platform.requestsToday).toBeNull();
   });

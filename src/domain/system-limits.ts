@@ -4,13 +4,13 @@
  * this app targets (ADR-0045); workspace limits come from entitlements().
  */
 
-export type HostingPlan = "free" | "paid";
+export type HostingPlan = "vps" | "free" | "paid";
 
 export interface PlatformLimits {
   /** Worker requests per day (UTC). null: billed, not capped. */
   requestsPerDay: number | null;
-  /** CPU time per request in milliseconds, compared with the p99. */
-  cpuMsPerRequest: number;
+  /** CPU time per request in milliseconds, compared with the p99. null: no per-request cap. */
+  cpuMsPerRequest: number | null;
   /** Postgres database size in bytes. */
   databaseBytes: number;
   /** Object storage in bytes (images, recordings). null: billed, not capped. */
@@ -20,8 +20,18 @@ export interface PlatformLimits {
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
-/** Cloudflare Workers, Supabase and R2 as of 2026; see docs/HOSTING.md. */
+/**
+ * `vps`: the own server (Hetzner CX22, 40 GB disk shared with the system,
+ * ADR-0047) with files in R2's free tier. `free` / `paid`: Cloudflare Workers,
+ * Supabase and R2 as of 2026 (docs/DEPLOY_CLOUDFLARE.md).
+ */
 export const PLATFORM_LIMITS: Record<HostingPlan, PlatformLimits> = {
+  vps: {
+    requestsPerDay: null,
+    cpuMsPerRequest: null,
+    databaseBytes: 20 * GB,
+    storageBytes: 10 * GB,
+  },
   free: {
     requestsPerDay: 100_000,
     cpuMsPerRequest: 10,

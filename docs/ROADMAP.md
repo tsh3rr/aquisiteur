@@ -81,11 +81,11 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace (ADR-0043)
 - [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [x] Einstellungen → System mit Limits (ADR-0045)
-- [x] CPU-Grenze des Free-Plans gemessen, Entscheidung Workers Paid statt Vorrendern (ADR-0046)
+- [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047)
 
 ## Später
 
-- [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls der Free-Plan von Cloudflare Pflicht wird (ADR-0046)
+- [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
 - [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; automatische Follow-ups
 - [ ] Messenger, SMS, Telegram, A/B-Varianten, KI-Assistent für Exposé-Entwürfe
 - [ ] SaaS-Launch: Registrierung, Teams, Stripe, Plattform-Admin, Landingpage

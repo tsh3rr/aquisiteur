@@ -21,7 +21,19 @@ export function imprintMarkdown(settings: WorkspaceSettings, workspaceName: stri
   return [lines.join("\n"), contact.join("\n")].filter(Boolean).join("\n\n");
 }
 
-export function privacyMarkdown(settings: WorkspaceSettings, workspaceName: string): string {
+/** Who hosts the installation; named in the generated privacy text. */
+export type HostingProfile = "node" | "cloudflare";
+
+const PROCESSORS: Record<HostingProfile, string> = {
+  node: "Server und Datenbank bei Hetzner in Deutschland, Dateien bei Cloudflare R2 (EU)",
+  cloudflare: "Hosting über Cloudflare, Datenbank bei Supabase in Frankfurt (EU)",
+};
+
+export function privacyMarkdown(
+  settings: WorkspaceSettings,
+  workspaceName: string,
+  hosting: HostingProfile = "node",
+): string {
   if (settings.legal.privacyMarkdown) return settings.legal.privacyMarkdown;
   const controller = settings.senderAddress.company ?? workspaceName;
   const contact = settings.channels.email
@@ -41,7 +53,7 @@ export function privacyMarkdown(settings: WorkspaceSettings, workspaceName: stri
         " Tagen."
       : null,
     `**Speicherdauer.** Einzelne Messwerte löschen wir nach ${settings.retention.eventsDays} Tagen automatisch. Wenn Sie „Kein Interesse“ wählen, löschen wir alle Besuchsdaten nach ${settings.retention.optOutTrackingDays} Tagen und behalten nur den Vermerk, Sie nicht mehr zu kontaktieren. Nachrichten bewahren wir auf, solange es für die Korrespondenz nötig ist.`,
-    "**Dienstleister.** Hosting über Cloudflare, Datenbank bei Supabase in Frankfurt (EU), Fehlerberichte ohne personenbezogene Daten über Sentry (EU). Mit allen bestehen Verträge zur Auftragsverarbeitung.",
+    `**Dienstleister.** ${PROCESSORS[hosting]}, Fehlerberichte ohne personenbezogene Daten über Sentry (EU). Mit allen bestehen Verträge zur Auftragsverarbeitung.`,
     "**Ihre Rechte.** Sie können Auskunft (auch als Datei), Berichtigung, Löschung und Einschränkung verlangen und der Verarbeitung widersprechen. Über den Link „Kein Interesse“ am Ende des Exposés widersprechen Sie mit einem Klick; wir kontaktieren Sie dann nicht mehr. Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren.",
   ]
     .filter(Boolean)

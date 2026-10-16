@@ -1,7 +1,8 @@
 # Hosting-Portabilität und Umzug
 
-Cloudflare ist das Ziel, aber kein Käfig (ZIELPROMPT §5a). Ein Umzug ist ein Konfigurationswechsel plus
-Adapter für die Schnittstellen, die bis dahin nur eine Cloudflare-Implementierung haben.
+Betrieben wird Aquisiteur auf einem eigenen Server mit Coolify (ADR-0047, Anleitung in
+[DEPLOY.md](./DEPLOY.md)). Die Cloudflare-Variante ist im Code vollständig erhalten
+([DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md)). Ein Umzug ist ein Konfigurationswechsel (ZIELPROMPT §5a).
 
 ## Was heute anbieterneutral ist
 
@@ -18,7 +19,9 @@ Adapter für die Schnittstellen, die bis dahin nur eine Cloudflare-Implementieru
 Fachcode importiert Anbieter-SDKs nie direkt; die ESLint-Regel in `eslint.config.mjs` erzwingt das
 außerhalb von `src/infra/` (getestet in `tests/unit/infra-boundary.test.ts`).
 
-## Variante A: eigener Server (Hetzner + Coolify)
+## Variante A: eigener Server (Hetzner + Coolify), Standard
+
+Ausführlich in [DEPLOY.md](./DEPLOY.md). Umzug von Supabase auf den Server:
 
 1. Server (z. B. Hetzner CX22, Falkenstein/Nürnberg) mit Coolify aufsetzen.
 2. Postgres 16 als Coolify-Ressource anlegen, Daten übertragen:

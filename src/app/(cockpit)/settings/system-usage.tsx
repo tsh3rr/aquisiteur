@@ -101,7 +101,12 @@ export function PlatformUsageList({ usage }: { usage: PlatformUsage }) {
   return (
     <div className="grid gap-3">
       <h3 className="text-sm font-semibold">
-        Installation · {usage.plan === "free" ? "Gratis-Pläne" : "Bezahlte Pläne"}
+        Installation ·{" "}
+        {usage.plan === "vps"
+          ? "Eigener Server"
+          : usage.plan === "free"
+            ? "Cloudflare Gratis-Pläne"
+            : "Cloudflare bezahlt"}
       </h3>
       <dl className="divide-y divide-border">
         {usage.requestsToday ? (
@@ -122,7 +127,7 @@ export function PlatformUsageList({ usage }: { usage: PlatformUsage }) {
         <Row label="Datenbank" reading={usage.databaseBytes} format={formatBytes} />
         <Row label="Dateispeicher" reading={usage.storageBytes} format={formatBytes} />
       </dl>
-      {usage.requestsToday ? null : (
+      {usage.requestsToday || usage.plan === "vps" ? null : (
         <p className="text-sm text-foreground-muted">
           {usage.metricsConfigured
             ? "Anfragen und CPU-Zeit sind gerade nicht abrufbar."

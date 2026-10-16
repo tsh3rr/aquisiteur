@@ -294,6 +294,7 @@ export default async function SettingsPage() {
               privacy: privacyMarkdown(
                 { ...settings, legal: { imprintMarkdown: undefined, privacyMarkdown: undefined } },
                 workspace.name,
+                serverEnv().HOSTING_PROFILE,
               ),
             }}
             publicOrigin={publicOrigin}
