@@ -331,3 +331,68 @@ Variablen und Secrets liegen im Worker-Dashboard; `keep_vars: true` in `wrangler
 ein Deploy sie löscht. Nur die Hyperdrive-ID steht in `wrangler.jsonc`, weil das Binding dort definiert
 sein muss. Für die zwei Schritte ohne Klickweg (Schlüssel erzeugen, Exposé veröffentlichen) reicht ein
 GitHub Codespace im Browser; `pnpm deploy:secrets` gibt alle Schlüssel auf einmal aus.
+
+## ADR-0037 · Brief-PDF entsteht im Browser (2026-10-16)
+
+Das DIN-5008-PDF (Form B, Faltmarken, Anschriftfeld für DL-Fensterkuverts) rendert `@react-pdf/renderer`
+im Browser, erst beim Klick auf „PDF herunterladen“ nachgeladen. Der Server liefert nur die fertig
+zusammengesetzten Daten (`loadPrintableLetters`). Auf dem Worker wäre das Rendern zu groß (Bundle) und zu
+teuer (CPU-Grenze). `next.config.ts` hält react-pdf, Leaflet und rrweb per Alias aus dem Server-Bundle;
+ohne das wuchs der Worker auf 3,4 MB. Die Layout-Engine (yoga) ist WebAssembly; die Cockpit-CSP erlaubt
+dafür `'wasm-unsafe-eval'` (kein JS-`eval`) und `connect-src data:`. Schriften: Geist (OFL) als WOFF in
+`public/fonts/letter/`.
+
+## ADR-0038 · Briefversand mit `manual`-Provider und Lebenszyklus (2026-10-16)
+
+Briefe durchlaufen `draft → queued → submitted → printed → posted` (dazu `returned`, `failed`,
+`cancelled`), rein in `src/domain/letters/lifecycle.ts`. Der `manual`-Provider steht hinter
+`LetterDispatchProvider`: Der Owner druckt das PDF selbst und markiert „versendet“ mit Versanddatum;
+dabei läuft der Brief den Weg bis `posted` durch. Ab dem Versanddatum zählen Öffnung und Zeit bis zur
+Öffnung, der Kunde springt von „Entwurf“ auf „Brief versendet“. Kosten pro Brief kommen aus den
+Einstellungen (Standard 1,10 €), solange kein Provider einen Preis liefert. Ein Folgebrief bekommt einen
+eigenen Touchpoint (eigener Code), damit sichtbar wird, welcher Brief gewirkt hat. Pingen folgt als
+zweiter Adapter ohne Änderung am Lebenszyklus.
+
+## ADR-0039 · Kampagnen und CSV-Import (2026-10-16)
+
+Eine Kampagne ist eine schlichte Gruppe (`campaigns`, `prospects.campaign_id`, nullable). Löschen lässt
+Kunden und Briefe bestehen. Der Import liest CSV mit Semikolon, Komma oder Tab (Trennzeichen aus der
+Kopfzeile), ordnet Spalten über deutsche und englische Aliasse zu, prüft jede Zeile mit denselben
+Zod-Schemas wie das Formular und überspringt Firmen, die es am selben Ort schon gibt. Höchstens 2.000
+Zeilen pro Datei.
+
+## ADR-0040 · Definitionen der Auswertung (2026-10-16)
+
+Gezählt werden nur echte Besuche: Seite geladen (`confirmed_at`), kein Bot, nicht das Gerät des Owners.
+„Gelesen“ heißt zwei Minuten sichtbar oder 75 % gescrollt (wie im Score). Kontaktversuch: Klick auf
+einen Kanal, Chat-Nachricht oder Rückrufwunsch. Der Funnel betrachtet Kunden, deren erster Brief im
+Zeitraum versendet wurde; die Stufen „Kontakt“, „Termin“, „Gewonnen“ stammen aus der Statushistorie im
+Audit-Log, damit ein späterer Rückschritt die erreichte Stufe nicht löscht. Trends vergleichen mit der
+gleich langen Vorperiode, Quoten in Prozentpunkten. Alle Abfragen laufen als Mandant; die Filter
+(Kampagne, Branche, Region als Ort oder PLZ-Anfang, Tag) stehen in der URL. Jedes Diagramm hat eine
+Tabellenansicht, jede Ansicht einen CSV-Export.
+
+## ADR-0041 · Karte mit OpenStreetMap und stündlicher Ortssuche (2026-10-16)
+
+Adressen werden über einen neuen `GeocoderPort` verortet: Nominatim in Produktion, ein deterministischer
+Fake in Tests. Der stündliche Job fragt höchstens 40 Adressen mit 1,1 s Abstand (Nominatim-Regeln:
+1 Anfrage/s, eindeutiger User-Agent, Ergebnisse speichern). Ein Fehlschlag wird ebenfalls gespeichert,
+damit eine Adresse nur einmal angefragt wird; eine geänderte Adresse kommt neu in die Warteschlange.
+„Jetzt verorten“ fragt sofort bis zu zehn Adressen des eigenen Workspaces. Die Karte (Leaflet, nur im
+Browser geladen) zeigt OSM-Kacheln, gefärbt nach Status oder Kontaktabsicht, mit Legende und
+Listenansicht. Weil das Cockpit per Client-Navigation wechselt und dabei die CSP der ersten Seite behält,
+erlaubt die Cockpit-CSP Bilder und Schriften von `https:` (Kacheln, Aufzeichnungen); die Exposé-Hosts
+bleiben bei `'self'`.
+
+## ADR-0042 · Session-Replay nur nach Einwilligung (2026-10-16)
+
+Aus (Standard), bis der Owner es in den Einstellungen einschaltet. Dann fragt das Exposé nach acht
+Sekunden mit einem kleinen Hinweis und zwei gleich gestalteten Knöpfen. Vor einem „Ja“ wird nichts
+aufgezeichnet und nichts nachgeladen. Jede Entscheidung landet mit Textversion in `consents` und als
+Event in der Timeline. Der Browser merkt sich nur die Entscheidung (`localStorage`, ohne Kennung; das ist
+für die Funktion nötig), nie eine ID. rrweb maskiert alle Eingaben; Chat und Rückrufformular sind
+komplett ausgeblendet. Die Aufzeichnung geht in Stücken an `/t/replay`, wird gzip-komprimiert unter
+`<workspace>/replays/<id>/<n>.json.gz` gespeichert und ist pro Besuch begrenzt (400 Stücke, 8 MB). Ein
+Widerruf über „Aufzeichnung läuft · beenden“ löscht sie sofort, der stündliche Job nach
+`retention.replaysDays` (Standard 90 Tage). Das Cockpit spielt Aufzeichnungen mit dem rrweb-Replayer in
+einem Frame ohne Skripte ab.

@@ -69,15 +69,19 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 ## Phase 5 · Brief & Auswertung
 
-- [ ] Dashboards (Übersicht, Kampagne, Inhalt), Karte, Funnel, Heatmaps
-- [ ] Brief-PDF (DIN 5008), Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Lebenszyklus
-- [ ] Consent + Session-Replay
+- [x] Dashboards (Übersicht, Kampagne, Inhalt) mit Trend, Funnel und Kampagnenvergleich, Wochentag-×-Uhrzeit-Heatmap, Abschnitts-Heatmap pro Kunde, CSV-Export (ADR-0040)
+- [x] Karte mit stündlicher Ortssuche über Nominatim (ADR-0041)
+- [x] Kampagnen und CSV-Import (ADR-0039)
+- [x] Brief-PDF (DIN 5008) im Browser, Sammel-PDF, Versand-Schnittstelle mit `manual`-Provider und Lebenszyklus (ADR-0037, ADR-0038)
+- [x] Consent + Session-Replay mit Löschung nach Frist und bei Widerruf (ADR-0042)
+- [x] E2E: Kampagne von Import bis Auswertung (`tests/e2e/campaign.spec.ts`)
 
 ## Phase 6 · Härtung
 
 - [ ] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace
 - [ ] Security-Checkliste, Monitoring (Sentry EU), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [ ] Einstellungen → System mit Limits
+- [ ] Exposés beim Veröffentlichen vorrendern, damit Seiten im Free-Plan unter der CPU-Grenze bleiben (ADR-0035, auf „Später“ gestellt)
 
 ## Später
 

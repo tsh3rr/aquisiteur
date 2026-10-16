@@ -45,6 +45,17 @@ Neu in Phase 4:
 | Push-Abos            | Endpoint und Schlüssel des Browsers pro Mitglied und Gerät. Der Push-Dienst des Browsers (Google, Apple, Mozilla) sieht nur verschlüsselte Inhalte (RFC 8291).                       |
 | Tageszusammenfassung | E-Mail an die Mitglieder, nur wenn in den letzten 24 Stunden etwas passiert ist.                                                                                                     |
 
+Neu in Phase 5:
+
+| Thema            | Umsetzung                                                                                                                                                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Briefe           | Das PDF entsteht im Browser des Owners; auf dem Server liegen nur Text, Status und Versanddatum des Briefs. Kein Druckdienstleister beim `manual`-Provider.                                                                                                                  |
+| CSV-Import       | Nur die erkannten Spalten werden übernommen, die Datei selbst wird nicht gespeichert.                                                                                                                                                                                        |
+| Karte            | Die Anschrift der Firma (nicht der Person) geht einmal an OpenStreetMap Nominatim; gespeichert werden Koordinaten und Zeitpunkt. Kartenkacheln lädt der Browser des Owners von `tile.openstreetmap.org`.                                                                     |
+| Einwilligung     | Für Session-Replay: Hinweis mit zwei gleichwertigen Knöpfen, nur wenn der Owner es einschaltet. Gespeichert in `consents`: Entscheidung, Textversion, Zeitpunkt, Besuch. Im Browser nur die Entscheidung (`localStorage`), keine Kennung.                                    |
+| Session-Replay   | Erst nach „Ja“. Eingaben maskiert, Chat und Rückrufformular ausgeblendet. gzip-Stücke im privaten Bucket unter dem Workspace-Pfad, höchstens 8 MB pro Besuch. Löschung sofort bei Widerruf, sonst nach `retention.replaysDays` (Standard 90 Tage) durch den stündlichen Job. |
+| Datenschutzseite | Die Standard-Datenschutzerklärung im Exposé erklärt die Aufzeichnung, sobald sie eingeschaltet ist.                                                                                                                                                                          |
+
 ## Auftragsverarbeiter
 
 | Dienst           | Zweck                                             | Region               | AVV                                     |
@@ -54,8 +65,9 @@ Neu in Phase 4:
 | Resend           | E-Mail-Versand (Anmeldelinks, Benachrichtigungen) | EU (Irland)          | DPA im Dashboard                        |
 | Pingen (später)  | Briefdruck und Versand                            | Schweiz / Österreich | AV-Vertrag vor Produktivbetrieb         |
 | Sentry (Phase 6) | Fehler-Monitoring                                 | EU                   | DPA                                     |
+| OpenStreetMap    | Ortssuche (Nominatim) und Kartenkacheln           | EU (UK-Stiftung)     | Keine AVV; nur Firmenanschriften        |
 
 ## Offen bis Phase 6
 
-Consent für Session-Replay, Aufbewahrungsfristen und automatische Löschung,
+Aufbewahrungsfristen und automatische Löschung für Events und `rate_limits` (Replays sind erledigt),
 Export pro Prospect und pro Workspace (Löschen eines Prospects mit allen Besuchen gibt es im Cockpit), Datenschutzerklärung und Impressum pro Workspace.

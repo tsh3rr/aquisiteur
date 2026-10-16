@@ -99,6 +99,23 @@ eingeschränkt. Mitglieder lesen Visits und Events nur (RLS, `GRANT SELECT`).
 5. **Cockpit**: „Heute“ zeigt `listHotProspects` und den Live-Feed (`visit.activity`), die Glocke den
    ungelesenen Zähler, `/benachrichtigungen` die Liste; der Service Worker `/sw.js` zeigt Pushes an.
 
+## Brief und Auswertung (Phase 5)
+
+1. **Kampagnen und Import**: `src/domain/prospects/import.ts` liest und prüft CSV rein,
+   `src/server/prospects/import.ts` legt Kunden als Mandant an (ADR-0039).
+2. **Briefe**: `src/server/letters/manage.ts` erstellt Entwürfe, setzt sie für das PDF zusammen
+   (`composeLetter` in `src/domain/letters/compose.ts`) und führt sie durch den Lebenszyklus über
+   `getInfra().letters(provider)` (ADR-0038). Das PDF rendert der Browser (`src/components/letters`,
+   ADR-0037).
+3. **Auswertung**: `src/server/analytics/*` rechnet in SQL als Mandant (KPIs, Funnel, Aktivität,
+   Inhalte, Karte), reine Hilfen in `src/domain/analytics`. Seiten unter `/auswertung` und
+   `/kampagnen/[id]` teilen `OverviewSections` und die Filterleiste (ADR-0040).
+4. **Karte**: `/api/jobs/hourly` ruft `geocodePending` (System-Verbindung, über `GeocoderPort`) auf;
+   Leaflet lädt nur im Browser (ADR-0041).
+5. **Replay**: `ReplayConsent` im Exposé → `/t/consent` und `/t/replay` (System-Verbindung, auf den
+   Workspace des Hosts begrenzt) → `src/server/tracking/replay.ts` → Storage. Das Cockpit liest als
+   Mandant und spielt im Frame ab (ADR-0042).
+
 ## Mandantentrennung (§9a)
 
 ```
@@ -150,4 +167,5 @@ Weitere Tabellen (Prospects, Exposés, Touchpoints, Events …) kommen mit ihren
 | `JobQueuePort`           | später | vorerst `after()` + Cron (ADR-0032)    |
 | `PushPort`               | 4      | Web Push (VAPID), Dev: Log             |
 | `LetterDispatchProvider` | 5      | `manual`, danach Pingen                |
+| `GeocoderPort`           | 5      | Nominatim, Tests: Fake                 |
 | `DomainPort`             | 1/6    | Cloudflare for SaaS (Custom Hostnames) |

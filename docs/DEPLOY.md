@@ -197,6 +197,7 @@ Geheimnisse (werden verschlüsselt gespeichert und sind danach nicht mehr lesbar
 | `PUSH_PROVIDER`            | `webpush`                                          |
 | `VAPID_PUBLIC_KEY`         | aus Schritt 5                                      |
 | `VAPID_SUBJECT`            | `mailto:deine@adresse.de`                          |
+| `GEOCODER_CONTACT`         | deine E-Mail-Adresse (für die Karte, Nominatim)    |
 
 **Secret:**
 

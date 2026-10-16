@@ -59,6 +59,9 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 - Public workspace pages read via the system connection but always scoped to the host's workspace
   (ADR-0012).
 - Pure logic in `src/domain` (unit-tested, no I/O). Server-only services in `src/server`.
+- Browser-only libraries (react-pdf, Leaflet, rrweb) load via dynamic `import()` on the client and are
+  aliased out of the server bundle in `next.config.ts`; keep it that way or the Worker outgrows the free
+  plan (ADR-0035, ADR-0037). The CI job "Cloudflare bundle" checks the size.
 - Host routing: `src/middleware.ts` (Edge; see ADR-0006). Public workspace pages live under
   `src/app/sites/[host]/`.
 
