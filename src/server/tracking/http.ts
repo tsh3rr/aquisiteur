@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { readTextLimited } from "@/lib/body";
 import { workspaceForHostParam } from "@/server/sites";
 import { OWNER_COOKIE, isOwnerDevice } from "./visits";
 
@@ -17,9 +18,8 @@ export function isCrossSite(request: Request): boolean {
 
 /** JSON body of at most `maxBytes`, whatever the content type (sendBeacon sends text). */
 export async function readJson(request: Request, maxBytes = 32 * 1024): Promise<unknown> {
-  if (Number(request.headers.get("content-length") ?? 0) > maxBytes) return null;
-  const text = await request.text();
-  if (text.length > maxBytes) return null;
+  const text = await readTextLimited(request, maxBytes);
+  if (text === null) return null;
   try {
     return JSON.parse(text) as unknown;
   } catch {

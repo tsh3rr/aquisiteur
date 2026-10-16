@@ -1,5 +1,6 @@
 import { getDb } from "@/db";
 import { REPLAY_LIMITS } from "@/domain/tracking/replay";
+import { readTextLimited } from "@/lib/body";
 import { workspaceForHostParam } from "@/server/sites";
 import { empty, isCrossSite } from "@/server/tracking/http";
 import { appendReplayChunk } from "@/server/tracking/replay";
@@ -11,10 +12,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ hos
   if (isCrossSite(request)) return empty(403);
   const workspace = await workspaceForHostParam((await params).host);
   if (!workspace) return empty(404);
-  if (Number(request.headers.get("content-length") ?? 0) > REPLAY_LIMITS.chunkBytes) {
-    return empty(413);
-  }
-  const text = await request.text();
+  const text = await readTextLimited(request, REPLAY_LIMITS.chunkBytes);
+  if (text === null) return empty(413);
   let body: unknown = null;
   try {
     body = JSON.parse(text);

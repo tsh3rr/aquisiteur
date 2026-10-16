@@ -1,6 +1,6 @@
 /**
  * Security headers (§10). The CSP is per request (nonce) and set in
- * src/proxy.ts; the static headers are applied in next.config.ts.
+ * src/middleware.ts; the static headers are applied in next.config.ts.
  */
 export function buildContentSecurityPolicy(options: {
   nonce: string;

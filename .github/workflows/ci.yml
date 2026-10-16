@@ -34,6 +34,8 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test
+      # Known advisories in runtime dependencies (docs/SECURITY.md); dev tooling is not shipped.
+      - run: pnpm audit --prod --audit-level high
 
   database:
     name: Tenant isolation (Postgres)

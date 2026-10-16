@@ -1,6 +1,7 @@
 import { can } from "@/domain/authz";
 import { assetUploadMetaSchema, MAX_UPLOAD_BYTES } from "@/domain/expose/wire";
 import { getInfra } from "@/infra";
+import { readBodyLimited } from "@/lib/body";
 import { apiError, authenticateApiRequest } from "@/server/api-auth";
 import { PublishError, storeAsset, type PublishVariant } from "@/server/exposes/publish";
 
@@ -11,13 +12,14 @@ export async function POST(request: Request) {
   if (!can(api.actor, "exposes.publish", { workspaceId: api.actor.workspaceId })) {
     return apiError(403, "forbidden");
   }
-  if (Number(request.headers.get("content-length") ?? 0) > MAX_UPLOAD_BYTES) {
-    return apiError(413, "payload_too_large");
-  }
+  const body = await readBodyLimited(request, MAX_UPLOAD_BYTES);
+  if (!body) return apiError(413, "payload_too_large");
 
   let form: FormData;
   try {
-    form = await request.formData();
+    form = await new Response(body, {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    }).formData();
   } catch {
     return apiError(400, "invalid_request");
   }

@@ -3,6 +3,7 @@ import { serverEnv } from "@/config/env";
 import { workspaces } from "@/db/schema";
 import { can } from "@/domain/authz";
 import { publishRequestSchema, type PublishResponse } from "@/domain/expose/wire";
+import { readTextLimited } from "@/lib/body";
 import { apiError, authenticateApiRequest } from "@/server/api-auth";
 import { publishExpose, PublishError } from "@/server/exposes/publish";
 import { exposePath, workspacePublicOrigin } from "@/server/exposes/urls";
@@ -19,10 +20,15 @@ export async function POST(request: Request) {
   if (!can(api.actor, "exposes.publish", { workspaceId: api.actor.workspaceId })) {
     return apiError(403, "forbidden");
   }
-  if (Number(request.headers.get("content-length") ?? 0) > 2 * 1024 * 1024) {
-    return apiError(413, "payload_too_large");
+  const text = await readTextLimited(request, 2 * 1024 * 1024);
+  if (text === null) return apiError(413, "payload_too_large");
+  let json: unknown = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // Reported as invalid_request below.
   }
-  const parsed = publishRequestSchema.safeParse(await request.json().catch(() => null));
+  const parsed = publishRequestSchema.safeParse(json);
   if (!parsed.success) {
     return apiError(400, "invalid_request", [
       { path: "(Anfrage)", message: "JSON mit document und assets erwartet." },

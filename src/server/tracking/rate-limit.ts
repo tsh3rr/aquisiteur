@@ -25,3 +25,19 @@ export async function hitRateLimit(
   const count = Number(rows[0]?.count ?? 1);
   return count <= limit;
 }
+
+/** True when `key` already used up `limit` in the current window; counts nothing. */
+export async function rateLimitReached(
+  db: Database,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+  now = Date.now(),
+): Promise<boolean> {
+  const windowStart = now - windowSeconds * 1000;
+  const rows = await db.execute<{ count: number }>(sql`
+    select count from rate_limits
+    where key = ${`aq:${key}`} and last_request >= ${windowStart}
+  `);
+  return Number(rows[0]?.count ?? 0) >= limit;
+}

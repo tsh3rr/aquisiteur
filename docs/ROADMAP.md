@@ -78,9 +78,9 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 ## Phase 6 · Härtung
 
-- [ ] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace
-- [ ] Security-Checkliste, Monitoring (Sentry EU), Datenschutzseiten, `docs/PRIVACY.md` vollständig
-- [ ] Einstellungen → System mit Limits
+- [x] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace (ADR-0043)
+- [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
+- [x] Einstellungen → System mit Limits (ADR-0045)
 - [ ] Exposés beim Veröffentlichen vorrendern, damit Seiten im Free-Plan unter der CPU-Grenze bleiben (ADR-0035, auf „Später“ gestellt)
 
 ## Später

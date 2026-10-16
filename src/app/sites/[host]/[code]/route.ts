@@ -3,6 +3,7 @@ import { RESERVED_CODES } from "@/domain/tracking/short-links";
 import { workspaceForHostParam } from "@/server/sites";
 import { ownerDeviceFor } from "@/server/tracking/http";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
+import { clientKey, shortLinksBlocked } from "@/server/tracking/short-link-guard";
 import { createVisit, resolveCode, ticketForVisit } from "@/server/tracking/visits";
 
 const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
@@ -35,6 +36,13 @@ export async function GET(
   if (RESERVED_CODES.has(code)) return new Response("Not found", { status: 404 });
 
   const db = getDb();
+  // A client guessing codes gets nothing more until its window ends.
+  if (await shortLinksBlocked(db, workspace.id, await clientKey(request.headers))) {
+    return new Response(null, {
+      status: 302,
+      headers: { ...headers, location: "/nicht-gefunden?zuviele=1" },
+    });
+  }
   const hit = code ? await resolveCode(db, workspace.id, code) : null;
   if (!hit) {
     return new Response(null, {

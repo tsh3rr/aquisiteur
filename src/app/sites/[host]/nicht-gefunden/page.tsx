@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getDb } from "@/db";
 import { workspaceForHostParam } from "@/server/sites";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
+import { clientKey, recordMiss } from "@/server/tracking/short-link-guard";
 import { shortCodeSuggestions } from "@/server/tracking/visits";
 
 export const metadata: Metadata = {
@@ -16,15 +18,21 @@ export default async function NotFoundCodePage({
   searchParams,
 }: {
   params: Promise<{ host: string }>;
-  searchParams: Promise<{ code?: string | string[] }>;
+  searchParams: Promise<{ code?: string | string[]; zuviele?: string | string[] }>;
 }) {
   const workspace = await workspaceForHostParam((await params).host);
   if (!workspace) notFound();
-  const raw = (await searchParams).code;
+  const query = await searchParams;
+  const raw = query.code;
   const code = (Array.isArray(raw) ? raw[0] : raw)?.slice(0, 80) ?? "";
   const db = getDb();
+  // Every unknown code counts against the client (enumeration guard, §10).
+  const allowed = code
+    ? await recordMiss(db, workspace.id, await clientKey(await headers()))
+    : true;
+  const tooMany = Boolean(query.zuviele) || !allowed;
   const suggestions =
-    code && (await hitRateLimit(db, `nf:${workspace.id}`, 300, 600))
+    code && !tooMany && (await hitRateLimit(db, `nf:${workspace.id}`, 300, 600))
       ? await shortCodeSuggestions(db, workspace.id, code)
       : [];
 
@@ -36,6 +44,12 @@ export default async function NotFoundCodePage({
           <h1 className="text-2xl font-semibold text-balance">
             Diesen Link kennen wir leider nicht.
           </h1>
+          {tooMany ? (
+            <p role="status" className="text-foreground-muted">
+              Es wurden gerade sehr viele unbekannte Links aufgerufen. Bitte versuchen Sie es in
+              zehn Minuten erneut.
+            </p>
+          ) : null}
           {code ? (
             <p className="text-foreground-muted">
               Sie haben <span className="font-medium text-foreground">„{code}“</span> eingegeben.
