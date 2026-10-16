@@ -215,8 +215,14 @@ Geheimnisse (werden verschlüsselt gespeichert und sind danach nicht mehr lesbar
 `HOSTING_PROFILE` steht schon in `wrangler.jsonc`. Dort steht auch `keep_vars: true`, damit spätere
 Deploys deine Werte aus dem Dashboard nicht löschen.
 
-Der stündliche Job (Tageszusammenfassung, ADR-0032) ist ebenfalls schon eingerichtet; er läuft nur mit
-`CRON_SECRET`. Ohne es gibt es keine Tageszusammenfassung, sonst funktioniert alles.
+Der stündliche Job (Tageszusammenfassung, Aufbewahrung, ADR-0032/0043) ist ebenfalls schon eingerichtet;
+er läuft nur mit `CRON_SECRET`. Ohne es gibt es keine Tageszusammenfassung und keine automatische
+Löschung, sonst funktioniert alles.
+
+**Fehler-Monitoring (optional, ADR-0044):** Lege bei Sentry ein Projekt in der Region **EU** an
+(`sentry.io` → Organisation mit Datenregion Frankfurt) und trage dessen DSN als Secret `SENTRY_DSN` ein
+(`https://<key>@o<nr>.ingest.de.sentry.io/<projekt>`). Optional `SENTRY_ENVIRONMENT` (Standard
+`production`) und `SENTRY_RELEASE`. Ohne DSN landen Fehler nur im Worker-Log.
 
 ## 8. Domains an den Worker hängen
 

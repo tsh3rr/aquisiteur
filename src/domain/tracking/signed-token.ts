@@ -34,7 +34,8 @@ async function hmac(secret: string, message: string): Promise<string> {
   return base64url(new Uint8Array(signature)).slice(0, 32);
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
+/** Constant-time string comparison for secrets and signatures. */
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);

@@ -3,6 +3,7 @@ import { manualLetters } from "./manual/letters";
 import { cloudflareDatabase } from "./cloudflare/database";
 import { logEmail } from "./dev/email";
 import { fakeGeocoder } from "./dev/geocoder";
+import { consoleMonitor } from "./dev/monitor";
 import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
 import { nominatimGeocoder } from "./nominatim/geocoder";
@@ -10,6 +11,7 @@ import { localStorage } from "./dev/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
 import { s3Storage } from "./s3/storage";
+import { sentryMonitor } from "./sentry/monitor";
 import { supabaseRealtime } from "./supabase/realtime";
 import type { EmailPort, Infra, PushPort, RealtimePort, StoragePort } from "./types";
 import { webPush } from "./webpush/push";
@@ -93,6 +95,12 @@ export function getInfra(): Infra {
         : env.GEOCODER_PROVIDER === "fake"
           ? fakeGeocoder()
           : null,
+    monitor: env.SENTRY_DSN
+      ? sentryMonitor(env.SENTRY_DSN, {
+          environment: env.SENTRY_ENVIRONMENT ?? env.NODE_ENV,
+          release: env.SENTRY_RELEASE,
+        })
+      : consoleMonitor(),
   };
   return cached;
 }

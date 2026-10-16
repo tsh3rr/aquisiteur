@@ -412,3 +412,15 @@ Bestätigung durch Eingabe des Kurznamens) entfernt zuerst alle Dateien unter `<
 (`StoragePort.deletePrefix`), dann die Zeile; alles andere folgt per Cascade. Es läuft auf der
 System-Verbindung wie das Anlegen. Auch beim Löschen eines Kunden werden die Aufzeichnungsdateien jetzt
 mit entfernt.
+
+## ADR-0044 · Fehler-Monitoring ohne SDK, nur Routenmuster (2026-10-16)
+
+Server-Fehler meldet `src/instrumentation.ts` (`onRequestError`, nur Node-Laufzeit) über den
+`MonitorPort` (`@/infra`). Mit `SENTRY_DSN` schickt `src/infra/sentry/monitor.ts` einen Sentry-Envelope
+per `fetch` an das Projekt (Region EU, `ingest.de.sentry.io`); ohne DSN schreibt `consoleMonitor` ins Log.
+Kein Sentry-SDK: es würde den Worker über das Größenlimit des Gratis-Plans heben (ADR-0035), und wir
+brauchen nur Ausnahme, Stack und Kontext. Gesendet werden Fehlertyp, Nachricht, Stack, HTTP-Methode und
+das Routenmuster (`/sites/[host]/[slug]`), nie der konkrete Pfad, Query, Header, Cookies, IP-Adressen oder
+Nutzerdaten. Fehler beim Senden werden verschluckt, damit Monitoring nie eine Antwort bricht. Browser-
+Fehler werden nicht erfasst. Außerdem vergleicht `/api/jobs/hourly` das Cron-Secret jetzt in konstanter
+Zeit.

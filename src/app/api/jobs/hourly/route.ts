@@ -1,5 +1,6 @@
 import { serverEnv } from "@/config/env";
 import { getDb } from "@/db";
+import { timingSafeEqual } from "@/domain/tracking/signed-token";
 import { geocodePending } from "@/server/geocoding";
 import { runDigests } from "@/server/notifications/digest";
 import { runRetention } from "@/server/retention";
@@ -15,7 +16,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   const secret = serverEnv().CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  const given = request.headers.get("authorization") ?? "";
+  if (!secret || !timingSafeEqual(given, `Bearer ${secret}`)) {
     return new Response("Unauthorized", { status: 401 });
   }
   const db = getDb();

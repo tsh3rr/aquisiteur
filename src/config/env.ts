@@ -70,6 +70,13 @@ const serverEnvSchema = z.object({
   GEOCODER_PROVIDER: z.enum(["none", "fake", "nominatim"]).default("nominatim"),
   /** Contact address sent to Nominatim, as its usage policy asks. */
   GEOCODER_CONTACT: z.string().optional(),
+  /**
+   * Error monitoring (Sentry, EU region: the DSN host ends in ingest.de.sentry.io).
+   * Unset: errors go to the server log only.
+   */
+  SENTRY_DSN: z.url().optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
   /** Bearer secret for /api/jobs/* (cron: digest). Unset disables the endpoint. */
   CRON_SECRET: z.string().min(24).optional(),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */

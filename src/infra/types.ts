@@ -192,6 +192,18 @@ export interface GeocoderPort {
   geocode(query: GeocodeQuery): Promise<{ latitude: number; longitude: number } | null>;
 }
 
+/**
+ * Phase 6: error monitoring (§10 „Sentry EU“). Only the error, the route and
+ * the request method and path leave the app: no query strings, bodies,
+ * headers, cookies or IP addresses.
+ */
+export interface MonitorPort {
+  captureException(
+    error: unknown,
+    context: { route?: string; method?: string; path?: string; kind?: string },
+  ): Promise<void>;
+}
+
 export interface Infra {
   readonly profile: HostingProfile;
   readonly database: DatabasePort;
@@ -203,4 +215,5 @@ export interface Infra {
   letters(provider: string): LetterDispatchProvider | null;
   /** Null when geocoding is switched off (GEOCODER_PROVIDER=none). */
   geocoder: GeocoderPort | null;
+  monitor: MonitorPort;
 }
