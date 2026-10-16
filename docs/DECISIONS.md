@@ -472,6 +472,10 @@ Die Root-Grenze `src/app/not-found.tsx` steckt in der Antwort jeder Seite, auch 
 (Zod, Realtime, Buttons; etwa 37 KB gzip), sodass die Lighthouse-Leistung der Exposés um 0,9 pendelte.
 Der Link „Zur Startseite“ ist deshalb ein einfaches `<a>`; eine 404 braucht keine Client-Navigation.
 Der E2E-Test des öffentlichen Exposés prüft, dass kein Cockpit-Chunk geladen wird.
+Aus demselben Grund formatiert der Preisrechner Euro-Beträge mit `formatEuro()` statt `Intl.NumberFormat`
+(der erste Intl-Formatierer lädt Locale-Daten, gedrosselt etwa 60 ms mitten in der Hydration), und
+Client-Komponenten des Exposés verwenden `clsx` statt `cn`, damit tailwind-merge (9 KB gzip) erst mit
+der nachgeladenen Kontaktebene kommt.
 
 ## ADR-0049 · Dateien auf dem eigenen Server statt in R2 (2026-10-16)
 

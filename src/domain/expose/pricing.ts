@@ -13,3 +13,16 @@ export function pricingTotals(options: readonly Option[], selected: ReadonlySet<
   }
   return totals;
 }
+
+/**
+ * Whole euros in German notation ("4.700 €"), the same output as
+ * Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR",
+ * maximumFractionDigits: 0 }). Hand-written because the first Intl formatter
+ * in a page loads locale data on the main thread (about 60 ms on a throttled
+ * phone), right inside the exposé's hydration (ADR-0048).
+ */
+export function formatEuro(amount: number) {
+  const rounded = Math.round(amount);
+  const digits = String(Math.abs(rounded)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${rounded < 0 ? "-" : ""}${digits} €`;
+}

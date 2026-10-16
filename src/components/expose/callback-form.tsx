@@ -1,8 +1,8 @@
 "use client";
 
+import { clsx } from "clsx";
 import { PhoneCall } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { cn } from "@/lib/cn";
 import { track, visitToken } from "./tracking-client";
 
 type State =
@@ -62,7 +62,7 @@ export function CallbackOption({
   };
 
   return (
-    <li className={cn((open || primary) && "sm:col-span-2")}>
+    <li className={clsx((open || primary) && "sm:col-span-2")}>
       <button
         type="button"
         aria-expanded={open}
@@ -75,7 +75,8 @@ export function CallbackOption({
             track({ type: "callback_started" });
           }
         }}
-        className={cn(
+        // clsx, not cn: tailwind-merge would add 9 KB to every exposé (ADR-0048).
+        className={clsx(
           "flex min-h-14 w-full items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
           primary
             ? "bg-accent text-accent-foreground shadow-sm hover:bg-accent-hover"

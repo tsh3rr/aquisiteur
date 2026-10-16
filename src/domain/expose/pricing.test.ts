@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pricingTotals } from "./pricing";
+import { formatEuro, pricingTotals } from "./pricing";
 
 const option = (id: string, price: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -27,4 +27,19 @@ describe("pricingTotals()", () => {
       monthly: { from: 0, to: 0 },
     });
   });
+});
+
+describe("formatEuro()", () => {
+  const intl = new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  });
+
+  it.each([0, 5, 49, 990, 1000, 4700, 12_345, 1_234_567, 89.5, 1999.4, -1200])(
+    "matches Intl for %d",
+    (amount) => {
+      expect(formatEuro(amount)).toBe(intl.format(amount));
+    },
+  );
 });

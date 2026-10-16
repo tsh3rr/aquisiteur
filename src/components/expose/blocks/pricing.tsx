@@ -4,15 +4,10 @@ import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { BlockOf } from "@/domain/expose/schema";
 import { clsx } from "clsx";
-import { pricingTotals } from "@/domain/expose/pricing";
+import { formatEuro, pricingTotals } from "@/domain/expose/pricing";
 
-const euro = new Intl.NumberFormat("de-DE", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
 const range = (from: number, to: number) =>
-  from === to ? euro.format(from) : `${euro.format(from)} – ${euro.format(to)}`;
+  from === to ? formatEuro(from) : `${formatEuro(from)} – ${formatEuro(to)}`;
 
 /** Interactive price frame (§7.2): toggle options, totals update live and are announced politely. */
 export function PricingCalculator({ block }: { block: BlockOf<"pricing"> }) {
