@@ -464,3 +464,11 @@ Datenbank erreichbar ist, damit Coolify erst dann umschaltet. Die Cloudflare-Var
 in der CI (Größen-Check) erhalten, Anleitung in `docs/DEPLOY_CLOUDFLARE.md`. Damit ist die Frage aus
 ADR-0046 (Workers Paid oder Vorrendern) für den Betrieb hinfällig. Einstellungen → System vergleicht mit
 `HOSTING_PLAN=vps` (20 GB Datenbank, 10 GB R2, keine CPU-Grenze pro Anfrage).
+
+## ADR-0048 · Root-404 ohne `next/link` (2026-10-16)
+
+Die Root-Grenze `src/app/not-found.tsx` steckt in der Antwort jeder Seite, auch jedes Exposés. Ihr
+`next/link` ist eine Client-Komponente, und Next lud dafür die Chunk-Gruppe der Cockpit-Startseite mit
+(Zod, Realtime, Buttons; etwa 37 KB gzip), sodass die Lighthouse-Leistung der Exposés um 0,9 pendelte.
+Der Link „Zur Startseite“ ist deshalb ein einfaches `<a>`; eine 404 braucht keine Client-Navigation.
+Der E2E-Test des öffentlichen Exposés prüft, dass kein Cockpit-Chunk geladen wird.

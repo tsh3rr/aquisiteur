@@ -81,6 +81,13 @@ test("the public exposé renders accessibly with working slider and price calcul
     );
   expect(images.length).toBeGreaterThan(0);
   expect(images.every(Boolean), "every image has explicit dimensions").toBe(true);
+
+  // The exposé ships only its own client code; cockpit chunks (zod, realtime) cost
+  // the Lighthouse budget (ADR-0048).
+  const scripts = await page
+    .locator("script[src]")
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("src") ?? ""));
+  expect(scripts.filter((src) => src.includes("(cockpit)"))).toEqual([]);
 });
 
 test("the prospect can opt out, and the opt-out is recorded once", async ({ page }) => {

@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+/** Root 404 boundary, rendered on every host including public exposés. */
 export default function NotFound() {
   return (
     <main id="main" className="grid min-h-dvh place-items-center px-6">
@@ -9,9 +8,12 @@ export default function NotFound() {
         <p className="text-foreground-muted">
           Vielleicht hat sich ein Tippfehler in die Adresse eingeschlichen.
         </p>
-        <Link href="/" className="text-accent underline underline-offset-4">
+        {/* A plain link: this boundary is part of every page's payload, and next/link
+            would pull a cockpit chunk group into public exposés (ADR-0048). */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- see above */}
+        <a href="/" className="text-accent underline underline-offset-4">
           Zur Startseite
-        </Link>
+        </a>
       </div>
     </main>
   );
