@@ -11,7 +11,7 @@ import {
   threadProspect,
   setCallbackDone,
   setThreadStatus,
-  unreadThreadCount,
+  chatInboxCount,
 } from "@/server/chat/owner";
 import { presenceBeat, setAvailability as storeAvailability } from "@/server/chat/presence";
 import { publish, threadTopic } from "@/server/realtime";
@@ -74,13 +74,13 @@ export async function markRead(threadId: string): Promise<number> {
   if (!id.success) return 0;
   return tenant(async (tx) => {
     await markThreadRead(tx, workspace.id, id.data);
-    return unreadThreadCount(tx, workspace.id);
+    return chatInboxCount(tx, workspace.id);
   });
 }
 
 export async function unreadCount(): Promise<number> {
   const { workspace, tenant } = await responder();
-  return tenant((tx) => unreadThreadCount(tx, workspace.id));
+  return tenant((tx) => chatInboxCount(tx, workspace.id));
 }
 
 export async function changeThreadStatus(threadId: string, status: "open" | "closed") {
@@ -93,16 +93,24 @@ export async function changeThreadStatus(threadId: string, status: "open" | "clo
   revalidatePath(`/chat/${id.data}`);
 }
 
-export async function markCallback(id: string, done: boolean) {
+/** Returns the new count for the Chat menu badge. */
+export async function markCallback(id: string, done: boolean): Promise<number | undefined> {
   const { workspace, user, tenant } = await responder();
   const parsed = z.uuid().safeParse(id);
   if (!parsed.success) return;
-  await tenant((tx) =>
-    setCallbackDone(tx, { workspaceId: workspace.id, userId: user.id, id: parsed.data, done }),
-  );
+  const inbox = await tenant(async (tx) => {
+    await setCallbackDone(tx, {
+      workspaceId: workspace.id,
+      userId: user.id,
+      id: parsed.data,
+      done,
+    });
+    return chatInboxCount(tx, workspace.id);
+  });
   revalidatePath("/chat");
   revalidatePath("/");
   revalidatePath("/kunden", "layout");
+  return inbox;
 }
 
 /** A cockpit tab is open (§7.4 „Verfügbar“). */

@@ -85,9 +85,7 @@ test("phone and cockpit chat in real time", async ({ page, browser }) => {
   // Live in the cockpit: the inbox refreshes and the nav counts it.
   const thread = page.getByRole("link", { name: /Café Müller/ });
   await expect(thread).toContainText("1 neu");
-  await expect(
-    page.getByRole("link", { name: /^Chat\W+1 ungelesener Chat/ }).first(),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Chat\W+1 neue Anfrage/ }).first()).toBeVisible();
   // The thread view marks the chat read once hydrated; its live listener is attached by then.
   const hydrated = page.waitForResponse(
     (r) => r.request().method() === "POST" && new URL(r.url()).pathname.startsWith("/chat/"),

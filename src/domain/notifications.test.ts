@@ -16,10 +16,11 @@ const TZ = "Europe/Berlin";
 const at = (iso: string) => new Date(iso);
 
 describe("default rules", () => {
-  it("match the spec: first scan and chat by push, score ≥ 50 by push and e-mail, digest at 8", () => {
+  it("match the spec: first scan, chat and callback by push, score ≥ 50 by push and e-mail, digest at 8", () => {
     expect(DEFAULT_RULES.map(describeRule)).toEqual([
       "Erster echter Scan → Push",
       "Chat-Nachricht → Push",
+      "Rückrufwunsch → Push",
       "Score ab 50 % → Push und E-Mail",
       "Tägliche Zusammenfassung um 08:00 → E-Mail",
     ]);
