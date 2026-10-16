@@ -153,6 +153,13 @@ Für die Workspace-Adressen (`<workspace>.aquisiteur.de`) zusätzlich in Cloudfl
 Wildcard-Eintrag anlegen: Typ `AAAA`, Name `*`, Inhalt `100::`, **Proxy aktiv** (orange Wolke). Das
 Cockpit unter `app.` legt Cloudflare über `custom_domain` selbst an.
 
+### Ort der Besucher (Stadt)
+
+Die Timeline zeigt die Stadt eines Besuchs. Sie kommt aus dem Header `cf-ipcity`, den Cloudflare nur mit
+einer Einstellung mitschickt: im Cloudflare-Dashboard unter **Rules → Settings → Managed Transforms**
+den Schalter **Add visitor location headers** einschalten. Ohne ihn fehlt nur die Stadt, alles andere
+funktioniert. Die IP-Adresse liest Aquisiteur nie.
+
 ## 8. Bauen und deployen
 
 ```bash
@@ -176,7 +183,11 @@ Das baut die App mit OpenNext und lädt sie als Worker hoch. Danach `https://app
    pnpm expose:publish exposes/cafe-mueller
    ```
 
-3. Die CLI gibt den öffentlichen Link aus, z. B. `https://pixelwerk.aquisiteur.de/x/cafe-mueller-…`.
+3. Die CLI gibt den öffentlichen Link, den Kurzlink für den Brief (z. B. `pixelwerk.aquisiteur.de/k7m2`)
+   und den QR-Link aus. QR-Codes als SVG oder PNG (300 dpi) gibt es im Cockpit unter **Kunden → Kunde →
+   Links und QR-Codes**.
+4. Unter **Einstellungen → Eigene Besuche** auf jedem eigenen Gerät „Dieses Gerät als meines markieren“
+   antippen, damit eigene Aufrufe nicht als Kundenbesuche zählen.
 
 Wie du eigene Exposés schreibst: [EXPOSE_AUTHORING.md](./EXPOSE_AUTHORING.md).
 

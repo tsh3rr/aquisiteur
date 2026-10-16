@@ -140,8 +140,9 @@ export AQUISITEUR_API_URL=https://app.aquisiteur.de   # lokal: http://localhost:
 pnpm expose:publish exposes/baeckerei-korn
 ```
 
-Die CLI lädt nur Dateien hoch, die der Server noch nicht hat, und gibt am Ende den öffentlichen Link
-und den Cockpit-Link aus. Jeder Publish mit demselben `prospect.key` erzeugt eine neue Version unter
+Die CLI lädt nur Dateien hoch, die der Server noch nicht hat, und gibt am Ende den öffentlichen Link,
+den Kurzlink und den QR-Link für den Brief sowie den Cockpit-Link aus. Der Kurzlink (z. B.
+`pixelwerk.de/k7m2`) ist zum Abtippen gedacht, der QR-Link gehört in den QR-Code. Jeder Publish mit demselben `prospect.key` erzeugt eine neue Version unter
 demselben Link; alte Versionen bleiben im Cockpit sichtbar. Prospect-Daten, die du im Cockpit geändert
 hast, überschreibt ein erneuter Publish nicht.
 
@@ -150,15 +151,19 @@ hast, überschreibt ein erneuter Publish nicht.
 Die CLI nutzt dieselbe API, die auch andere Werkzeuge verwenden können. Alle Aufrufe brauchen
 `Authorization: Bearer aq_…`.
 
-| Aufruf                       | Inhalt                                                                                                               | Antwort                                           |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `POST /api/v1/assets/lookup` | `{ "sha256": ["…"] }`                                                                                                | welche Dateien schon vorhanden sind               |
-| `POST /api/v1/assets`        | Multipart: `meta` (JSON mit `path`, `sha256`, `width`, `height`, `variants[]`) und je Variante ein Teil `p0`, `p1` … | `201` neu, `200` schon vorhanden                  |
-| `POST /api/v1/exposes`       | `{ "document": { …expose.json… }, "assets": [{ "path": "assets/…", "sha256": "…" }] }`                               | `{ exposeId, version, refCode, url, previewUrl }` |
+| Aufruf                       | Inhalt                                                                                                               | Antwort                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `POST /api/v1/assets/lookup` | `{ "sha256": ["…"] }`                                                                                                | welche Dateien schon vorhanden sind                                |
+| `POST /api/v1/assets`        | Multipart: `meta` (JSON mit `path`, `sha256`, `width`, `height`, `variants[]`) und je Variante ein Teil `p0`, `p1` … | `201` neu, `200` schon vorhanden                                   |
+| `POST /api/v1/exposes`       | `{ "document": { …expose.json… }, "assets": [{ "path": "assets/…", "sha256": "…" }] }`                               | `{ exposeId, version, refCode, url, previewUrl, shortUrl, qrUrl }` |
 
 Validierungsfehler kommen als `400` mit `issues: [{ path, message }]`.
 
 ## Im Cockpit
+
+Unter **Kunden** finden Sie alle Prospects mit Filtern, gespeicherten Ansichten, Pipeline und CSV-Export.
+Die Kundenseite zeigt die Timeline (Scans, gelesene Abschnitte, Klicks, Statuswechsel), alle Besuche im
+Detail und die Links mit QR-Codes zum Herunterladen.
 
 Unter **Exposés** siehst du alle veröffentlichten Exposés mit Version und Status. Die Detailseite zeigt
 eine Vorschau (Mobil/Desktop), alle Versionen und den Schalter **Offline nehmen**. Offline genommene
@@ -166,7 +171,9 @@ Exposés antworten mit 404, bis du sie wieder online stellst oder neu veröffent
 
 ## Was Interessenten sehen
 
-- Kein Cookie-Banner nötig: Exposés setzen keine Cookies.
+- Kein Cookie-Banner nötig: Exposés setzen keine Cookies. Ein kleines eigenes Script misst ohne Cookies,
+  welche Abschnitte gelesen und welche Kontaktwege angeklickt werden; das sehen Sie unter **Kunden** in
+  der Timeline.
 - Fußzeile mit Impressum und Datenschutz aus deinen Einstellungen und dem Link „Kein Interesse, bitte
   nicht mehr kontaktieren“. Ein Klick darauf (mit Bestätigung) markiert den Prospect als „kein
   Interesse“; spätere Erinnerungen an ihn werden gesperrt.

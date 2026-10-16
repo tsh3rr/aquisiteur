@@ -44,11 +44,11 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 ## Phase 2 · Links & Tracking
 
-- [ ] Kundenliste mit Filtern und gespeicherten Ansichten, Pipeline (Kanban), Kunden-Detailseite
-- [ ] Touchpoints, Kurzlinks, QR-Export (SVG/PNG), Resolver mit „Meinten Sie …?“
-- [ ] Bot-/Prefetch- und Internal-Filter
-- [ ] Tracking-Script (< 5 KB, cookieless), Event-Ingestion mit Rate-Limit, Timeline
-- [ ] Isolationstest erweitert um neue Tabellen und API-Tokens
+- [x] Kundenliste mit Filtern und gespeicherten Ansichten, Pipeline (Kanban), Kunden-Detailseite
+- [x] Touchpoints, Kurzlinks, QR-Export (SVG/PNG), Resolver mit „Meinten Sie …?“
+- [x] Bot-/Prefetch- und Internal-Filter
+- [x] Tracking-Script (< 5 KB, cookieless), Event-Ingestion mit Rate-Limit, Timeline
+- [x] Isolationstest erweitert um neue Tabellen und API-Tokens
 
 ## Phase 3 · Kontakt & Chat
 

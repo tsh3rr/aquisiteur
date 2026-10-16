@@ -59,6 +59,20 @@ flowchart LR
    sonst `/login` bzw. `/onboarding`.
 3. **Datenzugriff** für Workspace-Daten nur über `withTenant()`.
 
+## Kurzlinks und Tracking (Phase 2)
+
+1. **Scan**: `<host>/<code>` → `sites/[host]/[code]/route.ts` sucht den Touchpoint (QR-Token exakt,
+   Kurzcode normalisiert), legt einen Visit an (Bot-/Owner-Flag, Gerät, Stadt, keine IP) und leitet mit
+   signiertem Ticket auf `/x/<slug>?v=…` weiter. Unbekannte Codes → `/nicht-gefunden`.
+2. **Exposé**: `ExposeTracker` (nur öffentlich) schickt das Ticket an `/t/start` und erhält einen
+   Visit-Token (nur im Speicher). Der erste echte Besuch setzt den Status auf „Geöffnet“.
+3. **Events**: gebündelt an `/t/e` (Zod-Validierung, Rate Limit), Aggregate direkt am Visit.
+4. **Cockpit**: `/kunden` (Liste, Ansichten, CSV), `/kunden/pipeline`, `/kunden/[id]` (Timeline aus
+   Visits, Events und Audit-Log; QR-Export als SVG/PNG).
+
+Die öffentlichen Routen laufen auf der System-Verbindung, jede Abfrage ist auf den Workspace des Hosts
+eingeschränkt. Mitglieder lesen Visits und Events nur (RLS, `GRANT SELECT`).
+
 ## Mandantentrennung (§9a)
 
 ```

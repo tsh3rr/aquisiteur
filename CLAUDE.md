@@ -39,6 +39,9 @@ revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
 - **New table with workspace data** ⇒ `workspace_id uuid not null` + index + `workspaceIsolation()`
   policy + `.enableRLS()` in the Drizzle schema, a GRANT in a custom migration, and add it to
   `tenantTables` in `tests/db/tenant-isolation.test.ts` (a guard-rail test fails otherwise).
+- Public tracking (`src/server/tracking/visits.ts`, routes under `src/app/sites/[host]/`) runs on the
+  system connection and must scope every query to the host's workspace; tenants only read `visits` and
+  `events`. Event types live in `src/domain/tracking/events.ts` (one central list).
 - Permissions via `can()` / `assertCan()` (`src/domain/authz.ts`); limits via `entitlements()`.
 - Nothing workspace-specific in env or code: it belongs in `workspace_settings` (Zod schemas in
   `src/domain/workspace-settings.ts`).
