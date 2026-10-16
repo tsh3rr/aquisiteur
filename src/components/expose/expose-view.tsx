@@ -1,7 +1,7 @@
 import { List } from "lucide-react";
 import { exposeThemeCss } from "@/domain/expose/theme";
 import { Block, blockTitle } from "./blocks";
-import { displayFont } from "./fonts";
+import { displayFontClass } from "./fonts";
 import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
 import { ContactLayerLazy } from "./contact-layer-lazy";
 import { ExposeTracker } from "./expose-tracker";
@@ -52,15 +52,20 @@ export function ExposeView({
   return (
     <div
       data-expose-theme
+      data-expose-style={document.theme.style}
       lang={document.meta.lang}
-      className={`${displayFont.variable} min-h-dvh bg-background text-foreground`}
+      className={`${displayFontClass(document.theme.style)} min-h-dvh bg-background text-foreground`}
     >
       {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}
       {mode === "public" && data.settings.replay.enabled && links.privacy ? (
         <ReplayConsentLazy privacyHref={links.privacy} />
       ) : null}
       <style nonce={nonce}>
-        {exposeThemeCss({ accent, appearance: document.theme.appearance })}
+        {exposeThemeCss({
+          accent,
+          appearance: document.theme.appearance,
+          style: document.theme.style,
+        })}
       </style>
       <a
         href="#inhalt"

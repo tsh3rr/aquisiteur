@@ -6,7 +6,11 @@ Code) schreibst ihn lokal, prüfst ihn mit `pnpm expose:validate` und veröffent
 deiner eigenen Domain.
 
 Vollständige Beispiele: [`exposes/cafe-mueller`](../exposes/cafe-mueller/expose.json) (alle
-Bausteine außer Marke und Stimmen) und [`exposes/tischlerei-holzmann`](../exposes/tischlerei-holzmann/expose.json).
+Bausteine außer Marke und Stimmen) und [`exposes/tischlerei-holzmann`](../exposes/tischlerei-holzmann/expose.json),
+beide im Stil `editorial`. Andere Stile zeigen [`exposes/eisenwerk-athletics`](../exposes/eisenwerk-athletics/expose.json)
+(`bold`, dunkel) und [`exposes/physio-lindenhof`](../exposes/physio-lindenhof/expose.json) (`soft`, hell).
+Wähle den Stil nach der Branche: `bold` für laute Marken (Fitness, Barbershop, Streetfood), `soft` für
+Vertrauensberufe (Praxis, Pflege, Kita), `editorial` für alles Handwerkliche und Gastronomie.
 Das maschinenlesbare Schema liegt in [`schema/expose.schema.json`](../schema/expose.schema.json); Editoren
 wie VS Code ergänzen damit Felder automatisch, wenn die Datei mit `"$schema": "../../schema/expose.schema.json"`
 beginnt.
@@ -62,6 +66,7 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
     "accent": "#b45309", // wird für hell und dunkel auf WCAG AA korrigiert
     "logo": { "src": "assets/logo.svg", "alt": "Bäckerei Korn" },
     "appearance": "auto", // auto | light | dark
+    "style": "editorial", // editorial (Magazin, Serifen) | bold (kantig, schwer, harte Schatten) | soft (rund, warm, freundlich)
   },
   "letter": {
     // optional, für den Brief (Phase 3)

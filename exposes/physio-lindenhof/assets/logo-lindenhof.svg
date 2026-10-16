@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 124" width="640" height="124">
+  <circle cx="62" cy="62" r="56" fill="#dcebe2"/>
+  <path d="M62 24c22 14 26 44 0 74c-26-30-22-60 0-74z" fill="#3f8f7a"/>
+  <path d="M62 40v56" stroke="#dcebe2" stroke-width="5" stroke-linecap="round"/>
+  <text x="138" y="70" font-family="'Nunito', 'Trebuchet MS', sans-serif" font-size="50" font-weight="800" fill="#24453b">Lindenhof</text>
+  <text x="140" y="104" font-family="sans-serif" font-size="20" letter-spacing="4" fill="#4d6b61">PHYSIOTHERAPIE · MARKKLEEBERG</text>
+</svg>

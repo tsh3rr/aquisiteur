@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <rect width="1200" height="900" fill="#f5f5f5"/>
+  <g font-family="sans-serif">
+    <text x="60" y="130" font-family="Impact, 'Arial Narrow', sans-serif" font-size="96" font-weight="900" textLength="760" lengthAdjust="spacingAndGlyphs" fill="#111">DEINE COACHES</text>
+    <g>
+      <rect x="72" y="212" width="330" height="560" fill="#111"/><rect x="60" y="200" width="330" height="560" fill="#2a2a2a" stroke="#111" stroke-width="6"/>
+      <circle cx="225" cy="380" r="90" fill="#555"/><rect x="135" y="480" width="180" height="200" fill="#555"/>
+      <rect x="60" y="680" width="330" height="80" fill="#c6f432" stroke="#111" stroke-width="6"/><text x="225" y="732" font-size="28" font-weight="800" fill="#111" text-anchor="middle">MARCO</text>
+      <rect x="447" y="212" width="330" height="560" fill="#111"/><rect x="435" y="200" width="330" height="560" fill="#2a2a2a" stroke="#111" stroke-width="6"/>
+      <circle cx="600" cy="380" r="90" fill="#555"/><rect x="510" y="480" width="180" height="200" fill="#555"/>
+      <rect x="435" y="680" width="330" height="80" fill="#c6f432" stroke="#111" stroke-width="6"/><text x="600" y="732" font-size="28" font-weight="800" fill="#111" text-anchor="middle">JANA</text>
+      <rect x="822" y="212" width="330" height="560" fill="#111"/><rect x="810" y="200" width="330" height="560" fill="#2a2a2a" stroke="#111" stroke-width="6"/>
+      <circle cx="975" cy="380" r="90" fill="#555"/><rect x="885" y="480" width="180" height="200" fill="#555"/>
+      <rect x="810" y="680" width="330" height="80" fill="#c6f432" stroke="#111" stroke-width="6"/><text x="975" y="732" font-size="28" font-weight="800" fill="#111" text-anchor="middle">DENIZ</text>
+    </g>
+  </g>
+</svg>

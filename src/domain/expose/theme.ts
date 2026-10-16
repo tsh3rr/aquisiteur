@@ -1,4 +1,5 @@
 import { dark, light, type ColorScheme, type Oklch } from "@/design/tokens";
+import type { ExposeStyle } from "@/domain/expose/schema";
 import { clampChroma, contrastRatio, ensureContrast, formatOklch, hexToOklch } from "@/lib/color";
 
 /**
@@ -19,6 +20,86 @@ type AccentFamily = Pick<
 >;
 
 const WHITE: Oklch = { l: 0.995, c: 0, h: 0 };
+const ok = (l: number, c: number, h: number): Oklch => ({ l, c, h });
+
+type Neutrals = Pick<
+  ColorScheme,
+  | "background"
+  | "surface"
+  | "surfaceRaised"
+  | "surfaceSunken"
+  | "foreground"
+  | "foregroundMuted"
+  | "foregroundSubtle"
+  | "border"
+  | "borderStrong"
+>;
+
+/**
+ * Neutral palettes of the exposé styles. "editorial" keeps the design
+ * tokens; "bold" is pure ink on paper (no hue, lines as strong as text);
+ * "soft" is warm cream with a green-grey ink. Shapes, shadows and type of
+ * each style live in globals.css under [data-expose-style].
+ */
+const styleNeutrals: Record<
+  Exclude<ExposeStyle, "editorial">,
+  Record<"light" | "dark", Neutrals>
+> = {
+  bold: {
+    light: {
+      background: ok(0.975, 0, 0),
+      surface: ok(1, 0, 0),
+      surfaceRaised: ok(1, 0, 0),
+      surfaceSunken: ok(0.935, 0, 0),
+      foreground: ok(0.14, 0, 0),
+      foregroundMuted: ok(0.36, 0, 0),
+      foregroundSubtle: ok(0.44, 0, 0),
+      border: ok(0.14, 0, 0),
+      borderStrong: ok(0.14, 0, 0),
+    },
+    dark: {
+      background: ok(0.12, 0, 0),
+      surface: ok(0.165, 0, 0),
+      surfaceRaised: ok(0.2, 0, 0),
+      surfaceSunken: ok(0.09, 0, 0),
+      foreground: ok(0.97, 0, 0),
+      foregroundMuted: ok(0.8, 0, 0),
+      foregroundSubtle: ok(0.72, 0, 0),
+      border: ok(0.9, 0, 0),
+      borderStrong: ok(0.9, 0, 0),
+    },
+  },
+  soft: {
+    light: {
+      background: ok(0.972, 0.014, 85),
+      surface: ok(0.993, 0.006, 85),
+      surfaceRaised: ok(0.993, 0.006, 85),
+      surfaceSunken: ok(0.945, 0.02, 85),
+      foreground: ok(0.27, 0.03, 165),
+      foregroundMuted: ok(0.44, 0.025, 165),
+      foregroundSubtle: ok(0.5, 0.022, 165),
+      border: ok(0.9, 0.018, 85),
+      borderStrong: ok(0.57, 0.025, 165),
+    },
+    dark: {
+      background: ok(0.2, 0.016, 165),
+      surface: ok(0.235, 0.018, 165),
+      surfaceRaised: ok(0.27, 0.02, 165),
+      surfaceSunken: ok(0.175, 0.014, 165),
+      foreground: ok(0.95, 0.012, 85),
+      foregroundMuted: ok(0.79, 0.016, 85),
+      foregroundSubtle: ok(0.73, 0.016, 85),
+      border: ok(0.34, 0.02, 165),
+      borderStrong: ok(0.63, 0.022, 165),
+    },
+  },
+};
+
+/** The full colour scheme of a style before the prospect's accent is applied. */
+export function styleScheme(style: ExposeStyle, scheme: "light" | "dark"): ColorScheme {
+  const tokens = scheme === "light" ? light : dark;
+  return style === "editorial" ? tokens : { ...tokens, ...styleNeutrals[style][scheme] };
+}
 
 function fit(color: Oklch, backgrounds: Oklch[], min: number): Oklch {
   let candidate = clampChroma(color);
@@ -29,8 +110,12 @@ function fit(color: Oklch, backgrounds: Oklch[], min: number): Oklch {
   return candidate;
 }
 
-export function deriveAccent(base: Oklch, scheme: "light" | "dark"): AccentFamily {
-  const tokens = scheme === "light" ? light : dark;
+export function deriveAccent(
+  base: Oklch,
+  scheme: "light" | "dark",
+  style: ExposeStyle = "editorial",
+): AccentFamily {
+  const tokens = styleScheme(style, scheme);
   const surfaces = [tokens.surface, tokens.background, tokens.surfaceSunken];
   // Used as link/text colour on surfaces and as button fill under on-accent text.
   const accent = fit(base, surfaces, 4.5);
@@ -70,13 +155,15 @@ function declarations(scheme: ColorScheme, accent: AccentFamily | null): string 
 export function exposeThemeCss(options: {
   accent?: string | undefined;
   appearance: "auto" | "light" | "dark";
+  style?: ExposeStyle;
 }): string {
+  const style = options.style ?? "editorial";
   const base = options.accent ? hexToOklch(options.accent) : null;
-  const lightAccent = base ? deriveAccent(base, "light") : null;
-  const darkAccent = base ? deriveAccent(base, "dark") : null;
+  const lightAccent = base ? deriveAccent(base, "light", style) : null;
+  const darkAccent = base ? deriveAccent(base, "dark", style) : null;
   // Logos are designed for light backgrounds; in dark mode they sit on a light plate.
-  const lightRule = `color-scheme:light;--expose-logo-plate:transparent;${declarations(light, lightAccent)}`;
-  const darkRule = `color-scheme:dark;--expose-logo-plate:oklch(0.97 0.004 275);${declarations(dark, darkAccent)}`;
+  const lightRule = `color-scheme:light;--expose-logo-plate:transparent;${declarations(styleScheme(style, "light"), lightAccent)}`;
+  const darkRule = `color-scheme:dark;--expose-logo-plate:oklch(0.97 0.004 275);${declarations(styleScheme(style, "dark"), darkAccent)}`;
   const selector = "[data-expose-theme]";
   switch (options.appearance) {
     case "light":

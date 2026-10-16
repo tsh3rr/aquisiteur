@@ -489,3 +489,16 @@ S3 bleibt per Konfiguration möglich und ist auf Cloudflare Pflicht. E-Mail blei
 sperrt Port 25 bei neuen Konten, und Mails von einer frischen Server-IP landen oft im Spam. Der Server
 braucht mindestens 2 vCPU, 4 GB RAM und 40 GB SSD; die Anleitung nennt bewusst keinen Typnamen, weil
 Hetzner Typen und Preise ändert.
+
+## ADR-0050 · Gestaltungsstile für Exposés (2026-10-16)
+
+Akzentfarbe und Logo allein ließen jedes Exposé wie dasselbe Magazin aussehen. `theme.style` wählt
+deshalb einen von drei Stilen: `editorial` (bisheriges Aussehen, Standard), `bold` (Neo-Brutalismus:
+keine Rundungen, 2-px-Linien, harte versetzte Schatten, Anton in Versalien) und `soft` (große Radien,
+weiche Schatten, cremige Flächen, Nunito auch im Fließtext). Das Feld ist optional, deshalb bleibt
+`schemaVersion` 1. Die Flächen- und Textfarben jedes Stils kommen aus `styleScheme()` in
+`src/domain/expose/theme.ts`, damit die Akzentkorrektur gegen die richtigen Flächen rechnet; ein
+Unit-Test prüft alle `contrastPairs` je Stil in hell und dunkel. Formen, Schatten und Schrift setzt
+`globals.css` unter `[data-expose-style]`. Die beiden zusätzlichen Schriften (19 KB und 39 KB) werden
+nicht vorgeladen und nur von Exposés im jeweiligen Stil geladen. Bewusst kein freies CSS oder freie
+Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und schnell.

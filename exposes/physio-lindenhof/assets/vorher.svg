@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <rect x="0" y="0" width="1600" height="56" fill="#d4d4d4"/>
+  <circle cx="40" cy="28" r="9" fill="#ff5f57"/><circle cx="70" cy="28" r="9" fill="#febc2e"/><circle cx="100" cy="28" r="9" fill="#28c840"/>
+  <rect x="160" y="14" width="900" height="28" rx="14" fill="#fff"/>
+  <text x="184" y="35" font-family="sans-serif" font-size="18" fill="#555">physio-lindenhof.example</text>
+  <g font-family="'Times New Roman', serif">
+    <rect x="0" y="56" width="1600" height="140" fill="#1f5fa8"/>
+    <text x="60" y="140" font-size="40" font-weight="700" fill="#fff">Praxis für Physiotherapie K. Albrecht</text>
+    <rect x="0" y="196" width="1600" height="44" fill="#d9e6f5"/>
+    <text x="60" y="226" font-size="18" fill="#1f3f6a">Startseite · Leistungen · Anfahrt · Kontakt · Datenschutz</text>
+    <rect x="60" y="280" width="300" height="400" fill="#eaeaea"/>
+    <text x="210" y="490" font-size="18" fill="#999" text-anchor="middle">Foto Praxis</text>
+    <text x="400" y="310" font-size="26" font-weight="700" fill="#222">Herzlich Willkommen</text>
+    <text x="400" y="350" font-size="17" fill="#333">In unserer Praxis bieten wir Ihnen ein breites Spektrum an Leistungen</text>
+    <text x="400" y="376" font-size="17" fill="#333">der Physiotherapie an: KG, MT, MLD, KG-ZNS, Fango, Heißluft, Wärme-</text>
+    <text x="400" y="402" font-size="17" fill="#333">therapie, Elektrotherapie, Ultraschall, Massage, Hausbesuche u.v.m.</text>
+    <text x="400" y="450" font-size="17" fill="#333">Termine nur nach telefonischer Vereinbarung:</text>
+    <text x="400" y="476" font-size="17" fill="#333">Mo–Do 8–12 Uhr und 14–16 Uhr, Fr 8–12 Uhr.</text>
+    <text x="400" y="524" font-size="17" fill="#c00">Bitte keine Terminanfragen per E-Mail!</text>
+    <rect x="60" y="740" width="1480" height="200" fill="#f2f2f2"/>
+    <text x="90" y="800" font-size="15" fill="#777">Letzte Aktualisierung: 03.02.2019</text>
+  </g>
+</svg>

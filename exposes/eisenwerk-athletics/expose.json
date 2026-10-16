@@ -1,0 +1,318 @@
+{
+  "$schema": "../../schema/expose.schema.json",
+  "schemaVersion": 1,
+  "prospect": {
+    "key": "eisenwerk-athletics",
+    "company": "Eisenwerk Athletics",
+    "industry": "Fitness",
+    "website": "https://eisenwerk-athletics.example",
+    "contact": {
+      "salutation": "Herr",
+      "firstName": "Marco",
+      "lastName": "Brandt",
+      "role": "Gründer und Headcoach"
+    },
+    "address": {
+      "street": "Karl-Heine-Straße 93",
+      "postalCode": "04229",
+      "city": "Leipzig",
+      "country": "DE"
+    },
+    "phone": "+49 341 4561230",
+    "email": "team@eisenwerk-athletics.example"
+  },
+  "meta": {
+    "title": "Mehr Probetrainings für Eisenwerk Athletics",
+    "description": "Konkrete Vorschläge, damit aus Website-Besuchern Probetrainings und Mitglieder werden.",
+    "lang": "de"
+  },
+  "theme": {
+    "accent": "#c6f432",
+    "logo": {
+      "src": "assets/logo-eisenwerk.svg",
+      "alt": "Eisenwerk Athletics"
+    },
+    "appearance": "dark",
+    "style": "bold"
+  },
+  "letter": {
+    "subject": "Ihre Box ist stark. Ihre Website verschenkt Probetrainings.",
+    "body": "Sehr geehrter Herr Brandt,\n\nich laufe jeden Morgen an Ihrer Halle in der Karl-Heine-Straße vorbei, und um 6:30 Uhr ist bei Ihnen schon Betrieb. Online sieht man davon leider nichts: Wer „CrossFit Leipzig“ sucht, landet bei Ihnen auf einer Seite von 2017 und muss für ein Probetraining anrufen.\n\nIch habe Ihnen aufgeschrieben, wie daraus jeden Monat mehr Probetrainings werden. Scannen Sie den QR-Code, es dauert fünf Minuten."
+  },
+  "blocks": [
+    {
+      "id": "start",
+      "type": "hero",
+      "eyebrow": "Für Eisenwerk Athletics",
+      "greeting": "Hallo Herr Brandt,",
+      "headline": "Starke Box. Schwache Website.",
+      "lead": "Ihre Kurse sind voll, Ihre Bewertungen die besten in Plagwitz. Online sieht man davon nichts. Ich zeige Ihnen, wie Ihre Website daraus jeden Monat mehr Probetrainings macht.",
+      "image": {
+        "src": "assets/mockup-app.svg",
+        "alt": "Entwurf der neuen Startseite auf dem Smartphone: große Schlagzeile „Stärker in 6 Wochen“, ein gelber Button „Probetraining buchen“ und der Kursplan von heute mit freien Plätzen."
+      },
+      "showOwnerPhoto": true
+    },
+    {
+      "id": "persoenlich",
+      "type": "personal_note",
+      "title": "Kurz und ehrlich",
+      "body": "Ich bin Jeremiasz und baue Websites für Betriebe in Leipzig. Ich habe drei Monate bei Ihnen trainiert, bevor ich umgezogen bin, deshalb weiß ich, wie gut Ihr Coaching ist.\n\nAls ich einem Freund ein Probetraining bei Ihnen empfehlen wollte, musste er **zweimal anrufen**, bevor jemand abnahm. Das passiert Ihnen vermutlich jede Woche, und jedes Mal geht ein potenzielles Mitglied ins nächste Studio.",
+      "showSignature": true
+    },
+    {
+      "id": "zahlen",
+      "type": "audit",
+      "title": "Ihr Auftritt in Zahlen",
+      "intro": "Gemessen am 14. Oktober 2026. Alles öffentlich nachprüfbar.",
+      "scores": [
+        {
+          "label": "Ladezeit mobil",
+          "value": 24,
+          "detail": "Die Diashow auf der Startseite lädt 9 MB Bilder.",
+          "source": "PageSpeed Insights, mobil, 14.10.2026"
+        },
+        {
+          "label": "Weg zum Probetraining",
+          "value": 15,
+          "detail": "Nur per Telefon, kein Formular, keine Online-Buchung.",
+          "source": "Eigene Prüfung, 14.10.2026"
+        },
+        {
+          "label": "Auffindbarkeit",
+          "value": 52,
+          "detail": "Bei „CrossFit Leipzig“ auf Platz 9.",
+          "source": "Google-Suche, anonym, Standort Leipzig"
+        },
+        {
+          "label": "Google-Profil",
+          "value": 88,
+          "detail": "4,9 Sterne aus 212 Bewertungen. Ihr stärkstes Pfund.",
+          "source": "Google Unternehmensprofil, 14.10.2026"
+        }
+      ]
+    },
+    {
+      "id": "vorher-nachher",
+      "type": "before_after",
+      "title": "Heute und morgen",
+      "intro": "Schieben Sie den Regler: links Ihre heutige Startseite, rechts mein Entwurf.",
+      "before": {
+        "src": "assets/vorher.svg",
+        "alt": "Heutige Startseite: blaue Kopfzeile, eine graue Diashow, kleiner Text, Kursplan als PDF und ein Besucherzähler."
+      },
+      "after": {
+        "src": "assets/nachher.svg",
+        "alt": "Entwurf: schwarze Kopfzeile, riesige Schlagzeile „Stärker in 6 Wochen“, gelber Button „Gratis Probetraining“, darunter freie Plätze, Google-Bewertung und Preis ab 79 Euro."
+      },
+      "beforeLabel": "Heute",
+      "afterLabel": "Entwurf"
+    },
+    {
+      "id": "probleme",
+      "type": "findings",
+      "title": "Wo Ihnen Mitglieder verloren gehen",
+      "items": [
+        {
+          "title": "Probetraining nur per Telefon",
+          "severity": "high",
+          "impact": "Interessenten melden sich abends auf dem Sofa an, nicht um 10 Uhr am Telefon. Wer nicht durchkommt, bucht woanders.",
+          "solution": "Probetraining in drei Tipps online buchbar, mit Bestätigung per E-Mail und Erinnerung am Vortag."
+        },
+        {
+          "title": "Kursplan als PDF",
+          "severity": "medium",
+          "impact": "Auf dem Handy unlesbar, und niemand sieht, ob heute noch Plätze frei sind.",
+          "solution": "Live-Kursplan mit freien Plätzen, direkt aus Ihrer Buchungssoftware."
+        },
+        {
+          "title": "Keine Preise auf der Website",
+          "severity": "medium",
+          "impact": "Ohne Preis vermuten viele, dass CrossFit unbezahlbar ist, und fragen gar nicht erst.",
+          "solution": "Klare Preisseite mit „ab 79 € im Monat, monatlich kündbar“."
+        },
+        {
+          "title": "Ihre 212 Bewertungen sieht niemand",
+          "severity": "low",
+          "impact": "Ihr bestes Verkaufsargument steht nur bei Google.",
+          "solution": "Bewertungen und Erfolgsgeschichten Ihrer Mitglieder auf der Startseite."
+        }
+      ]
+    },
+    {
+      "id": "mitte-cta",
+      "type": "cta",
+      "headline": "Klingt nach Ihrer Box?",
+      "text": "Schreiben Sie mir einfach im Chat. Ich antworte meist, bevor Ihr nächster Kurs anfängt.",
+      "label": "Jetzt Kontakt aufnehmen",
+      "target": "kontakt"
+    },
+    {
+      "id": "plan",
+      "type": "proposal",
+      "title": "Der Plan",
+      "intro": "Drei Bausteine, die zusammen den Weg vom ersten Klick zum Mitglied verkürzen.",
+      "items": [
+        {
+          "title": "Neue Website",
+          "description": "Schnell, laut, für das Handy gebaut. Mit Ihren Coaches, echten Fotos aus der Halle und klaren Preisen.",
+          "benefit": "Besucher verstehen in fünf Sekunden, warum Eisenwerk.",
+          "icon": "mobile"
+        },
+        {
+          "title": "Probetraining online",
+          "description": "Buchung in drei Tipps, Bestätigung und Erinnerung automatisch, Sie sehen alles in Ihrem Kalender.",
+          "benefit": "Mehr Probetrainings, weniger Telefon während der Kurse.",
+          "icon": "calendar"
+        },
+        {
+          "title": "Lokale Sichtbarkeit",
+          "description": "Seiten für „CrossFit Leipzig“, „Functional Training Plagwitz“ und „Personal Training Leipzig“, dazu Ihr Google-Profil mit Kursplan.",
+          "benefit": "Gefunden werden von Leuten, die gerade suchen.",
+          "icon": "search"
+        }
+      ]
+    },
+    {
+      "id": "entwuerfe",
+      "type": "mockup_gallery",
+      "title": "Entwürfe",
+      "images": [
+        {
+          "src": "assets/mockup-kursplan.svg",
+          "alt": "Kursplan auf schwarzem Grund: WOD um 6:30 mit 4 freien Plätzen, Lunch HIIT mit 9, Barbell Club mit 2, Mobility voll.",
+          "caption": "Live-Kursplan mit freien Plätzen"
+        },
+        {
+          "src": "assets/mockup-coaches.svg",
+          "alt": "Coach-Seite mit drei Porträtkarten, beschriftet Marco, Jana und Deniz.",
+          "caption": "Ihre Coaches als Gesicht der Box"
+        }
+      ]
+    },
+    {
+      "id": "marke",
+      "type": "brand_preview",
+      "title": "Look",
+      "intro": "Ich bleibe bei Ihrem Schwarz und mache Ihr Gelb zum Erkennungszeichen.",
+      "colors": [
+        {
+          "name": "Kreide",
+          "value": "#f5f5f5",
+          "usage": "Text und Flächen"
+        },
+        {
+          "name": "Eisen",
+          "value": "#111111",
+          "usage": "Hintergrund"
+        },
+        {
+          "name": "Volt",
+          "value": "#c6f432",
+          "usage": "Buttons und Highlights"
+        }
+      ],
+      "typography": [
+        {
+          "role": "Überschriften",
+          "family": "Anton",
+          "style": "display",
+          "sample": "Stärker in 6 Wochen"
+        },
+        {
+          "role": "Fließtext",
+          "family": "Geist",
+          "style": "sans",
+          "sample": "Kleine Gruppen, echte Coaches."
+        }
+      ]
+    },
+    {
+      "id": "stimmen",
+      "type": "testimonials",
+      "title": "Was andere Studios sagen",
+      "items": [
+        {
+          "quote": "Seit die Probetrainings online buchbar sind, kommen doppelt so viele. Und ich muss im Kurs nicht mehr ans Telefon.",
+          "author": "Sarah Köhler",
+          "role": "Inhaberin",
+          "company": "Kraftraum Connewitz"
+        },
+        {
+          "quote": "Die neue Preisseite hat die Nachfragen nach dem Preis fast komplett ersetzt. Die Leute kommen schon überzeugt.",
+          "author": "Tim Voigt",
+          "company": "Boxwerk Gohlis"
+        }
+      ]
+    },
+    {
+      "id": "preise",
+      "type": "pricing",
+      "title": "Ihr Paket",
+      "intro": "Wählen Sie, was Sie brauchen. Die Summe rechnet mit.",
+      "options": [
+        {
+          "id": "website",
+          "title": "Neue Website",
+          "description": "Bis zu 6 Seiten, Coaches, Preise, Kursplan, Hosting im ersten Jahr inklusive.",
+          "price": 3200,
+          "priceTo": 4200,
+          "billing": "once",
+          "selected": true,
+          "required": true
+        },
+        {
+          "id": "probetraining",
+          "title": "Probetraining online buchbar",
+          "description": "Anbindung an Ihre Buchungssoftware oder ein eigener Buchungskalender.",
+          "price": 690,
+          "billing": "once",
+          "selected": true
+        },
+        {
+          "id": "seo",
+          "title": "Lokale Suchseiten",
+          "price": 890,
+          "billing": "once",
+          "selected": false
+        },
+        {
+          "id": "betreuung",
+          "title": "Betreuung",
+          "description": "Updates, neue Kurse und Fotos, Auswertung jeden Monat.",
+          "price": 89,
+          "billing": "monthly",
+          "selected": false
+        }
+      ],
+      "note": "Alle Preise netto. Ein verbindliches Angebot gibt es nach einem kurzen Gespräch."
+    },
+    {
+      "id": "fragen",
+      "type": "faq",
+      "title": "Fragen",
+      "items": [
+        {
+          "question": "Funktioniert das mit meiner Buchungssoftware?",
+          "answer": "Mit den gängigen Systemen für Boxen und Studios ja. Wenn Sie keins haben, bekommen Sie einen einfachen Buchungskalender dazu."
+        },
+        {
+          "question": "Wer macht die Fotos?",
+          "answer": "Ich komme zu einem Kurs am Abend und fotografiere echtes Training. Keine Stockfotos."
+        },
+        {
+          "question": "Wie schnell ist das fertig?",
+          "answer": "Rund drei Wochen nach unserem ersten Termin, wenn Sie die Texte zügig freigeben."
+        }
+      ]
+    },
+    {
+      "id": "kontakt",
+      "type": "contact",
+      "title": "Ihr Zug",
+      "intro": "Chat, WhatsApp oder Rückruf, ganz wie es zwischen zwei Kursen passt. Ich antworte meist innerhalb einer Stunde.",
+      "channels": ["chat", "whatsapp", "callback", "phone", "email"],
+      "message": "Hallo, ich habe Ihre Vorschläge für Eisenwerk Athletics gesehen."
+    }
+  ]
+}

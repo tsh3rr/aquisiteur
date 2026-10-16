@@ -65,7 +65,7 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
       <dialog
         ref={dialog}
         aria-label="Bildansicht"
-        className="backdrop:bg-black/80 m-auto max-h-[92dvh] w-[min(92vw,80rem)] overflow-visible bg-transparent p-0"
+        className="m-auto max-h-[92dvh] w-[min(92vw,80rem)] overflow-visible bg-transparent p-0 backdrop:bg-[#000]/80"
       >
         {current ? (
           <figure className="grid gap-3">
@@ -75,9 +75,9 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
               sizing="max-h-[80dvh] w-auto"
               imgClassName="mx-auto rounded-lg object-contain"
             />
-            <figcaption className="text-white text-center">
+            <figcaption className="text-center text-[#fff]">
               {current.caption ?? current.alt}
-              <span className="text-white/70 ml-2">
+              <span className="ml-2 text-[#fff]/70">
                 {index + 1} / {images.length}
               </span>
             </figcaption>
@@ -89,7 +89,7 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
               <button
                 type="button"
                 onClick={() => step(-1)}
-                className="bg-white text-neutral-900 grid size-11 place-items-center rounded-full"
+                className="grid size-11 place-items-center rounded-full bg-[#fff] text-[#171717]"
                 aria-label="Vorheriges Bild"
               >
                 <ChevronLeft aria-hidden className="size-5" />
@@ -97,7 +97,7 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
               <button
                 type="button"
                 onClick={() => step(1)}
-                className="bg-white text-neutral-900 grid size-11 place-items-center rounded-full"
+                className="grid size-11 place-items-center rounded-full bg-[#fff] text-[#171717]"
                 aria-label="Nächstes Bild"
               >
                 <ChevronRight aria-hidden className="size-5" />
@@ -107,7 +107,7 @@ export function MockupGallery({ images }: { images: ResolvedImage[] }) {
           <button
             type="button"
             onClick={() => dialog.current?.close()}
-            className="bg-white text-neutral-900 grid size-11 place-items-center rounded-full"
+            className="grid size-11 place-items-center rounded-full bg-[#fff] text-[#171717]"
             aria-label="Schließen"
           >
             <X aria-hidden className="size-5" />

@@ -75,7 +75,7 @@ export function BrandPreviewBlock({
               return image ? (
                 <li
                   key={logo.src}
-                  className="bg-white grid place-items-center rounded-xl border border-border p-8"
+                  className="grid place-items-center rounded-xl border border-border bg-[#fff] p-8"
                 >
                   <Picture
                     image={image}
