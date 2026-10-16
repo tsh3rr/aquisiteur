@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
@@ -40,4 +41,56 @@ export function mailCount(email: string): number {
     .split("\n")
     .filter(Boolean)
     .filter((line) => (JSON.parse(line) as { to: string }).to === email).length;
+}
+
+/** Runs a pnpm script against the E2E database, e.g. `user:login` or `expose:publish`. */
+export function cli(args: string[], env: Record<string, string> = {}): string {
+  return execFileSync("pnpm", ["-s", ...args], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      DATABASE_URL: E2E.databaseUrl,
+      APP_URL: E2E.baseURL,
+      STORAGE_PROVIDER: "local",
+      ...env,
+    },
+  });
+}
+
+/** Account + finished workspace via `pnpm user:login`, then sign in with its link. */
+export async function signInWithWorkspace(
+  page: Page,
+  account: { email: string; name: string; workspace: string; slug: string },
+) {
+  const output = cli([
+    "user:login",
+    account.email,
+    "--name",
+    account.name,
+    "--workspace",
+    account.workspace,
+    "--slug",
+    account.slug,
+  ]);
+  const link = output.match(/https?:\/\/\S+/)?.[0];
+  expect(link, output).toBeTruthy();
+  await page.goto(link!);
+  await expect(page).toHaveURL(`${E2E.baseURL}/`);
+}
+
+/** Creates an API token in the settings and returns it. */
+export async function createApiToken(page: Page, name: string): Promise<string> {
+  await page.goto("/settings#api-tokens");
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Token anlegen" }).click();
+  const token = (await page.getByText(/^aq_[0-9A-Za-z]{32}$/).textContent())?.trim() ?? "";
+  expect(token).toMatch(/^aq_/);
+  return token;
+}
+
+export function publishWithCli(folder: string, token: string): string {
+  return cli(["expose:publish", folder], {
+    AQUISITEUR_API_TOKEN: token,
+    AQUISITEUR_API_URL: E2E.baseURL,
+  });
 }

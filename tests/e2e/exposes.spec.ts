@@ -1,7 +1,6 @@
-import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E } from "../../playwright.config";
-import { expectAccessible } from "./helpers";
+import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
 /**
  * Phase 1 "done when": an exposé published with the CLI is reachable under
@@ -12,31 +11,13 @@ import { expectAccessible } from "./helpers";
 const email = "exposes@e2e.test";
 const workspaceHost = `http://e2e-agentur.localhost:${new URL(E2E.baseURL).port}`;
 
-function run(args: string[], env: Record<string, string> = {}): string {
-  return execFileSync("pnpm", ["-s", ...args], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      DATABASE_URL: E2E.databaseUrl,
-      APP_URL: E2E.baseURL,
-      STORAGE_PROVIDER: "local",
-      ...env,
-    },
-  });
-}
-
-/** Account + finished workspace via `pnpm user:login`, then sign in with its link. */
 async function signIn(page: Page) {
-  const output = run(
-    ["user:login", email, "--name", "Erika E2E", "--workspace", "E2E Agentur"].concat([
-      "--slug",
-      "e2e-agentur",
-    ]),
-  );
-  const link = output.match(/https?:\/\/\S+/)?.[0];
-  expect(link, output).toBeTruthy();
-  await page.goto(link!);
-  await expect(page).toHaveURL(`${E2E.baseURL}/`);
+  await signInWithWorkspace(page, {
+    email,
+    name: "Erika E2E",
+    workspace: "E2E Agentur",
+    slug: "e2e-agentur",
+  });
 }
 
 test.describe.configure({ mode: "serial" });
@@ -51,17 +32,10 @@ test("owner creates an API token and publishes an exposé with the CLI", async (
   await expect(page.getByRole("heading", { name: "Exposés" })).toBeVisible();
   await expectAccessible(page, "empty exposé list");
 
-  await page.goto("/settings#api-tokens");
-  await page.getByLabel("Name").fill("E2E CLI");
-  await page.getByRole("button", { name: "Token anlegen" }).click();
-  const token = (await page.getByText(/^aq_[0-9A-Za-z]{32}$/).textContent())?.trim() ?? "";
-  expect(token).toMatch(/^aq_/);
+  const token = await createApiToken(page, "E2E CLI");
   await expectAccessible(page, "settings with new token");
 
-  const output = run(["expose:publish", "exposes/tischlerei-holzmann"], {
-    AQUISITEUR_API_TOKEN: token,
-    AQUISITEUR_API_URL: E2E.baseURL,
-  });
+  const output = publishWithCli("exposes/tischlerei-holzmann", token);
   publicUrl = output.match(/Öffentlich:\s+(\S+)/)?.[1] ?? "";
   expect(publicUrl, output).toMatch(
     /^http:\/\/e2e-agentur\.localhost:\d+\/x\/tischlerei-holzmann-/,

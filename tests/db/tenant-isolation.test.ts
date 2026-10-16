@@ -34,6 +34,10 @@ const tenantTables = {
   exposes: schema.exposes,
   expose_versions: schema.exposeVersions,
   assets: schema.assets,
+  touchpoints: schema.touchpoints,
+  visits: schema.visits,
+  events: schema.events,
+  saved_views: schema.savedViews,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -60,6 +64,23 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
       { document: minimalExpose(`kunde-${tag}`, `Kunde ${tag}`), assets: [] },
     ),
   );
+  // Publishing created the letter touchpoint; add a visit with one event.
+  const [expose] = await db
+    .select()
+    .from(schema.exposes)
+    .where(eq(schema.exposes.workspaceId, workspaceId));
+  const [visit] = await db
+    .insert(schema.visits)
+    .values({ workspaceId, prospectId: expose!.prospectId, exposeId: expose!.id, source: "direct" })
+    .returning();
+  await db.insert(schema.events).values({
+    workspaceId,
+    visitId: visit!.id,
+    exposeId: expose!.id,
+    type: "page_view",
+    occurredAt: new Date(),
+  });
+  await db.insert(schema.savedViews).values({ workspaceId, name: tag, query: "status=opened" });
 }
 
 beforeAll(async () => {
