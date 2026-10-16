@@ -11,9 +11,14 @@ export function buildContentSecurityPolicy(options: {
   /** Extra origins for fetch/WebSocket, e.g. the Supabase Realtime socket. */
   connectSrc?: string[];
   /** Extra image origins, e.g. the map tiles on the map dashboard. */
-  imgSrc?: string[];
+  imgSrc?: readonly string[];
   /** Extra font origins, e.g. the exposé's fonts inside a session replay. */
-  fontSrc?: string[];
+  fontSrc?: readonly string[];
+  /**
+   * Allow WebAssembly (not JS eval): the letter PDF's layout engine (yoga)
+   * is WASM, inlined as a data: URL that it fetches.
+   */
+  wasm?: boolean;
 }): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -21,13 +26,19 @@ export function buildContentSecurityPolicy(options: {
       "'self'",
       `'nonce-${options.nonce}'`,
       "'strict-dynamic'",
+      ...(options.wasm ? ["'wasm-unsafe-eval'"] : []),
       ...(options.isDev ? ["'unsafe-eval'"] : []),
     ],
     // Next.js and Radix inject inline style attributes; styles cannot execute code.
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:", ...(options.imgSrc ?? [])],
     "font-src": ["'self'", ...(options.fontSrc ?? [])],
-    "connect-src": ["'self'", ...(options.connectSrc ?? []), ...(options.isDev ? ["ws:"] : [])],
+    "connect-src": [
+      "'self'",
+      ...(options.connectSrc ?? []),
+      ...(options.wasm ? ["data:"] : []),
+      ...(options.isDev ? ["ws:"] : []),
+    ],
     "frame-ancestors": [options.allowSameOriginFraming ? "'self'" : "'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],
@@ -69,18 +80,18 @@ export function realtimeConnectSrc(env: {
   }
 }
 
-/** OpenStreetMap raster tiles for the map dashboard (§7.8, ADR-0039). */
+/** OpenStreetMap raster tiles for the map dashboard (§7.8). */
 export const MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-export const MAP_TILE_ORIGIN = "https://tile.openstreetmap.org";
 
 /**
- * Extra image and font sources per cockpit page: map tiles on the map,
- * the exposé's own images and fonts inside a session replay.
+ * Extra sources for the cockpit (not the exposé hosts). They apply to the
+ * whole cockpit because its pages are reached by client-side navigation,
+ * which keeps the first document's CSP: map tiles (images), the exposé's
+ * own images and fonts inside a session replay, and WebAssembly (not JS
+ * eval) for the letter PDF's layout engine, which loads from a data: URL.
  */
-export function pageAssetSources(pathname: string): { imgSrc: string[]; fontSrc: string[] } {
-  if (pathname.startsWith("/auswertung/karte")) return { imgSrc: [MAP_TILE_ORIGIN], fontSrc: [] };
-  if (/^\/kunden\/[^/]+\/aufzeichnung\//.test(pathname)) {
-    return { imgSrc: ["https:"], fontSrc: ["https:"] };
-  }
-  return { imgSrc: [], fontSrc: [] };
-}
+export const COCKPIT_SOURCES = {
+  imgSrc: ["https:"],
+  fontSrc: ["https:"],
+  wasm: true,
+} as const;

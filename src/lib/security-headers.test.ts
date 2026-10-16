@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildContentSecurityPolicy,
-  pageAssetSources,
+  COCKPIT_SOURCES,
   realtimeConnectSrc,
 } from "./security-headers";
 
@@ -40,22 +40,24 @@ describe("buildContentSecurityPolicy()", () => {
     expect(csp).toContain("connect-src 'self' wss://abcd.supabase.co;");
   });
 
-  it("opens image and font sources only on the pages that need them", () => {
-    expect(pageAssetSources("/auswertung/karte")).toEqual({
-      imgSrc: ["https://tile.openstreetmap.org"],
-      fontSrc: [],
-    });
-    expect(pageAssetSources("/kunden/abc/aufzeichnung/def")).toEqual({
-      imgSrc: ["https:"],
-      fontSrc: ["https:"],
-    });
-    expect(pageAssetSources("/kunden/abc")).toEqual({ imgSrc: [], fontSrc: [] });
+  it("lets the cockpit load map tiles, replay assets and WebAssembly, not JS eval", () => {
     const csp = buildContentSecurityPolicy({
       nonce: "n",
       isDev: false,
       upgradeInsecure: false,
-      ...pageAssetSources("/auswertung/karte"),
+      ...COCKPIT_SOURCES,
     });
-    expect(csp).toContain("img-src 'self' data: blob: https://tile.openstreetmap.org;");
+    expect(csp).toContain("img-src 'self' data: blob: https:;");
+    expect(csp).toContain("font-src 'self' https:;");
+    expect(csp).toContain("'strict-dynamic' 'wasm-unsafe-eval';");
+    expect(csp).toContain("connect-src 'self' data:;");
+    expect(csp).not.toContain("'unsafe-eval'");
+    const exposeCsp = buildContentSecurityPolicy({
+      nonce: "n",
+      isDev: false,
+      upgradeInsecure: false,
+    });
+    expect(exposeCsp).not.toContain("wasm-unsafe-eval");
+    expect(exposeCsp).toContain("img-src 'self' data: blob:;");
   });
 });

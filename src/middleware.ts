@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { classifyHost } from "@/domain/hostname";
 import {
   buildContentSecurityPolicy,
-  pageAssetSources,
+  COCKPIT_SOURCES,
   realtimeConnectSrc,
 } from "@/lib/security-headers";
 
@@ -36,13 +36,17 @@ export function middleware(request: NextRequest) {
     return new NextResponse("Server misconfigured", { status: 500 });
   }
 
+  const target = classifyHost(request.headers.get("host"), {
+    appHost: new URL(appUrl).host,
+    platformDomain,
+  });
   const nonce = btoa(crypto.randomUUID());
   const csp = buildContentSecurityPolicy({
     nonce,
     isDev: process.env.NODE_ENV === "development",
     upgradeInsecure: appUrl.startsWith("https:"),
     allowSameOriginFraming: request.nextUrl.pathname.startsWith("/preview/"),
-    ...pageAssetSources(request.nextUrl.pathname),
+    ...(target.kind === "cockpit" ? COCKPIT_SOURCES : {}),
     connectSrc: realtimeConnectSrc({
       REALTIME_PROVIDER: process.env.REALTIME_PROVIDER,
       SUPABASE_URL: process.env.SUPABASE_URL,
@@ -52,10 +56,6 @@ export function middleware(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
 
-  const target = classifyHost(request.headers.get("host"), {
-    appHost: new URL(appUrl).host,
-    platformDomain,
-  });
   const { pathname } = request.nextUrl;
 
   let response: NextResponse;

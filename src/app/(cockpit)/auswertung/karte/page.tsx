@@ -44,7 +44,7 @@ export default async function MapPage({ searchParams }: { searchParams: Promise<
               {missing.join(", ")}.
             </Alert>
           ) : null}
-          {canManage && data.pending > 0 ? <GeocodeNowButton /> : null}
+          {canManage ? <GeocodeNowButton pending={data.pending} /> : null}
           <ProspectMap points={data.points} />
         </CardContent>
       </Card>

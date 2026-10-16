@@ -45,6 +45,12 @@ export function ReplayPlayer({ src }: { src: string }) {
         showWarning: false,
       });
       replayer.current = instance;
+      const frame = holder.current.querySelector("iframe");
+      if (frame) {
+        frame.title = "Wiedergabe des aufgezeichneten Besuchs";
+        // A picture of the visit, not something to interact with.
+        frame.tabIndex = -1;
+      }
       setTotal(instance.getMetaData().totalTime);
       instance.on("finish", () => setPlaying(false));
       const fit = () => {

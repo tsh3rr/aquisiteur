@@ -98,8 +98,9 @@ async function resetAuthRateLimits() {
 /** Creates an API token in the settings and returns it. */
 export async function createApiToken(page: Page, name: string): Promise<string> {
   await page.goto("/settings#api-tokens");
-  await page.getByLabel("Name").fill(name);
-  await page.getByRole("button", { name: "Token anlegen" }).click();
+  const section = page.locator("#api-tokens");
+  await section.getByLabel("Name").fill(name);
+  await section.getByRole("button", { name: "Token anlegen" }).click();
   const token = (await page.getByText(/^aq_[0-9A-Za-z]{32}$/).textContent())?.trim() ?? "";
   expect(token).toMatch(/^aq_/);
   return token;
