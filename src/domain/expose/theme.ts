@@ -162,8 +162,9 @@ export function exposeThemeCss(options: {
   const lightAccent = base ? deriveAccent(base, "light", style) : null;
   const darkAccent = base ? deriveAccent(base, "dark", style) : null;
   // Logos are designed for light backgrounds; in dark mode they sit on a light plate.
-  const lightRule = `color-scheme:light;--expose-logo-plate:transparent;${declarations(styleScheme(style, "light"), lightAccent)}`;
-  const darkRule = `color-scheme:dark;--expose-logo-plate:oklch(0.97 0.004 275);${declarations(styleScheme(style, "dark"), darkAccent)}`;
+  // Without a visible plate its padding hangs left so the logo itself meets the text edge.
+  const lightRule = `color-scheme:light;--expose-logo-plate:transparent;--expose-logo-inset:-0.375rem;${declarations(styleScheme(style, "light"), lightAccent)}`;
+  const darkRule = `color-scheme:dark;--expose-logo-plate:oklch(0.97 0.004 275);--expose-logo-inset:0;${declarations(styleScheme(style, "dark"), darkAccent)}`;
   const selector = "[data-expose-theme]";
   switch (options.appearance) {
     case "light":
