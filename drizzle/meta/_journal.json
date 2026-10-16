@@ -50,6 +50,20 @@
       "when": 1792106746560,
       "tag": "0006_tracking_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792109487612,
+      "tag": "0007_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792109491939,
+      "tag": "0008_chat_grants",
+      "breakpoints": true
     }
   ]
 }

@@ -99,6 +99,7 @@ export const workspaceSettings = pgTable(
     legal: jsonb("legal").notNull().default({}),
     scoreWeights: jsonb("score_weights").notNull().default({}),
     nudges: jsonb("nudges").notNull().default({}),
+    chat: jsonb("chat").notNull().default({}),
     retention: jsonb("retention").notNull().default({}),
     ...timestamps,
   },

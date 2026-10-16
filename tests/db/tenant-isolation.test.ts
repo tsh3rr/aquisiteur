@@ -38,6 +38,11 @@ const tenantTables = {
   visits: schema.visits,
   events: schema.events,
   saved_views: schema.savedViews,
+  chat_threads: schema.chatThreads,
+  chat_messages: schema.chatMessages,
+  chat_drafts: schema.chatDrafts,
+  callback_requests: schema.callbackRequests,
+  member_presence: schema.memberPresence,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -81,6 +86,21 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     occurredAt: new Date(),
   });
   await db.insert(schema.savedViews).values({ workspaceId, name: tag, query: "status=opened" });
+  const chat = { workspaceId, prospectId: expose!.prospectId, exposeId: expose!.id };
+  const [thread] = await db
+    .insert(schema.chatThreads)
+    .values({ ...chat, visitId: visit!.id })
+    .returning();
+  await db
+    .insert(schema.chatMessages)
+    .values({ workspaceId, threadId: thread!.id, author: "visitor", body: `Hallo ${tag}` });
+  await db
+    .insert(schema.chatDrafts)
+    .values({ workspaceId, prospectId: chat.prospectId, visitId: visit!.id, length: 12 });
+  await db
+    .insert(schema.callbackRequests)
+    .values({ ...chat, name: `Kunde ${tag}`, phone: "0341 123456" });
+  await db.insert(schema.memberPresence).values({ workspaceId, userId });
 }
 
 beforeAll(async () => {
