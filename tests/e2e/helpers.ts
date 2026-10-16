@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
+import postgres from "postgres";
 import { E2E } from "../../playwright.config";
 
 /** Asserts zero axe violations against WCAG 2.2 A/AA (§8). */
@@ -74,8 +75,23 @@ export async function signInWithWorkspace(
   ]);
   const link = output.match(/https?:\/\/\S+/)?.[0];
   expect(link, output).toBeTruthy();
+  await resetAuthRateLimits();
   await page.goto(link!);
   await expect(page).toHaveURL(`${E2E.baseURL}/`);
+}
+
+/**
+ * The magic-link plugin allows 5 verifications per minute and IP; the suite
+ * signs in more often than that from 127.0.0.1. Production limits stay as
+ * they are, the E2E database just forgets the local counters.
+ */
+async function resetAuthRateLimits() {
+  const sql = postgres(E2E.databaseUrl, { max: 1, onnotice: () => {} });
+  try {
+    await sql`delete from rate_limits where key like '127.0.0.1|%' or key like '::1|%'`;
+  } finally {
+    await sql.end();
+  }
 }
 
 /** Creates an API token in the settings and returns it. */
