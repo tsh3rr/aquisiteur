@@ -565,3 +565,13 @@ aus (Secrets `COOLIFY_WEBHOOK`, `COOLIFY_TOKEN`). Der Start ist derselbe wie mit
 Nur das Schema von `APP_URL` wirkt beim Build (HSTS-Header in `next.config.ts`); das Image wird mit
 `https` gebaut und ist sonst unabhängig von Domain und Workspace, alles Übrige liest die App zur
 Laufzeit. Nixpacks bleibt der Weg für Server mit genug Speicher, wie den Mikrus 3.5.
+
+## ADR-0054 · Docker Compose statt Coolify auf sehr kleinen Servern (2026-10-19, ergänzt ADR-0053)
+
+Auch ohne Build hielt Coolify auf dem Testserver mit 1 GB RAM nicht durch: Oberfläche, Warteschlange,
+Redis, eigene Datenbank und Traefik belegen allein gut 500 MB, und nach einigen Stunden hing Docker. Für
+solche Server gibt es `deploy/compose.yml`: Postgres 16 und das App-Image von GitHub (ADR-0053), rund
+150 MB zusammen. Ohne Proxy, weil Mikrus HTTPS übernimmt und auf Port 80 weiterleitet; der stündliche
+Job und ein tägliches `pg_dump` laufen per Cron auf dem Server, Updates per `docker compose pull`.
+Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mit Cloudflare und R2
+(ADR-0052) der Weg, weil es Backups nach R2, Logs und Deployments per Oberfläche mitbringt.

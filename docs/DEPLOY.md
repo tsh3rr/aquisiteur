@@ -8,6 +8,7 @@ Mikrus keine eigene IPv4-Adresse vergibt. Ein Server reicht für mehrere Prototy
 ersten Mal: ein halber bis ganzer Tag, danach 15 bis 30 Minuten im Monat.
 
 Auf einem Server mit eigener IPv4 (z. B. Hetzner) ist es einfacher, siehe „Server mit eigener IPv4“.
+Für einen sehr kleinen Testserver ohne Coolify siehe [DEPLOY_COMPOSE.md](./DEPLOY_COMPOSE.md).
 Die frühere Variante mit Cloudflare Workers und Supabase steht in
 [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
 
