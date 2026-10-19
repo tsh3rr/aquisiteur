@@ -551,3 +551,17 @@ ließe sich `cf-connecting-ip` fälschen und die Kurzlink-Sperre umgehen. Abhilf
 die IP-Bereiche von Cloudflare zu öffnen oder Authenticated Origin Pulls einzuschalten. Die Anleitung
 steht in `docs/DEPLOY.md`; die Einrichtung auf einem Server mit eigener IPv4 (z. B. Hetzner) ist dort als
 Abweichung beschrieben.
+
+## ADR-0053 · App-Image auf GitHub bauen für Server mit wenig RAM (2026-10-19, ergänzt ADR-0047)
+
+Auf einem Testserver mit 1 GB RAM bricht der Nixpacks-Build in Coolify ab: Coolify und Postgres belegen
+gut die Hälfte, `next build` braucht allein mehr als 1 GB, und der Server hat keinen Swap. Ein
+`Dockerfile` baut die App deshalb auf GitHub (`.github/workflows/image.yml`, bei jedem Push auf `main`
+und von Hand), legt das Image privat unter `ghcr.io/tsh3rr/aquisiteur` ab, und Coolify startet es als
+Ressource „Docker Image“. Optional löst der Workflow über den Deploy-Webhook von Coolify das Deployment
+aus (Secrets `COOLIFY_WEBHOOK`, `COOLIFY_TOKEN`). Der Start ist derselbe wie mit Nixpacks: erst
+`scripts/migrate.ts`, dann `next start`; die laufende App braucht rund 100 MB.
+
+Nur das Schema von `APP_URL` wirkt beim Build (HSTS-Header in `next.config.ts`); das Image wird mit
+`https` gebaut und ist sonst unabhängig von Domain und Workspace, alles Übrige liest die App zur
+Laufzeit. Nixpacks bleibt der Weg für Server mit genug Speicher, wie den Mikrus 3.5.
