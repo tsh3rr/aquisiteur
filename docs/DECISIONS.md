@@ -455,7 +455,7 @@ erst nach der Invalidierung. Entscheidung: ADR-0012 bleibt, für den Betrieb wir
 (5 $ im Monat, 30 s CPU). Das Vorrendern steht unter „Später“, falls der Gratis-Plan Pflicht wird.
 Einstellungen → System zeigt die CPU-Zeit pro Anfrage gegen die Grenze des gewählten Plans.
 
-## ADR-0047 · Betrieb auf eigenem Server (Hetzner + Coolify) statt Cloudflare Workers (2026-10-16)
+## ADR-0047 · Betrieb auf eigenem Server (Hetzner + Coolify) statt Cloudflare Workers (2026-10-16, Anbieter und Zugang abgelöst durch ADR-0052)
 
 Der Owner will günstig und planbar prototypen; ein Server mit festen Kosten (etwa 5 €/Monat) trägt
 mehrere Projekte, ohne Kontingente, CPU-Grenzen pro Anfrage oder pausierende Datenbanken. Aquisiteur
@@ -482,7 +482,7 @@ Aus demselben Grund formatiert der Preisrechner Euro-Beträge mit `formatEuro()`
 Client-Komponenten des Exposés verwenden `clsx` statt `cn`, damit tailwind-merge (9 KB gzip) erst mit
 der nachgeladenen Kontaktebene kommt.
 
-## ADR-0049 · Dateien auf dem eigenen Server statt in R2 (2026-10-16)
+## ADR-0049 · Dateien auf dem eigenen Server statt in R2 (2026-10-16, für den Betrieb abgelöst durch ADR-0052)
 
 Der Owner will die Daten selbst hosten. Bilder, Videos und Aufzeichnungen liegen deshalb mit
 `STORAGE_PROVIDER=local` in einem Coolify-Volume (`LOCAL_STORAGE_DIR=/data/files`) auf demselben Server
@@ -521,3 +521,33 @@ ein PostToolUse-Hook formatiert jede bearbeitete Datei mit Prettier. Wissen, das
 wird, steht in Skills (`.claude/skills/`: `steward`, `expose-authoring`, `backlog`), damit `CLAUDE.md`
 kurz bleibt. Der Agent `spec-reviewer` prüft einen Diff in frischem Kontext gegen ZIELPROMPT und die
 Architekturregeln, bevor ein Feature als fertig gilt. Lokal tut der SessionStart-Hook nichts.
+
+## ADR-0052 · Betrieb auf Mikrus 3.5 hinter Cloudflare, Dateien in R2 (2026-10-19, ersetzt Teile von ADR-0047 und ADR-0049)
+
+Der Owner betreibt Aquisiteur auf einem **Mikrus 3.5** (4 GB RAM, 40 GB Platte, etwa 45 € im Jahr;
+Rechenzentrum bei Hetzner in Helsinki, Finnland) statt auf einem eigenen Hetzner-Server; der Preis wiegt
+für Prototypen schwerer als die einfachere Einrichtung. Von ADR-0047 bleibt alles: Coolify, Nixpacks,
+`HOSTING_PROFILE=node`, eine Instanz, Postgres 16 als Coolify-Ressource auf demselben Server. Die
+geteilte 300-MB-Datenbank von Mikrus passt nicht, weil die Migrationen eine eigene Rolle anlegen
+(`drizzle/0000_roles_and_functions.sql`). Mit 2 GB RAM (Mikrus 3.0) bricht der Build ab.
+
+Mikrus gibt keine eigene IPv4-Adresse, die Ports 80 und 443 gibt es nur über IPv6. **Cloudflare steht
+deshalb vor allen Domains** (AAAA-Einträge mit Proxy, SSL „Full (strict)“) und ist damit Pflicht statt
+optional. Das TLS-Zertifikat zwischen Cloudflare und Server ist ein Cloudflare-Origin-Zertifikat für
+`<domain>` und `*.<domain>`, das Traefik in Coolify ausliefert; Let's Encrypt in Coolify entfällt. Die
+App vertraut ohnehin zuerst `cf-connecting-ip` und liest die Stadt aus `cf-ipcity` (Managed Transform
+„Add visitor location headers“). Eigene Domains von Workspaces (§9a) müssen damit ebenfalls über
+Cloudflare laufen, später über Cloudflare for SaaS.
+
+Ein Platten-Backup per Klick gibt es bei Mikrus nicht. Die täglichen Datenbank-Dumps von Coolify gehen
+deshalb in einen R2-Bucket (`aquisiteur-backups`, Jurisdiktion EU), und **Bilder, Videos und
+Aufzeichnungen liegen in R2** (`STORAGE_PROVIDER=s3`, Bucket `aquisiteur-files`, Endpunkt
+`https://<account-id>.eu.r2.cloudflarestorage.com`) statt im Volume aus ADR-0049. Das schont die
+40-GB-Platte, und kein Teil der Daten hängt allein an diesem Server. Das Volume bleibt per Konfiguration
+möglich, etwa auf einem Server mit Platten-Backup.
+
+Offen und bewusst später: Der Server ist über IPv6 auch direkt erreichbar, an Cloudflare vorbei. Dann
+ließe sich `cf-connecting-ip` fälschen und die Kurzlink-Sperre umgehen. Abhilfe wäre, 80 und 443 nur für
+die IP-Bereiche von Cloudflare zu öffnen oder Authenticated Origin Pulls einzuschalten. Die Anleitung
+steht in `docs/DEPLOY.md`; die Einrichtung auf einem Server mit eigener IPv4 (z. B. Hetzner) ist dort als
+Abweichung beschrieben.

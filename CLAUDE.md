@@ -95,8 +95,9 @@ only (portable via `pg_dump`). Migrations must keep the previous app version wor
 
 ## Working notes (for new threads)
 
-- Production runs on Hetzner + Coolify (`HOSTING_PROFILE=node`, ADR-0047); files live on a volume via
-  `diskStorage` (ADR-0049), mail via Resend. Cloudflare stays a buildable fallback, so the CI bundle job
+- Production runs on a Mikrus 3.5 with Coolify behind Cloudflare (`HOSTING_PROFILE=node`, ADR-0047,
+  ADR-0052): IPv6 only, so Cloudflare proxies every domain; files and DB backups live in R2
+  (`STORAGE_PROVIDER=s3`), mail via Resend. Cloudflare stays a buildable fallback, so the CI bundle job
   must stay green. `docs/DEPLOY.md` is the runbook.
 - One feature per branch and PR; after a merge, restart the working branch from `origin/main`.
   Screenshots for the owner go to `/mnt/project-files/screenshots/<topic>/`.

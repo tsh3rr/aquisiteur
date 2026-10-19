@@ -21,7 +21,7 @@ const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
 /**
- * `vps`: the own server (ADR-0047, ADR-0049) with a 40 GB disk shared by the
+ * `vps`: the own server (ADR-0047, ADR-0052) with a 40 GB disk shared by the
  * system, Docker, database and files; the caps leave room for builds and
  * backups. `free` / `paid`: Cloudflare Workers, Supabase and R2 as of 2026
  * (docs/DEPLOY_CLOUDFLARE.md).

@@ -42,7 +42,7 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für eine Abweichung siehst, schreibe sie in `docs/DECISIONS.md` und frag nach, bevor du abweichst.
 
 1. **Heute ein Nutzer, morgen SaaS**: v1 wird nur vom Owner genutzt, aber die App wird **von Anfang an mandantenfähig gebaut** (siehe §9a). Der Owner ist technisch einfach der erste Workspace. Später sollen andere Agenturen und Freelancer Aquisiteur als SaaS nutzen können, ohne Umbau des Datenmodells.
-2. **Hosting**: **Eigener Server bei Hetzner (Deutschland) mit Coolify**: Next.js als Node-Prozess (`HOSTING_PROFILE=node`), **Postgres 16** als Coolify-Ressource auf demselben Server, Dateien in einem Volume auf demselben Server (wahlweise S3-kompatibler Speicher wie R2). Feste Kosten, keine Kontingente, ein Server für mehrere Prototypen. Alle personenbezogenen Daten liegen in Deutschland bzw. der EU. Die Cloudflare-Variante (Workers + Hyperdrive) bleibt im Code als zweites Profil erhalten; die App muss **ohne Umbau auf einen anderen Hoster umziehbar** bleiben (siehe §5a).
+2. **Hosting**: **Eigener Server (Mikrus 3.5, Rechenzentrum in Helsinki) mit Coolify hinter Cloudflare**: Next.js als Node-Prozess (`HOSTING_PROFILE=node`), **Postgres 16** als Coolify-Ressource auf demselben Server, Dateien und Datenbank-Backups in **Cloudflare R2** (Jurisdiktion EU). Cloudflare steht vor allen Domains, weil der Server keine eigene IPv4-Adresse hat (ADR-0052). Feste Kosten, keine Kontingente, ein Server für mehrere Prototypen. Alle personenbezogenen Daten liegen in der EU. Die Cloudflare-Variante (Workers + Hyperdrive) bleibt im Code als zweites Profil erhalten; die App muss **ohne Umbau auf einen anderen Hoster umziehbar** bleiben (siehe §5a).
 3. **Tracking**: Cookieless First-Party-Tracking ohne Consent-Banner für das Basis-Tracking. Detailaufzeichnung (Session-Replay) nur nach aktiver Einwilligung. Keine Drittanbieter-Analytics, keine Google-Fonts-CDN, keine externen Tracker.
 4. **Kontaktkanäle v1**: WhatsApp, E-Mail, Telefon/Rückruf, eigener Live-Chat. Facebook Messenger und SMS als Ausbaustufe (Architektur dafür vorbereiten).
 5. **Chat**: Eigener Live-Chat im Exposé. Der Owner antwortet aus dem Cockpit (PWA, Push am Handy). Übergabe an WhatsApp jederzeit möglich.
@@ -61,8 +61,8 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 |---|---|---|
 | Framework | **Next.js (App Router)**, React Server Components, Server Actions, TypeScript strict | Ein Repo für Cockpit, öffentliche Exposés und Edge-Redirects |
 | Paketmanager | pnpm | |
-| Hosting | **Hetzner-Server mit Coolify** (Node, Traefik mit Let's Encrypt); Alternative im Code: Cloudflare Workers via OpenNext | Feste, niedrige Kosten, keine CPU-Grenzen pro Anfrage |
-| Datenbank | **Postgres 16** auf dem Server (Coolify), Row Level Security, tägliche Dumps und Hetzner-Backup der ganzen Platte | Standard-Postgres, jederzeit umziehbar |
+| Hosting | **Mikrus-Server mit Coolify** (Node, Traefik mit Cloudflare-Origin-Zertifikat), **Cloudflare** als Proxy davor; Alternative im Code: Cloudflare Workers via OpenNext | Feste, sehr niedrige Kosten, keine CPU-Grenzen pro Anfrage |
+| Datenbank | **Postgres 16** auf dem Server (Coolify), Row Level Security, tägliche Dumps nach R2 | Standard-Postgres, jederzeit umziehbar |
 | ORM / Migrations | **Drizzle ORM** + drizzle-kit | Typsicher, SQL-nah, schnell |
 | Auth (Cockpit) | **Passkeys** (WebAuthn) + Magic Link als Fallback, via **Better Auth** (Daten in der eigenen Postgres-DB) | Kein Passwort, kein Anbieter-Lock-in |
 | Validierung | **Zod** (Schemas teilen zwischen Client, Server, Exposé-Import) | |
@@ -74,7 +74,7 @@ Verwende jeweils die **neueste stabile Version** und prüfe beim Setup die aktue
 | Push | Web Push (VAPID), PWA mit Service Worker | Owner bekommt Push auf iOS/Android ohne App Store |
 | QR | Lib, die **SVG** erzeugt (z. B. `qrcode`), Fehlerkorrektur Level M–Q, optional Logo in der Mitte | Druckqualität |
 | PDF (Brief) | **React-PDF** (läuft überall, kein Chromium nötig) | DIN 5008, druckfertig |
-| Dateien & Bilder | **Volume auf dem Server** hinter dem `StoragePort`, alternativ jeder **S3-kompatible** Speicher (R2, Hetzner Object Storage); Bildoptimierung (AVIF/WebP, mehrere Größen) beim Veröffentlichen per CLI mit `sharp`, nicht zur Laufzeit | Keine weiteren Dienste, per Konfiguration auf S3 umstellbar |
+| Dateien & Bilder | **Cloudflare R2** (EU) hinter dem `StoragePort`, alternativ ein Volume auf dem Server oder jeder andere **S3-kompatible** Speicher; Bildoptimierung (AVIF/WebP, mehrere Größen) beim Veröffentlichen per CLI mit `sharp`, nicht zur Laufzeit | Schont die Platte, per Konfiguration umstellbar |
 | Session-Replay | **rrweb** (nur nach Consent), Speicherung komprimiert im Datei-Speicher | |
 | Rate Limiting | Postgres-basiert hinter eigener Schnittstelle | |
 | Tests | **Vitest** (Unit), **Playwright** (E2E), **axe-core** (A11y in E2E), Lighthouse CI | |
@@ -91,7 +91,7 @@ Der eigene Server ist das Ziel, aber kein Käfig. Wenn Last, Kosten oder Anforde
 - **Ein Deployment-Ziel im Betrieb**: Coolify baut aus dem Repo mit Nixpacks (`nixpacks.toml`), kein eigenes Docker-Image, keine doppelten E2E-Läufe. Der Cloudflare-Build bleibt in der CI als Größen-Check, damit der Rückweg offen bleibt.
 - **Nur Standard-Postgres**: Drizzle-Migrations als einzige Quelle der Wahrheit, keine Supabase-spezifischen Features außer hinter Adaptern. Die DB muss mit `pg_dump`/`pg_restore` auf jeden Postgres-Anbieter umziehen können.
 - **Auth in der eigenen DB** (Better Auth), damit Nutzerkonten beim Umzug mitkommen.
-- **Dateien hinter dem `StoragePort`**: heute ein Verzeichnis auf dem Server, per `STORAGE_PROVIDER=s3` jeder S3-kompatible Speicher (auf Cloudflare Pflicht).
+- **Dateien hinter dem `StoragePort`**: heute R2 per `STORAGE_PROVIDER=s3` (jeder S3-kompatible Speicher geht), per `STORAGE_PROVIDER=local` ein Verzeichnis auf dem Server.
 - **Konfiguration nur über Env-Variablen**, dokumentiert in `.env.example`, mit Profilen `cloudflare` und `node`.
 - **Lokale Entwicklung und Tests** mit `next dev` gegen ein lokales Postgres; das entspricht dem Betrieb auf dem Server. `wrangler dev` nur zum Testen der Cloudflare-Variante.
 - **Limits beobachten**: Ein kleiner Bereich im Cockpit (Einstellungen → System) zeigt DB-Größe und Speicher (auf Cloudflare zusätzlich Requests und CPU-Zeit) im Verhältnis zu den Limits und warnt ab 80 %.
@@ -358,7 +358,7 @@ Setze Folgendes technisch um und dokumentiere es in `docs/PRIVACY.md`. (Hinweis 
 - **IP-Adressen** nur zur Geo-Grobauflösung und Bot-Erkennung im Moment der Anfrage verwenden, nicht speichern (oder gekürzt).
 - **Aufbewahrung**: Rohevents und Replays nach konfigurierbarer Frist automatisch löschen (Standard: 12 Monate Events, 90 Tage Replays). Prospect mit „Kein Interesse“ → personenbezogene Trackingdaten nach 30 Tagen löschen, nur Sperrvermerk behalten.
 - **Betroffenenrechte**: Export und Löschung pro Prospect mit einem Klick.
-- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Hetzner, Resend, Sentry, optional Cloudflare; jeweils EU-Region bzw. EU-Datenspeicherung, wo verfügbar). Liste in `docs/PRIVACY.md`.
+- **Auftragsverarbeitung**: Nur Dienste mit EU-Hosting/AVV (Mikrus, Cloudflare, Resend, Sentry; jeweils EU-Region bzw. EU-Datenspeicherung, wo verfügbar). Liste in `docs/PRIVACY.md`.
 - Impressum und Datenschutzerklärung als konfigurierbare Seiten.
 - Opt-out-Link im Exposé (§ 7.3) und auf Wunsch im Brief.
 
@@ -371,7 +371,7 @@ v1 hat nur einen Nutzer, aber jede Zeile Code wird so geschrieben, als gäbe es 
 - **Mandantentrennung**: Jede fachliche Tabelle hat `workspace_id` (NOT NULL, indiziert). RLS-Policies prüfen die Workspace-Mitgliedschaft, nicht „ist eingeloggt“. Ein Test stellt sicher, dass Workspace A niemals Daten von Workspace B sieht (auch über Realtime, Storage und API-Tokens).
 - **Nutzer ≠ Workspace**: Tabellen `workspaces`, `users`, `memberships` (Rolle: `owner`, `admin`, `member`). Ein Nutzer kann mehreren Workspaces angehören. Berechtigungen laufen über eine zentrale `can(user, action, resource)`-Funktion, auch wenn es heute nur `owner` gibt.
 - **Nichts hartkodiert**: Name, Foto, Telefonnummern, WhatsApp, Absenderadresse, Impressum, Datenschutztext, Brief-Vorlagen, Branding, Score-Gewichte und Nudge-Texte gehören zu den **Workspace-Einstellungen**, nicht in Env-Variablen oder Code.
-- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. Automatisches TLS über Traefik/Let's Encrypt auf dem Server (auf Cloudflare: Cloudflare for SaaS), gekapselt in einer `DomainProvider`-Schnittstelle.
+- **Eigene Domains pro Workspace**: Exposés und Kurzlinks laufen über die Domain des jeweiligen Workspaces (z. B. `go.agentur-x.de`), mit Fallback auf eine Plattform-Subdomain (`<workspace>.aquisiteur.app`). Routing über den `Host`-Header in der Middleware. Kurzlink-Codes sind pro Domain eindeutig, nicht global. TLS über Cloudflare vor dem Server (für fremde Domains Cloudflare for SaaS; auf einem Server mit eigener IPv4 Traefik/Let's Encrypt), gekapselt in einer `DomainProvider`-Schnittstelle.
 - **Storage-Pfade** immer mit Workspace-Präfix (`/{workspace_id}/exposes/...`).
 - **Externe Dienste pro Workspace konfigurierbar**: Absender-Domain für E-Mails, Print-API-Zugang, Messenger-Kanäle. Secrets dieser Integrationen verschlüsselt in der DB (nicht in Env).
 - **Nutzungsmessung**: Eine `usage_events`-Tabelle zählt ab Tag 1 abrechnungsrelevante Dinge (veröffentlichte Exposés, Besuche, versendete Briefe, Speicher). Darauf baut später die Abrechnung.

@@ -81,7 +81,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace (ADR-0043)
 - [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [x] Einstellungen → System mit Limits (ADR-0045)
-- [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047)
+- [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
 
 ## Später
 
