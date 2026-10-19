@@ -41,5 +41,5 @@ pnpm test:e2e     # Playwright + axe, alle Bildschirme und Kernpfade
 
 ## Doku
 
-- [Deployment auf eigenem Server (Hetzner + Coolify)](./docs/DEPLOY.md) · [Exposés schreiben](./docs/EXPOSE_AUTHORING.md) · [Sicherheit](./docs/SECURITY.md)
+- [Deployment auf eigenem Server (Mikrus + Coolify)](./docs/DEPLOY.md) · [Exposés schreiben](./docs/EXPOSE_AUTHORING.md) · [Sicherheit](./docs/SECURITY.md)
 - [Architektur](./docs/ARCHITECTURE.md) · [Entscheidungen](./docs/DECISIONS.md) · [Hosting-Umzug](./docs/HOSTING.md) · [Datenschutz](./docs/PRIVACY.md)

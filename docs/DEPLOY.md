@@ -1,11 +1,13 @@
-# Deployment: eigener Server (Hetzner + Coolify)
+# Deployment: Mikrus 3.5 mit Coolify hinter Cloudflare
 
-Schritt-für-Schritt-Anleitung, um Aquisiteur auf einem eigenen Server zu betreiben (ADR-0047). Coolify
-ist eine Weboberfläche auf dem Server: Sie verbindet das GitHub-Repo, baut jeden Push selbst, holt
-TLS-Zertifikate und verwaltet die Datenbank samt Backups. Datenbank und Dateien liegen auf dem Server
-selbst (ADR-0049); von außen kommt nur der E-Mail-Versand. Ein Server reicht für mehrere Prototypen.
-Zeitaufwand beim ersten Mal: etwa eine Stunde.
+Schritt-für-Schritt-Anleitung, um Aquisiteur auf einem Mikrus 3.5 zu betreiben (ADR-0047, ADR-0052).
+Coolify ist eine Weboberfläche auf dem Server: Sie verbindet das GitHub-Repo, baut jeden Push selbst und
+verwaltet die Datenbank samt Backups. Die Datenbank liegt auf dem Server, Bilder, Videos und
+Aufzeichnungen sowie die Datenbank-Backups in Cloudflare R2. Cloudflare steht vor allen Domains, weil
+Mikrus keine eigene IPv4-Adresse vergibt. Ein Server reicht für mehrere Prototypen. Zeitaufwand beim
+ersten Mal: ein halber bis ganzer Tag, danach 15 bis 30 Minuten im Monat.
 
+Auf einem Server mit eigener IPv4 (z. B. Hetzner) ist es einfacher, siehe „Server mit eigener IPv4“.
 Die frühere Variante mit Cloudflare Workers und Supabase steht in
 [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
 
@@ -14,29 +16,43 @@ Die frühere Variante mit Cloudflare Workers und Supabase steht in
 ```
 GitHub (main) ──► Coolify auf dem Server: bauen (Nixpacks) → migrieren → starten
                                                                   │
-Browser ──► Traefik (TLS, Let's Encrypt) ──► Aquisiteur (Node, Port 3000)
-                                                  │            │
-                                                  ▼            ▼
-                                        Postgres 16 (Coolify)  Volume /data/files (Bilder, Aufzeichnungen)
-
-Hetzner-Backup: tägliches Abbild der ganzen Platte (App, Datenbank, Dateien, DB-Dumps)
+Browser ──► Cloudflare (IPv4/IPv6, TLS) ──IPv6──► Traefik (Origin-Zertifikat) ──► Aquisiteur (Node, Port 3000)
+                                                                                   │             │
+                                                                                   ▼             ▼
+                                                                    Postgres 16 (Coolify)   R2 aquisiteur-files
+                                                                                   │
+                                                              tägliche Dumps ──► R2 aquisiteur-backups
 ```
 
-| Was       | Wo                                  | Wofür                                  |
-| --------- | ----------------------------------- | -------------------------------------- |
-| Server    | Hetzner Cloud, Standort Deutschland | App, Datenbank und Dateien             |
-| App       | Coolify-Anwendung aus GitHub        | Cockpit, Exposés, Kurzlinks, Live-Chat |
-| Datenbank | Postgres 16 als Coolify-Ressource   | Alle Daten inkl. Logins (Better Auth)  |
-| Dateien   | Coolify-Volume auf dem Server       | Bilder, Videos, Aufzeichnungen         |
-| E-Mail    | Resend (EU-Region)                  | Anmeldelinks und Benachrichtigungen    |
+| Was       | Wo                                               | Wofür                                  |
+| --------- | ------------------------------------------------ | -------------------------------------- |
+| Server    | Mikrus 3.5 (Rechenzentrum Helsinki, Finnland)    | App und Datenbank                      |
+| Zugang    | Cloudflare (Proxy, DNS, Origin-Zertifikat)       | Erreichbarkeit per IPv4, TLS, Stadt    |
+| App       | Coolify-Anwendung aus GitHub                     | Cockpit, Exposés, Kurzlinks, Live-Chat |
+| Datenbank | Postgres 16 als Coolify-Ressource                | Alle Daten inkl. Logins (Better Auth)  |
+| Dateien   | R2-Bucket `aquisiteur-files` (Jurisdiktion EU)   | Bilder, Videos, Aufzeichnungen         |
+| Backups   | R2-Bucket `aquisiteur-backups` (Jurisdiktion EU) | Tägliche Datenbank-Dumps               |
+| E-Mail    | Resend (EU-Region)                               | Anmeldelinks und Benachrichtigungen    |
 
-**Warum E-Mail nicht vom eigenen Server?** Hetzner sperrt bei neuen Konten den ausgehenden Mail-Port 25,
-und Mails von einer frischen Server-IP landen oft im Spam. Resend kümmert sich um Zustellbarkeit und
-kostet bis 3.000 Mails im Monat nichts; Aquisiteur verschickt nur Anmeldelinks und Benachrichtigungen.
+**Was bei Mikrus anders ist als bei einem normalen Server:**
+
+- Keine eigene IPv4-Adresse. Die Ports 80 und 443 gibt es nur über IPv6, deshalb läuft der Verkehr
+  über Cloudflare. Cloudflare spricht per IPv6 mit dem Server.
+- SSH läuft über einen eigenen Port, den Mikrus nennt, nicht über Port 22.
+- Das HTTPS-Zertifikat kommt von Cloudflare (Origin-Zertifikat) statt von Let's Encrypt.
+- Kein Platten-Backup per Klick. Datenbank-Backups und Dateien liegen deshalb in R2.
+- Die geteilte 300-MB-Datenbank von Mikrus wird nicht genutzt; die Migrationen brauchen eine eigene
+  Rolle (ADR-0052).
+
+**Warum E-Mail nicht vom eigenen Server?** Mails von einer frischen Server-Adresse landen oft im Spam.
+Resend kümmert sich um Zustellbarkeit und kostet bis 3.000 Mails im Monat nichts; Aquisiteur verschickt
+nur Anmeldelinks und Benachrichtigungen.
 
 ## Voraussetzungen
 
-- Ein Hetzner-Cloud-Konto und eine Domain, deren DNS du bearbeiten kannst
+- Ein Mikrus 3.5 (4 GB RAM, 40 GB Platte). Mit 2 GB (Mikrus 3.0) bricht der Build ab, weil Coolify,
+  Postgres und der Next-Build gleichzeitig Speicher brauchen.
+- Ein kostenloses Cloudflare-Konto, auf dem die Domain liegt (Nameserver bei Cloudflare)
 - Ein Resend-Konto (kostenloser Plan reicht für den Anfang)
 - Zugriff auf das GitHub-Repo `tsh3rr/aquisiteur`; betrieben wird der Stand auf `main`
 - Ein SSH-Schlüssel auf deinem Rechner (`ssh-keygen -t ed25519`, falls noch keiner existiert)
@@ -52,17 +68,15 @@ Beispiel mit `aquisiteur.de`, ersetze durch deine Domain:
 | Plattform-Domain für Workspaces | `aquisiteur.de` → Workspace-Adressen wie `pixelwerk.aquisiteur.de` | `PLATFORM_DOMAIN=aquisiteur.de`     |
 | Coolify selbst                  | `coolify.aquisiteur.de`                                            | (nur in Coolify)                    |
 
-## 2. Server anlegen und absichern
+## 2. Server mieten und absichern
 
-1. In der Hetzner Cloud Console **Add Server**: Standort **Nürnberg** oder **Falkenstein**, Image
-   **Ubuntu 24.04**. Typ: mindestens **2 vCPU, 4 GB RAM, 40 GB SSD**; der günstigste verfügbare Typ mit
-   diesen Werten passt. Intel/AMD (Reihen CX, CPX) und ARM (Reihe CAX) gehen beide. Mit 2 GB RAM bricht der
-   Build ab, weil Coolify, Postgres und der Next-Build gleichzeitig Speicher brauchen. Unter **SSH keys**
-   deinen öffentlichen Schlüssel hinterlegen. **Backups** anhaken (etwa 20 % Aufpreis): Das tägliche
-   Abbild der ganzen Platte sichert Datenbank und Dateien mit, Hetzner hält die letzten sieben.
-2. Unter **Firewalls** eine Firewall anlegen und dem Server zuweisen: eingehend nur TCP **22**, **80**,
-   **443**. Port 8000 (Coolify vor dem Domain-Setup) nur vorübergehend und nur für deine eigene IP.
-3. Per SSH anmelden (`ssh root@<server-ip>`) und die Grundabsicherung einschalten:
+1. Auf [mikr.us](https://mikr.us) einen **Mikrus 3.5** bestellen. Aus der Willkommensmail notieren:
+   Servername (z. B. `srv12.mikr.us`), SSH-Port, die **IPv6-Adresse** und das Root-Passwort.
+2. Im Mikrus-Panel als Betriebssystem **Ubuntu 24.04** wählen, falls eine Auswahl angeboten wird.
+3. Den öffentlichen SSH-Schlüssel hinterlegen: anmelden mit `ssh root@srv12.mikr.us -p <port>` und den
+   Inhalt von `~/.ssh/id_ed25519.pub` (unter Windows `C:\Users\<du>\.ssh\id_ed25519.pub`) in
+   `/root/.ssh/authorized_keys` eintragen. Prüfen, dass die Anmeldung ohne Passwort klappt.
+4. Erst dann die Grundabsicherung einschalten:
 
    ```bash
    apt update && apt -y upgrade
@@ -72,30 +86,57 @@ Beispiel mit `aquisiteur.de`, ersetze durch deine Domain:
    systemctl restart ssh
    ```
 
+5. Prüfen, dass IPv6 funktioniert: `ping -6 -c 3 google.com` muss antworten.
+
 ## 3. Coolify installieren
 
 ```bash
 curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+docker run --rm hello-world   # muss „Hello from Docker!“ ausgeben
 ```
 
-Danach `http://<server-ip>:8000` öffnen, Admin-Konto anlegen. Unter **Settings** die Instanz-Domain
-`https://coolify.aquisiteur.de` eintragen (DNS-Eintrag aus Schritt 4 zuerst). Danach Port 8000 in der
-Hetzner-Firewall wieder schließen.
+Läuft Docker nicht, geht es hier nicht weiter: Coolify braucht Docker. Die Oberfläche (Port 8000) über
+einen SSH-Tunnel öffnen, nicht von außen:
 
-## 4. DNS-Einträge
+```bash
+ssh -L 8000:localhost:8000 root@srv12.mikr.us -p <port>
+```
 
-Bei deinem DNS-Anbieter (auch Cloudflare-DNS geht) A-Einträge auf die Server-IP (und AAAA auf die IPv6):
+Solange das Fenster offen ist, ist Coolify unter `http://localhost:8000` erreichbar. Admin-Konto
+anlegen. Den Tunnel braucht es nur, bis Coolify in Schritt 4 eine eigene Adresse hat.
 
-| Name                  | Typ      | Ziel      |
-| --------------------- | -------- | --------- |
-| `app`                 | A / AAAA | Server-IP |
-| `coolify`             | A / AAAA | Server-IP |
-| `*` (alle Workspaces) | A / AAAA | Server-IP |
+Über IPv6 ist der Server von außen direkt erreichbar. Von einem anderen Rechner mit IPv6 prüfen, dass
+`curl -6 -m 5 http://[<ipv6>]:8000` keine Antwort bekommt. Antwortet Coolify dort, ist das Admin-Login
+öffentlich; dann den Port sperren, bevor es weitergeht.
 
-Bei Cloudflare-DNS die Einträge auf **DNS only** (graue Wolke) stellen, damit Coolify die Zertifikate
-selbst holen kann. Mit oranger Wolke (Proxy) zeigt die Timeline zusätzlich die Stadt eines Besuchs
-(**Rules → Managed Transforms → Add visitor location headers**); dann SSL/TLS auf **Full (strict)**
-stellen.
+## 4. Cloudflare: DNS und Zertifikat
+
+Besucher kommen per IPv4 oder IPv6 zu Cloudflare, Cloudflare spricht per IPv6 mit dem Server.
+
+**DNS-Einträge** (Cloudflare → Domain → DNS), alle als **AAAA** auf die IPv6 des Servers und mit
+**oranger Wolke** (Proxy an). Ein A-Eintrag fehlt absichtlich.
+
+| Name                  | Typ  | Ziel             | Proxy |
+| --------------------- | ---- | ---------------- | ----- |
+| `app`                 | AAAA | IPv6 des Servers | an    |
+| `coolify`             | AAAA | IPv6 des Servers | an    |
+| `*` (alle Workspaces) | AAAA | IPv6 des Servers | an    |
+
+**Zertifikat und Einstellungen:**
+
+1. **SSL/TLS → Origin Server → Create Certificate**, Hostnamen `aquisiteur.de` und `*.aquisiteur.de`,
+   Gültigkeit 15 Jahre. Zertifikat und privaten Schlüssel in den Passwortmanager.
+2. In Coolify unter **Servers → localhost → Proxy** das Zertifikat als eigenes Zertifikat für Traefik
+   hinterlegen.
+3. **SSL/TLS → Overview**: Modus **Full (strict)**.
+4. **Rules → Managed Transforms → Add visitor location headers** einschalten. Dann zeigt die Timeline die
+   Stadt eines Besuchs (`cf-ipcity`).
+5. In Coolify unter **Settings** die Instanz-Domain `https://coolify.aquisiteur.de` eintragen. Ab jetzt
+   braucht es den SSH-Tunnel nicht mehr.
+
+**Später eine neue Domain** (etwa für ein anderes Projekt): bei Cloudflare den AAAA-Eintrag mit oranger
+Wolke anlegen, ein Origin-Zertifikat dafür erzeugen und in Coolify eintragen. Eine Subdomain von
+`aquisiteur.de` braucht nur den Eintrag in Coolify, das Wildcard-Zertifikat deckt sie ab.
 
 ## 5. Resend anlegen
 
@@ -112,10 +153,14 @@ Zum ersten Ausprobieren geht es auch ohne Resend, siehe „Ohne E-Mail-Versand t
    (`postgres://postgres:…@aquisiteur-db:5432/postgres`, nur im Server-Netz erreichbar) ist die
    **Datenbank-URL** für Schritt 8. Die Datenbank bleibt von außen unerreichbar („Make it publicly
    available“ aus lassen).
-3. **Backups**: in der Datenbank **Backups → Scheduled backup**: täglich (`0 3 * * *`), Aufbewahrung
-   z. B. 14 Tage. Coolify legt die Dumps auf dem Server ab, das Hetzner-Backup nimmt sie mit. Einmal
-   **Backup now** und prüfen, dass die Ausführung grün ist. Eine Kopie außer Haus ist optional, siehe
-   „Backups außer Haus“.
+3. **Backups außer Haus**: bei Cloudflare zwei R2-Buckets anlegen, beide mit Jurisdiktion **EU**:
+   `aquisiteur-backups` und `aquisiteur-files` (für Schritt 8). Je einen API-Token mit Lese- und
+   Schreibrecht nur für den jeweiligen Bucket erzeugen.
+4. In Coolify unter **Settings → S3 Storages** den Bucket `aquisiteur-backups` eintragen (Endpunkt
+   `https://<account-id>.eu.r2.cloudflarestorage.com`).
+5. In der Datenbank **Backups → Scheduled backup**: täglich (`0 3 * * *`), **Save to S3** mit dem Bucket
+   aus Schritt 6.4, Aufbewahrung 14 Tage. Einmal **Backup now** und prüfen, dass die Datei im Bucket
+   ankommt. Einmal üben, ein Backup zurückzuspielen (siehe „Wiederherstellen“); erst dann ist es eins.
 
 Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schritt 7).
 
@@ -126,11 +171,11 @@ Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schri
 2. Branch `main`, Build Pack **Nixpacks**. Die Datei `nixpacks.toml` im Repo legt Node 22, den Build
    (`pnpm build`) und den Start fest: erst `pnpm db:migrate`, dann `pnpm start`.
 3. **Ports Exposes**: `3000`.
-4. **Persistent Storage → Add → Volume Mount**: Name `aquisiteur-files`, Destination Path `/data/files`.
-   Hier liegen Bilder, Videos und Aufzeichnungen; das Volume übersteht jedes neue Deployment.
-5. **Domains**: `https://app.aquisiteur.de,https://pixelwerk.aquisiteur.de` (Cockpit plus die Adresse
-   jedes Workspaces, kommagetrennt; nach dem Einrichtungs-Assistenten ergänzen). Coolify holt für jede
-   ein Zertifikat.
+4. **Domains**: `https://app.aquisiteur.de,https://pixelwerk.aquisiteur.de` (Cockpit plus die Adresse
+   jedes Workspaces, kommagetrennt; nach dem Einrichtungs-Assistenten ergänzen). Traefik liefert das
+   Origin-Zertifikat aus Schritt 4 aus; ein Let's-Encrypt-Zertifikat holt Coolify hinter Cloudflare
+   nicht.
+5. Kein Volume nötig: Dateien liegen in R2 (Schritt 8).
 6. **Health check**: Pfad `/healthz`, Port 3000 (antwortet erst, wenn die Datenbank erreichbar ist). So geht eine neue Version erst live, wenn sie antwortet.
 7. **Auto deploy** an: jeder Push auf `main` baut und veröffentlicht neu.
 
@@ -144,30 +189,33 @@ Die Geheimnisse erzeugt `pnpm deploy:secrets` lokal (`BETTER_AUTH_SECRET`,
 `INTEGRATIONS_ENCRYPTION_KEY`, `CRON_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`); alles in den
 Passwortmanager. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern.
 
-| Name                          | Wert                                            | Secret |
-| ----------------------------- | ----------------------------------------------- | ------ |
-| `HOSTING_PROFILE`             | `node`                                          |        |
-| `HOSTING_PLAN`                | `vps`                                           |        |
-| `DATABASE_URL`                | interne Datenbank-URL aus Schritt 6             | ja     |
-| `APP_URL`                     | `https://app.aquisiteur.de`                     |        |
-| `PLATFORM_DOMAIN`             | `aquisiteur.de`                                 |        |
-| `SIGNUP_ALLOWLIST`            | deine E-Mail-Adresse                            |        |
-| `PLATFORM_ADMIN_EMAILS`       | deine E-Mail-Adresse (Einstellungen → System)   |        |
-| `EMAIL_PROVIDER`              | `resend`                                        |        |
-| `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`     |        |
-| `RESEND_API_KEY`              | aus Schritt 5                                   | ja     |
-| `STORAGE_PROVIDER`            | `local`                                         |        |
-| `LOCAL_STORAGE_DIR`           | `/data/files` (das Volume aus Schritt 7.4)      |        |
-| `REALTIME_PROVIDER`           | `memory`                                        |        |
-| `PUSH_PROVIDER`               | `webpush`                                       |        |
-| `VAPID_PUBLIC_KEY`            | aus `pnpm deploy:secrets`                       |        |
-| `VAPID_PRIVATE_KEY`           | aus `pnpm deploy:secrets`                       | ja     |
-| `VAPID_SUBJECT`               | `mailto:deine@adresse.de`                       |        |
-| `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                       | ja     |
-| `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                       | ja     |
-| `CRON_SECRET`                 | aus `pnpm deploy:secrets`                       | ja     |
-| `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim) |        |
-| `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU       | ja     |
+| Name                          | Wert                                                                               | Secret |
+| ----------------------------- | ---------------------------------------------------------------------------------- | ------ |
+| `HOSTING_PROFILE`             | `node`                                                                             |        |
+| `HOSTING_PLAN`                | `vps`                                                                              |        |
+| `DATABASE_URL`                | interne Datenbank-URL aus Schritt 6                                                | ja     |
+| `APP_URL`                     | `https://app.aquisiteur.de`                                                        |        |
+| `PLATFORM_DOMAIN`             | `aquisiteur.de`                                                                    |        |
+| `SIGNUP_ALLOWLIST`            | deine E-Mail-Adresse                                                               |        |
+| `PLATFORM_ADMIN_EMAILS`       | deine E-Mail-Adresse (Einstellungen → System)                                      |        |
+| `EMAIL_PROVIDER`              | `resend`                                                                           |        |
+| `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`                                        |        |
+| `RESEND_API_KEY`              | aus Schritt 5                                                                      | ja     |
+| `STORAGE_PROVIDER`            | `s3`                                                                               |        |
+| `S3_ENDPOINT`                 | `https://<account-id>.eu.r2.cloudflarestorage.com`                                 |        |
+| `S3_BUCKET`                   | `aquisiteur-files`                                                                 |        |
+| `S3_ACCESS_KEY_ID`            | aus dem R2-Token für `aquisiteur-files`                                            | ja     |
+| `S3_SECRET_ACCESS_KEY`        | aus dem R2-Token für `aquisiteur-files`                                            | ja     |
+| `REALTIME_PROVIDER`           | `memory`                                                                           |        |
+| `PUSH_PROVIDER`               | `webpush`                                                                          |        |
+| `VAPID_PUBLIC_KEY`            | aus `pnpm deploy:secrets`                                                          |        |
+| `VAPID_PRIVATE_KEY`           | aus `pnpm deploy:secrets`                                                          | ja     |
+| `VAPID_SUBJECT`               | `mailto:deine@adresse.de`                                                          |        |
+| `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                                                          | ja     |
+| `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                                                          | ja     |
+| `CRON_SECRET`                 | aus `pnpm deploy:secrets`                                                          | ja     |
+| `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim)                                    |        |
+| `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU; ohne Sentry die Variable ganz weglassen | ja     |
 
 Dann **Deploy**. Der erste Build dauert einige Minuten (**Deployments → Logs**).
 
@@ -197,7 +245,7 @@ Der Befehl läuft im Container der App und ruft `/api/jobs/hourly` mit `CRON_SEC
 2. Einrichtungs-Assistent durchlaufen (Workspace, Profil & Kanäle, Absender & Domain).
 3. Im letzten Schritt **Passkey anlegen**. Ab dann reicht Fingerabdruck oder Face ID.
 4. Die Workspace-Adresse (z. B. `pixelwerk.aquisiteur.de`) in Coolify unter **Domains** ergänzen
-   (Schritt 7.5) und neu deployen.
+   (Schritt 7.4) und neu deployen.
 5. Auf dem Handy: Cockpit öffnen, **Einstellungen → Benachrichtigungen → Push auf diesem Gerät
    aktivieren**, dann **Test senden**. Auf dem iPhone vorher in Safari „Teilen → Zum Home-Bildschirm“.
 6. Unter **Einstellungen → Eigene Besuche** auf jedem eigenen Gerät „Dieses Gerät als meines markieren“.
@@ -241,23 +289,17 @@ lauffähig).
 
 - **Datenbank:** in Coolify **Backups → Restore**, oder einen Dump mit
   `pg_restore --no-owner -d "$DATABASE_URL" backup.dump` einspielen, danach `pnpm db:migrate`.
-- **Ganzer Server mit Dateien:** in der Hetzner Console **Backups** ein Abbild wiederherstellen (oder als
-  neuen Server anlegen und die DNS-Einträge umstellen).
-- **Einzelne Dateien:** im Terminal der App liegen sie unter `/data/files/<workspace-id>/`.
-
-## Backups außer Haus (optional)
-
-Das Hetzner-Backup liegt beim selben Anbieter. Wer zusätzlich eine Kopie woanders will, legt einen
-S3-Bucket an (z. B. Hetzner Object Storage oder Cloudflare R2), trägt ihn in Coolify unter **S3 Storages**
-ein und schaltet bei den Datenbank-Backups **Save to S3** an. Die Dateien lassen sich mit `rclone sync`
-aus dem Volume dorthin spiegeln.
-
-Statt des Volumes können die Dateien auch direkt in einem S3-Bucket liegen: `STORAGE_PROVIDER=s3` mit
-`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (Umzug der vorhandenen Dateien mit
-`rclone copy`). Das entlastet die Platte, wenn viele Videos und Aufzeichnungen anfallen.
+- **Ganzer Server:** neuen Server wie in Schritt 2 bis 7 aufsetzen, den letzten Dump aus
+  `aquisiteur-backups` einspielen und die AAAA-Einträge bei Cloudflare auf die neue IPv6 umstellen. Die
+  Dateien liegen in R2 und bleiben, wo sie sind.
+- **Dateien:** R2 speichert redundant, schützt aber nicht vor versehentlichem Löschen. Wer eine zweite
+  Kopie will, spiegelt `aquisiteur-files` mit `rclone sync` in einen anderen Bucket.
 
 ## Überwachung
 
+- **Monatlich (15 bis 30 Minuten):** per SSH `apt update && apt -y upgrade`, in Coolify nach Updates
+  schauen, in `aquisiteur-backups` die Backups der letzten Tage prüfen, unter **Servers** den freien
+  Plattenplatz ansehen.
 - **Erreichbarkeit:** ein kostenloser Monitor (z. B. UptimeRobot) auf `https://app.aquisiteur.de/healthz`.
 - **Fehler:** Sentry (optional, siehe Schritt 8) oder die Logs in Coolify.
 - **Platz und Limits:** Einstellungen → System zeigt Datenbankgröße und Dateispeicher (nur für
@@ -269,22 +311,39 @@ Statt des Volumes können die Dateien auch direkt in einem S3-Bucket liegen: `ST
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | Start bricht mit `DATABASE_URL` ab         | Variable fehlt oder zeigt nicht auf die interne URL aus Schritt 6.                                                              |
 | `Invalid environment configuration` im Log | Eine Variable aus Schritt 8 fehlt; das Log nennt, welche.                                                                       |
-| Zertifikat fehlt / Browser warnt           | DNS-Eintrag zeigt nicht auf den Server, Port 80 ist zu, oder bei Cloudflare-DNS ist der Proxy an, ohne SSL „Full (strict)“.     |
-| Workspace-Adresse liefert 404              | Domain in Coolify nicht eingetragen (Schritt 7.5), oder der Assistent wurde nicht abgeschlossen.                                |
+| Cloudflare zeigt Fehler 521 oder 522       | Coolify oder Traefik läuft nicht, oder der AAAA-Eintrag zeigt auf die falsche IPv6.                                             |
+| Cloudflare zeigt Fehler 526                | Das Origin-Zertifikat fehlt in Traefik oder deckt den Hostnamen nicht ab.                                                       |
+| Workspace-Adresse liefert 404              | Domain in Coolify nicht eingetragen (Schritt 7.4), oder der Assistent wurde nicht abgeschlossen.                                |
 | Login-Mail kommt nicht                     | `EMAIL_PROVIDER` steht auf `log`, oder die Absender-Domain ist in Resend nicht verifiziert; Adresse muss in `SIGNUP_ALLOWLIST`. |
 | Passkey-Fehler „origin“                    | `APP_URL` muss exakt der Adresse im Browser entsprechen (https, ohne Schrägstrich am Ende).                                     |
 | Live-Chat hängt                            | Mehr als eine Instanz läuft; im Node-Profil genau eine Instanz betreiben.                                                       |
-| Bilder fehlen nach einem Deployment        | Das Volume aus Schritt 7.4 fehlt oder `LOCAL_STORAGE_DIR` zeigt nicht auf `/data/files`.                                        |
+| Upload schlägt fehl, Bilder fehlen         | `S3_*` falsch, Token ohne Schreibrecht, oder der Endpunkt passt nicht zur Jurisdiktion des Buckets (`.eu.` im Hostnamen).       |
+| Seite fehlt im Mobilfunknetz               | Ein A-Eintrag statt AAAA, oder der Proxy (orange Wolke) ist aus; ohne Proxy erreichen nur IPv6-Besucher den Server.             |
 | Build bricht ohne klare Meldung ab         | Zu wenig Arbeitsspeicher; der Server braucht mindestens 4 GB RAM.                                                               |
 
 ## Kosten (Stand Oktober 2026, ungefähr)
 
-| Dienst                       | Kosten                                                                        |
-| ---------------------------- | ----------------------------------------------------------------------------- |
-| Hetzner-Server inkl. Backups | je nach Typ und Verfügbarkeit etwa 5–10 €/Monat, für alle Prototypen zusammen |
-| Coolify (selbst betrieben)   | kostenlos                                                                     |
-| Resend                       | kostenlos bis 3.000 Mails/Monat                                               |
-| Sentry                       | kostenloser Developer-Plan                                                    |
+| Dienst                      | Kosten                                                   |
+| --------------------------- | -------------------------------------------------------- |
+| Mikrus 3.5                  | 197 zł im Jahr (etwa 45 €), für alle Prototypen zusammen |
+| Cloudflare (Proxy, DNS, R2) | kostenlos; R2 bis 10 GB                                  |
+| Coolify (selbst betrieben)  | kostenlos                                                |
+| Resend                      | kostenlos bis 3.000 Mails/Monat                          |
+| Sentry                      | kostenloser Developer-Plan                               |
+
+## Server mit eigener IPv4 (z. B. Hetzner)
+
+Hat der Server eine eigene IPv4-Adresse und ein Platten-Backup, wird es einfacher (so war ADR-0047
+gedacht):
+
+- DNS-Einträge als A und AAAA auf den Server, bei Cloudflare-DNS mit grauer Wolke (**DNS only**); Coolify
+  holt die Zertifikate selbst über Let's Encrypt, Schritt 4 entfällt bis auf die Einträge. Mit oranger
+  Wolke zeigt die Timeline zusätzlich die Stadt; dann SSL/TLS auf **Full (strict)**.
+- Firewall beim Anbieter: eingehend nur 22, 80, 443; Port 8000 nur vorübergehend für die eigene IP.
+- Das tägliche Platten-Backup des Anbieters sichert Datenbank-Dumps und ein Volume mit. Die Dateien
+  können dann statt in R2 im Volume liegen: **Persistent Storage → Volume Mount** nach `/data/files`,
+  `STORAGE_PROVIDER=local`, `LOCAL_STORAGE_DIR=/data/files` (ADR-0049).
+- Server mindestens 2 vCPU, 4 GB RAM, 40 GB SSD.
 
 ## Umzug zu einem anderen Hoster
 

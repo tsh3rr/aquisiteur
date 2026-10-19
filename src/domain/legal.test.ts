@@ -15,7 +15,7 @@ describe("generated legal texts", () => {
     expect(text).toContain("nach 180 Tagen");
     expect(text).toContain("nach 14 Tagen");
     expect(text).toContain("Sentry (EU)");
-    expect(text).toContain("Hetzner in Deutschland");
+    expect(text).toContain("Mikrus in Finnland (EU)");
     expect(privacyMarkdown(settings, "X", "cloudflare")).toContain("Supabase");
     expect(text).not.toContain("Aufzeichnung nur mit Ihrer Erlaubnis");
   });
