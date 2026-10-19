@@ -51,7 +51,8 @@ nur Anmeldelinks und Benachrichtigungen.
 ## Voraussetzungen
 
 - Ein Mikrus 3.5 (4 GB RAM, 40 GB Platte). Mit 2 GB (Mikrus 3.0) bricht der Build ab, weil Coolify,
-  Postgres und der Next-Build gleichzeitig Speicher brauchen.
+  Postgres und der Next-Build gleichzeitig Speicher brauchen. Zum Testen reicht ein kleinerer Server,
+  wenn GitHub das Image baut (Schritt 7, „fertiges Image von GitHub“).
 - Ein kostenloses Cloudflare-Konto, auf dem die Domain liegt (Nameserver bei Cloudflare)
 - Ein Resend-Konto (kostenloser Plan reicht für den Anfang)
 - Zugriff auf das GitHub-Repo `tsh3rr/aquisiteur`; betrieben wird der Stand auf `main`
@@ -178,6 +179,25 @@ Die Tabellen legst du nicht von Hand an: Das erledigt jeder Start der App (Schri
 5. Kein Volume nötig: Dateien liegen in R2 (Schritt 8).
 6. **Health check**: Pfad `/healthz`, Port 3000 (antwortet erst, wenn die Datenbank erreichbar ist). So geht eine neue Version erst live, wenn sie antwortet.
 7. **Auto deploy** an: jeder Push auf `main` baut und veröffentlicht neu.
+
+### Variante: fertiges Image von GitHub (Server mit wenig RAM)
+
+Der Next-Build braucht gut 1 GB Speicher zusätzlich zu Coolify und Postgres. Auf kleineren Servern (etwa
+einem Mikrus mit 1 oder 2 GB zum Testen) baut deshalb GitHub das Image, und Coolify lädt es nur noch
+(ADR-0053). Die laufende App braucht rund 100 MB.
+
+1. Auf GitHub unter **Actions → Image** einmal **Run workflow** auf `main` starten (danach läuft er bei
+   jedem Push auf `main` von selbst). Das Image heißt `ghcr.io/tsh3rr/aquisiteur:latest` und ist privat.
+2. Damit der Server es laden darf: auf GitHub unter **Settings → Developer settings → Personal access
+   tokens → Tokens (classic)** ein Token nur mit `read:packages` anlegen. Per SSH auf dem Server
+   `docker login ghcr.io -u <github-name>` und das Token als Passwort eingeben.
+3. In Coolify **New resource → Docker Image**, Image `ghcr.io/tsh3rr/aquisiteur`, Tag `latest`.
+   Ports, Domains, Health check und Umgebungsvariablen wie in den Schritten 7 und 8. Das Image startet
+   wie Nixpacks: erst die Migrationen, dann die App.
+4. Optional automatisch live: in der App unter **Webhooks** die Deploy-URL kopieren und unter **Keys &
+   Tokens → API tokens** ein Token mit Recht `deploy` anlegen. Beides auf GitHub unter **Settings →
+   Secrets and variables → Actions** als `COOLIFY_WEBHOOK` und `COOLIFY_TOKEN` eintragen. Ohne die
+   beiden Secrets in Coolify nach jedem neuen Image **Redeploy** klicken.
 
 Die App läuft als **eine** Instanz. Live-Chat und Live-Feed laufen dann direkt aus dem Node-Prozess
 (Server-Sent Events, `REALTIME_PROVIDER=memory`), ohne weiteren Dienst.

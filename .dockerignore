@@ -1,0 +1,14 @@
+node_modules
+.next
+.open-next
+.wrangler
+dist-worker
+coverage
+playwright-report
+test-results
+.lighthouseci
+.data
+.env
+.env.*
+.dev.vars
+.git
