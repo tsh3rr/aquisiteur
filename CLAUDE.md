@@ -28,9 +28,20 @@ pnpm cf:release          # migrate + deploy (Workers Builds deploy command, ADR-
 pnpm deploy:secrets      # print fresh secrets + VAPID pair for the dashboard
 ```
 
-Local Postgres: see `.env.example`. In a cloud container: `service postgresql start`, role
-`aquisiteur/aquisiteur`, DBs `aquisiteur`, `aquisiteur_test`, `aquisiteur_e2e`. If Playwright's Chromium
-revision is missing, set `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+Local Postgres: see `.env.example`. Cloud sessions are prepared by `.claude/hooks/session-start.sh`
+(deps, Postgres with role `aquisiteur/aquisiteur` and DBs `aquisiteur`, `aquisiteur_test`, `aquisiteur_e2e`,
+`.env`, `PLAYWRIGHT_CHROMIUM_PATH`), so tests run without setup. Edited files are auto-formatted by a hook.
+
+## How to work
+
+- Multi-file or unclear change: read the relevant spec section and code first, write a short plan, then
+  build. A one-sentence diff needs no plan.
+- Done means verified: run the checks that cover the change (single test files while iterating, the full
+  set before the PR) and report the commands and results, plus screenshots for UI. Before opening a PR
+  for a feature, let the `spec-reviewer` agent check the diff and fix what it finds.
+- Skills: `steward` (CI and PR conventions), `expose-authoring` (new exposés), `backlog` (owner requests
+  for later).
+- When compacting, keep the list of changed files, the commands that verify them, and open owner questions.
 
 ## Architecture rules
 
@@ -97,4 +108,4 @@ only (portable via `pg_dump`). Migrations must keep the previous app version wor
   a custom migration (see `drizzle/0015_callback_rule.sql`).
 - The Chat nav badge counts unread threads plus open callbacks (`chatInboxCount`); keep it in sync via
   `UNREAD_EVENT` after mutating either.
-- Backlog with owner requests lives in ZIELPROMPT §7 and `docs/ROADMAP.md` "Später".
+- Backlog with owner requests lives in ZIELPROMPT §7 and `docs/ROADMAP.md` "Später" (skill `backlog`).
