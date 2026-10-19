@@ -511,3 +511,13 @@ Schriften auf jedem Exposé vorgeladen. Ohne Vorladen kam die Schrift erst nach 
 Text brach um und das Heldenbild sprang (CLS bis 0,06 in Lighthouse CI, Grenze 0,02).
 Bewusst kein freies CSS oder freie Schriftwahl im JSON: drei geprüfte Stile bleiben barrierefrei und
 schnell.
+
+## ADR-0051 · Arbeitsumgebung für Claude Code im Repo (2026-10-19)
+
+Nach den Best Practices von Anthropic für Claude Code liegen Regeln, die immer gelten müssen, als Hooks
+in `.claude/settings.json` statt als Bitte in `CLAUDE.md`: Ein SessionStart-Hook richtet Cloud-Sessions
+ein (Abhängigkeiten, Postgres mit den drei Datenbanken, `.env`), damit jeder Thread sofort testen kann;
+ein PostToolUse-Hook formatiert jede bearbeitete Datei mit Prettier. Wissen, das nur manchmal gebraucht
+wird, steht in Skills (`.claude/skills/`: `steward`, `expose-authoring`, `backlog`), damit `CLAUDE.md`
+kurz bleibt. Der Agent `spec-reviewer` prüft einen Diff in frischem Kontext gegen ZIELPROMPT und die
+Architekturregeln, bevor ein Feature als fertig gilt. Lokal tut der SessionStart-Hook nichts.
