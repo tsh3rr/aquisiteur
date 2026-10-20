@@ -15,6 +15,13 @@ CI (`.github/workflows/ci.yml`) has five jobs. Reproduce a failure locally befor
 | Lighthouse                    | build + `pnpm start`, then `npx -y @lhci/cli@0.15.1 autorun`          | exposé client JS grew (TBT); see ADR-0048 and the CLAUDE.md working notes                                                         |
 | Cloudflare bundle             | `pnpm cf:build` then the size step from `ci.yml`                      | a browser-only library leaked into the server bundle (ADR-0035, ADR-0037)                                                         |
 
+Actions minutes are limited (private repo), so CI is staged:
+
+- Open a PR as **draft** while iterating. Drafts run only the two quick jobs (lint/format/typecheck/unit, tenant isolation). Mark it ready for review once those are green and the work is done; that starts E2E, Lighthouse and the Cloudflare bundle. Push fixes for those in batches, not one commit at a time.
+- E2E, Lighthouse and the Cloudflare bundle start only after both quick jobs pass. Run the quick checks locally before pushing.
+- Changes that touch only `docs/**` or Markdown files skip CI and the image build.
+- Pushes to `main` run the quick jobs and E2E; Lighthouse and the bundle check run on PRs only.
+
 Rules:
 
 - `pnpm audit --prod --audit-level high` fails on new advisories in runtime deps. Upgrade the package; record an accepted advisory in `docs/SECURITY.md` only with a reason.
