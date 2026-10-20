@@ -662,3 +662,6 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   pro Gerät abschalten (localStorage). ⌘K / Strg+K bleibt immer aktiv. In Eingabefeldern und Dialogen
   greifen Einzeltasten nie.
 - Aufgaben und Wiedervorlagen kommen als Treffergruppe dazu, sobald das Feature auf `main` ist.
+- Noch offen: Kürzel für Aktionen auf der Kundenseite (Notiz, Status ändern, Anrufen) und in der
+  Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
+  mit einer Erweiterung der Palette um seitenbezogene Befehle.

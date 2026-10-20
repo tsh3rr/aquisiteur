@@ -54,6 +54,7 @@ test("Strg+K finds a customer and opens it with the keyboard", async ({ page }) 
   await page.keyboard.press("Control+k");
   await input.fill("gibtsnicht");
   await expect(palette(page).getByRole("status")).toHaveText("Keine Treffer für „gibtsnicht“.");
+  await expectAccessible(page, "command palette (no results)");
   await page.keyboard.press("Escape");
   await expect(palette(page)).toBeHidden();
 });

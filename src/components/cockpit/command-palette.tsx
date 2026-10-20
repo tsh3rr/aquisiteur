@@ -359,6 +359,8 @@ function PaletteBody({
   }, [search.hits, query]);
 
   const options = groups.flatMap((group) => group.options);
+  // An empty listbox is invalid ARIA: it is left out, the "no results" text sits outside it.
+  const listVisible = options.length > 0 || search.status === "loading";
   // The first option is active until the user moves; a vanished option falls back to it.
   const activeIndex = Math.max(
     options.findIndex((option) => option.key === activeKey),
@@ -429,8 +431,8 @@ function PaletteBody({
           type="search"
           role="combobox"
           aria-label="Suchen"
-          aria-expanded="true"
-          aria-controls={listId}
+          aria-expanded={listVisible}
+          aria-controls={listVisible ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={activeOption ? optionId(activeOption) : undefined}
           autoComplete="off"
@@ -460,61 +462,64 @@ function PaletteBody({
         {announcement}
       </div>
 
-      <div
-        id={listId}
-        role="listbox"
-        aria-label="Treffer"
-        aria-busy={search.status === "loading"}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
-      >
-        {search.status === "loading" && search.hits.length === 0 ? (
-          <div aria-hidden className="grid gap-1 p-1">
-            {[0, 1, 2].map((row) => (
-              <div key={row} className="flex h-12 items-center gap-3 px-2">
-                <span className="size-8 animate-pulse rounded-md bg-surface-sunken motion-reduce:animate-none" />
-                <span className="h-3 w-40 animate-pulse rounded bg-surface-sunken motion-reduce:animate-none" />
-              </div>
-            ))}
-          </div>
-        ) : null}
-        {groups.map((group) => (
-          <div
-            key={group.label}
-            role="group"
-            aria-labelledby={`${id}-${group.label}`}
-            className="pb-2"
-          >
-            <div
-              id={`${id}-${group.label}`}
-              role="presentation"
-              className="px-2 pt-2 pb-1 text-xs font-medium tracking-wide text-foreground-muted uppercase"
-            >
-              {group.label}
+      {listVisible ? (
+        <div
+          id={listId}
+          role="listbox"
+          aria-label="Treffer"
+          aria-busy={search.status === "loading"}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+        >
+          {search.status === "loading" && search.hits.length === 0 ? (
+            <div aria-hidden className="grid gap-1 p-1">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="flex h-12 items-center gap-3 px-2">
+                  <span className="size-8 animate-pulse rounded-md bg-surface-sunken motion-reduce:animate-none" />
+                  <span className="h-3 w-40 animate-pulse rounded bg-surface-sunken motion-reduce:animate-none" />
+                </div>
+              ))}
             </div>
-            {group.options.map((option) => (
-              <OptionRow
-                key={option.key}
-                id={optionId(option)}
-                option={option}
-                selected={option === activeOption}
-                onHover={() => setActiveKey(option.key)}
-                onChoose={() => choose(option)}
-              />
-            ))}
-          </div>
-        ))}
-        {query.trim() && search.status === "done" && options.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-foreground-muted">
-            Keine Treffer für „{query.trim()}“. Versuchen Sie Firmenname, Ort, Ansprechpartner oder
-            Ref-Code.
-          </p>
-        ) : null}
-        {search.status === "error" ? (
-          <p className="m-2 rounded-md bg-danger-soft px-3 py-3 text-sm text-danger-soft-foreground">
-            Die Suche ist gerade nicht erreichbar. Befehle funktionieren weiter.
-          </p>
-        ) : null}
-      </div>
+          ) : null}
+          {groups.map((group) => (
+            <div
+              key={group.label}
+              role="group"
+              aria-labelledby={`${id}-${group.label}`}
+              className="pb-2"
+            >
+              <div
+                id={`${id}-${group.label}`}
+                role="presentation"
+                className="px-2 pt-2 pb-1 text-xs font-medium tracking-wide text-foreground-muted uppercase"
+              >
+                {group.label}
+              </div>
+              {group.options.map((option) => (
+                <OptionRow
+                  key={option.key}
+                  id={optionId(option)}
+                  option={option}
+                  selected={option === activeOption}
+                  onHover={() => setActiveKey(option.key)}
+                  onChoose={() => choose(option)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {/* Outside the listbox: a listbox may only hold options and groups. */}
+      {query.trim() && search.status === "done" && options.length === 0 ? (
+        <p className="px-3 py-8 text-center text-sm text-foreground-muted">
+          Keine Treffer für „{query.trim()}“. Versuchen Sie Firmenname, Ort, Ansprechpartner oder
+          Ref-Code.
+        </p>
+      ) : null}
+      {search.status === "error" ? (
+        <p className="m-2 rounded-md bg-danger-soft px-3 py-3 text-sm text-danger-soft-foreground">
+          Die Suche ist gerade nicht erreichbar. Befehle funktionieren weiter.
+        </p>
+      ) : null}
 
       <footer className="hidden items-center gap-4 border-t border-border px-4 py-2 text-xs text-foreground-muted sm:flex">
         <span className="flex items-center gap-1">
@@ -525,7 +530,7 @@ function PaletteBody({
           <Kbd>↵</Kbd> öffnen
         </span>
         <span className="flex items-center gap-1">
-          <Kbd>?</Kbd> alle Tastaturkürzel
+          <Kbd>Esc</Kbd> schließen
         </span>
       </footer>
     </>
@@ -706,7 +711,7 @@ export function SearchButton({ variant }: { variant: "sidebar" | "icon" }) {
       type="button"
       onClick={(event) => openPalette(event.currentTarget)}
       aria-keyshortcuts={modifier === "⌘" ? "Meta+K" : "Control+K"}
-      className="flex h-10 w-full items-center gap-2.5 rounded-md border border-border bg-surface px-2.5 text-sm text-foreground-muted shadow-sm transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus-ring"
+      className="flex h-11 w-full items-center gap-2.5 rounded-md border border-border bg-surface px-2.5 text-sm text-foreground-muted shadow-sm transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-focus-ring"
     >
       <Search aria-hidden className="size-4" />
       <span className="flex-1 text-left">Suchen …</span>
