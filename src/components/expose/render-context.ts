@@ -88,3 +88,18 @@ export function resolveFile(
 export function ownerPhoto(context: RenderContext, alt: string): ResolvedImage | null {
   return resolveEntry(context.ownerPhoto, context.assetBase, alt);
 }
+
+/**
+ * The largest WebP (or PNG) rendition up to 1600 px, for printed pages: the
+ * browser converts it to JPEG for the PDF renderer (ADR-0037).
+ */
+export function printSource(image: ResolvedImage): string {
+  const candidates = (image.webpSrcSet || image.pngSrcSet)
+    .split(", ")
+    .map((entry) => {
+      const [url, width] = entry.split(" ");
+      return { url, width: Number.parseInt(width ?? "", 10) };
+    })
+    .filter((entry) => entry.url && entry.width <= 1600);
+  return candidates.at(-1)?.url ?? image.src;
+}

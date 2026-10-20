@@ -15,8 +15,8 @@ export function buildContentSecurityPolicy(options: {
   /** Extra font origins, e.g. the exposé's fonts inside a session replay. */
   fontSrc?: readonly string[];
   /**
-   * Allow WebAssembly (not JS eval): the letter PDF's layout engine (yoga)
-   * is WASM, inlined as a data: URL that it fetches.
+   * Allow WebAssembly (not JS eval): the PDF layout engine (yoga) of the
+   * letters and the exposé PDF is WASM, inlined as a data: URL that it fetches.
    */
   wasm?: boolean;
 }): string {
@@ -95,3 +95,10 @@ export const COCKPIT_SOURCES = {
   fontSrc: ["https:"],
   wasm: true,
 } as const;
+
+/**
+ * Extra sources for the exposé hosts: only WebAssembly (not JS eval) for
+ * the layout engine of the reader's PDF download (ADR-0058). No outside
+ * images or fonts.
+ */
+export const EXPOSE_SOURCES = { wasm: true } as const;

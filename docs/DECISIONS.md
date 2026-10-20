@@ -655,3 +655,23 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Einstellung: Einstellungen → Kontakt und Chat → „Bekannte Nummer anbieten“
   (`chat.prefillCallbackPhone`, Standard an). Sie liegt im `chat`-JSON, weil sie im selben Formular
   gespeichert wird; so braucht es keine Migration.
+
+## ADR-0058 · Exposé als gestaltetes PDF (2026-10-20, ergänzt ADR-0037)
+
+- Wie die Briefe rendert `@react-pdf/renderer` das PDF im Browser (`src/components/expose-pdf/`), erst beim
+  Klick nachgeladen und per Alias aus dem Server-Bundle gehalten. Die Daten baut `printableExpose()`
+  (`src/server/exposes/print.ts`) aus denselben Daten wie die Seite: Blöcke, Bild-URLs, Farben
+  (`printColors`, wie die Teaser-Seite), Kanäle des Owners.
+- Aufbau: Titelseite (Hero, Bild oder Inhaltsübersicht, Owner, Referenz), danach alle Blöcke fließend mit
+  Fußzeile „Seite x von y“, Kontakt mit QR-Code und Link zum Exposé (ohne Kontaktblock wird er angehängt).
+  Titel bleiben mit dem ersten Inhalt zusammen, damit keiner allein unten auf einer Seite steht. Interaktive
+  Teile werden statisch: Preise als Liste mit Summe, Video als Hinweis, CTA als Farbband.
+- Cockpit: Exposé-Seite → „Als PDF herunterladen“ für die angezeigte Version, Link nur, solange das Exposé
+  online ist. Exposé: „Als PDF speichern“ holt `/x/<slug>/pdf` (nur, was die Seite ohnehin zeigt) und nimmt
+  die Preisauswahl des Lesers mit; schlägt etwas fehl, öffnet die Druckansicht wie bisher.
+- Dafür erlaubt die CSP der Exposé-Hosts jetzt `'wasm-unsafe-eval'` und `connect-src data:` wie das
+  Cockpit. Kein JS-`eval`; der Code lädt nur bei Klick, Lighthouse bleibt unberührt.
+- Dateiname in ASCII („Expose Cafe Mueller.pdf“): Chromium verwirft den Namen eines Blob-Downloads mit
+  Umlauten und speichert dann „download“.
+- Die Fußzeile steht per `top` statt `bottom`: mit der Zeilenhöhe der Seite fällt eine an `bottom`
+  verankerte, wiederholte Fußzeile in React-PDF aus der Seite.

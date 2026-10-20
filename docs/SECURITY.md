@@ -28,6 +28,8 @@ diese Liste durch, bevor sie als fertig gelten.
 
 - [x] CSP pro Anfrage mit Nonce und `strict-dynamic`, `frame-ancestors 'none'` (Vorschau: `'self'`),
       `object-src 'none'`, `form-action 'self'` (`src/lib/security-headers.ts`, `src/middleware.ts`).
+- [x] `'wasm-unsafe-eval'` (nur WebAssembly, kein JS-`eval`) und `connect-src data:` im Cockpit und auf
+      den Exposé-Hosts, für die PDF-Layout-Engine von Brief und Exposé-PDF (ADR-0037, ADR-0058).
 - [x] HSTS (2 Jahre, `includeSubDomains`, `preload`), `Referrer-Policy:
 strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Options`,
       `Cross-Origin-Opener-Policy`, `Permissions-Policy`. Geprüft in `security-headers.test.ts`.

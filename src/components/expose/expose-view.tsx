@@ -148,7 +148,10 @@ export function ExposeView({
 
       <footer className="border-t border-border bg-surface-sunken px-5 pt-10 pb-28 sm:px-8 md:pb-10">
         <div className="mx-auto grid max-w-6xl gap-6 text-sm text-foreground-muted">
-          <FooterActions title={document.meta.title} />
+          <FooterActions
+            title={document.meta.title}
+            pdfSource={mode === "public" ? `/x/${data.expose.slug}/pdf` : null}
+          />
           <p>
             Erstellt von {ownerName(context)}
             {company !== ownerName(context) ? `, ${company}` : ""} für {data.prospect.companyName}.
