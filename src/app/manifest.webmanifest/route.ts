@@ -16,7 +16,17 @@ const manifest: MetadataRoute.Manifest = {
   lang: "de",
   background_color: "#fbfbfe",
   theme_color: "#4f3bd9",
-  icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
+  icons: [
+    { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    {
+      src: "/icons/icon-maskable-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+  ],
 };
 
 export function GET() {

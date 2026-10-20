@@ -96,6 +96,12 @@
   p {
     text-wrap: pretty;
   }
+  /* A page's top-level grid keeps to the screen width: its implicit column
+     would otherwise grow to the widest table or filter row and widen the whole
+     page on phones. Explicit grid-cols-* utilities still win (utilities layer). */
+  #main > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Cross-document view transitions between cockpit pages (§8). */

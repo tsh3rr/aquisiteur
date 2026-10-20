@@ -14,7 +14,7 @@ import {
   users,
   visits,
 } from "@/db/schema";
-import { deliveryFor, localClock } from "@/domain/notifications";
+import { deliveryFor, localClock, notificationUrl } from "@/domain/notifications";
 import { getInfra } from "@/infra";
 import { digestEmail, type DigestItem } from "@/server/emails/notification";
 import { dispatch } from "@/server/notifications/notify";
@@ -184,7 +184,7 @@ export async function runDigest(
       groupKey,
       title,
       body: summary,
-      url: "/heute",
+      url: notificationUrl({ trigger: "daily_digest" }),
       channels: delivery.channels,
       suppressed: delivery.suppressed,
       createdAt: now,
@@ -211,7 +211,7 @@ export async function runDigest(
       date: germanDate(now, settings.timezone),
       summary,
       items,
-      url: `${appUrl}/heute`,
+      url: `${appUrl}${notificationUrl({ trigger: "daily_digest" })}`,
     });
     const recipients = await db
       .select({ email: users.email })

@@ -16,7 +16,10 @@ export function AnalyticsTabs() {
   const pathname = usePathname();
   const query = useSearchParams().toString();
   return (
-    <nav aria-label="Auswertungen" className="flex gap-1 overflow-x-auto border-b border-border">
+    <nav
+      aria-label="Auswertungen"
+      className="relative flex gap-1 overflow-x-auto border-b border-border"
+    >
       {TABS.map((tab) => {
         const current = pathname === tab.href;
         return (

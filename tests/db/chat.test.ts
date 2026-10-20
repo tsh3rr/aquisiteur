@@ -147,7 +147,7 @@ describe("live chat", () => {
         payload: {
           id: expect.any(String),
           title: "Café Müller schreibt im Chat",
-          url: `/kunden/${cafe.prospectId}`,
+          url: `/chat/${result.message.threadId}`,
         },
       },
       {

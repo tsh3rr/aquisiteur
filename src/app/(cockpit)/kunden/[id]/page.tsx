@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ScrollRegion } from "@/components/ui/misc";
 import { workspaces } from "@/db/schema";
 import { can } from "@/domain/authz";
+import { PROSPECT_ANCHORS } from "@/domain/notifications";
 import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
 import { formatDuration } from "@/domain/tracking/timeline";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
@@ -147,7 +148,11 @@ export default async function CustomerPage({
       </header>
 
       {intent && intent.score > 0 ? (
-        <Card aria-labelledby="intent-heading">
+        <Card
+          id={PROSPECT_ANCHORS.intent}
+          aria-labelledby="intent-heading"
+          className="scroll-mt-20"
+        >
           <CardHeader>
             <CardTitle id="intent-heading">Kontaktabsicht</CardTitle>
           </CardHeader>
@@ -202,7 +207,7 @@ export default async function CustomerPage({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id={PROSPECT_ANCHORS.visits} className="scroll-mt-20">
             <CardHeader>
               <CardTitle>Besuche im Detail</CardTitle>
               <CardDescription>
@@ -286,7 +291,7 @@ export default async function CustomerPage({
 
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-2 [&>*]:min-w-0">
           {detail.threads.length > 0 || detail.callbacks.length > 0 ? (
-            <Card id="chat">
+            <Card id={PROSPECT_ANCHORS.contact} className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Chat und Rückrufe</CardTitle>
               </CardHeader>
@@ -425,7 +430,7 @@ export default async function CustomerPage({
           </Card>
 
           {canManage ? (
-            <Card id="datenschutz">
+            <Card id={PROSPECT_ANCHORS.privacy} className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Datenschutz</CardTitle>
                 <CardDescription>

@@ -617,3 +617,19 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   kollidiert. Der Absenderblock (Firma, Name, Kontakt, Datum) beginnt bündig mit der Rücksendezeile.
 - Telefon und E-Mail des Absenders in der Karte auf Seite 2, mit kleinen Symbolen, pro Brief abschaltbar
   (`letters.options.contact`, Standard an, fehlt bei älteren Briefen und gilt dann als an).
+
+## ADR-0056 · App-Icons als PNG und Safe Areas im Cockpit (2026-10-20)
+
+- Icons: `pnpm icons:build` rendert aus dem Favicon-Glyph eigene PNGs nach `public/icons/`:
+  `apple-touch-icon.png` (180 px, randlos, iOS rundet selbst und zeigt es auch bei Push-Nachrichten),
+  Manifest-Icons 192/512 (`any`) und 512 `maskable`, dazu `badge-96.png` als weiße Silhouette für die
+  Android-Statusleiste. Das SVG bleibt Favicon. Nur Cockpit, Login und Onboarding verlinken Manifest
+  und Touch-Icon (`src/app/installable-app.ts`), Exposé-Hosts nie.
+- iOS übernimmt ein neues Touch-Icon erst, wenn die App vom Home-Bildschirm entfernt und neu
+  hinzugefügt wird.
+- Das Cockpit-Layout setzt `viewport-fit=cover`, sonst meldet iOS alle `env(safe-area-inset-*)` als 0
+  und die untere Leiste läuft in die Displayrundung und unter den Home-Indikator. Die Leiste hält
+  seitlich mindestens 0,75 rem Abstand. Das Root-Layout (Exposés) bleibt unverändert.
+- Ein Seitenraster direkt in `#main` hat eine Spalte `minmax(0, 1fr)` (globals.css), damit breite
+  Tabellen und Filterzeilen die Seite auf dem Handy nicht verbreitern. Scroll-Container um Tabellen
+  sind `relative`, sonst ziehen absolut positionierte `sr-only`-Texte die Seite breiter.

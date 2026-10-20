@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "@/db";
 import { auditLog, exposes, prospects } from "@/db/schema";
-import { notificationCopy } from "@/domain/notifications";
+import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import { defer } from "@/server/defer";
 import { notifyAndDispatch } from "@/server/notifications/notify";
 
@@ -61,7 +61,7 @@ export async function optOutByExposeSlug(
         trigger: "opt_out",
         prospectId,
         groupKey: `opt_out:${prospectId}`,
-        url: `/kunden/${prospectId}`,
+        url: notificationUrl({ trigger: "opt_out", prospectId }),
         ...notificationCopy({ trigger: "opt_out", company }),
       }),
     );

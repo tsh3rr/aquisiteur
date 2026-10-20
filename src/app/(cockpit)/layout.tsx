@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { installableAppMetadata } from "@/app/installable-app";
 import { LiveProvider } from "@/components/cockpit/live";
 import { CockpitNav } from "@/components/cockpit/nav";
 import { NotificationBell } from "@/components/cockpit/notification-bell";
+import { NotificationNavigator } from "@/components/cockpit/notification-navigator";
 import { SignOutButton } from "@/components/cockpit/sign-out-button";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -13,8 +15,14 @@ import { unreadNotificationCount } from "@/server/notifications/manage";
 import { liveSubscription, workspaceTopic } from "@/server/realtime";
 import { requireCockpit } from "@/server/session";
 
-/** The installable app is the cockpit; workspace hosts (exposés) do not link it. */
-export const metadata: Metadata = { manifest: "/manifest.webmanifest" };
+export const metadata: Metadata = installableAppMetadata;
+
+/**
+ * Edge-to-edge on phones, so the env(safe-area-inset-*) values below are real:
+ * without it iOS reports 0 and the bottom bar runs into the rounded corners
+ * and the home indicator.
+ */
+export const viewport: Viewport = { viewportFit: "cover" };
 
 export default async function CockpitLayout({ children }: { children: ReactNode }) {
   const { user, workspace, tenant } = await requireCockpit();
@@ -27,7 +35,8 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
 
   return (
     <LiveProvider subscription={live}>
-      <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
+      <NotificationNavigator />
+      <div className="min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] lg:grid lg:grid-cols-[16rem_1fr]">
         <a
           href="#main"
           className="sr-only z-50 rounded-md bg-accent px-4 py-2 text-accent-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -60,8 +69,8 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
           </div>
         </aside>
 
-        <div className="flex min-h-dvh flex-col pb-20 lg:pb-0">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/85 px-4 backdrop-blur lg:hidden">
+        <div className="flex min-h-dvh flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          <header className="sticky top-0 z-30 box-content flex h-14 items-center justify-between gap-3 border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
             <Logo compact />
             <p className="truncate text-sm font-medium">{workspace.name}</p>
             <div className="flex items-center">
@@ -78,7 +87,9 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
           </main>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        {/* Inset from the rounded display corners: the outer items keep clear of
+            the curve, and the home indicator gets its strip below the bar. */}
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.25rem,calc(env(safe-area-inset-bottom)-0.5rem))] pl-[max(0.75rem,env(safe-area-inset-left))] backdrop-blur lg:hidden">
           <CockpitNav orientation="horizontal" unread={unread} />
         </div>
       </div>
