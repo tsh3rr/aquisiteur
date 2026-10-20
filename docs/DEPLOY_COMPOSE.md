@@ -56,14 +56,19 @@ Auf dem Server:
 ```bash
 cd /opt/aquisiteur
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
-docker compose run --rm --no-deps app pnpm deploy:secrets
-nano .env
+docker compose run --rm --no-deps app pnpm deploy:secrets | grep = | while IFS== read k v; do sed -i "s|^$k=.*|$k=$v|" .env; done
+sed -i 's/you@example.com/deine@adresse.de/g' .env
+grep -E '^(BETTER_AUTH|CRON|VAPID|SIGNUP)' .env | cut -c1-30
 ```
 
-Der zweite Befehl lädt das Image und gibt fünf Zeilen `NAME=wert` aus. In `nano` die leeren Zeilen
-`BETTER_AUTH_SECRET` bis `VAPID_PRIVATE_KEY` damit füllen, `you@example.com` durch deine Adresse ersetzen
-(vier Stellen), `APP_URL` und `PLATFORM_DOMAIN` prüfen. Speichern mit Strg+O, Enter, Strg+X. Die Datei
-enthält alle Geheimnisse; eine Kopie gehört in den Passwortmanager.
+Die zweite Zeile lädt das Image, erzeugt die fünf Geheimnisse und trägt sie in `.env` ein. Die dritte
+setzt deine Adresse ein (vorher anpassen): `SIGNUP_ALLOWLIST` und `PLATFORM_ADMIN_EMAILS` müssen die
+Adresse sein, mit der du dich in Schritt 7 anmeldest. Die letzte zeigt nur den Anfang der Werte zur
+Kontrolle. `APP_URL` und `PLATFORM_DOMAIN` prüfen (`nano .env`; Text aus Windows mit Rechtsklick
+einfügen, speichern mit Strg+O, Enter, Strg+X).
+
+Die Datei enthält alle Geheimnisse. Eine Kopie gehört in den Passwortmanager, etwa so geholt (auf deinem
+Rechner, nicht in den Repo-Ordner): `scp -P <port> root@<server>:/opt/aquisiteur/.env aquisiteur.env`.
 
 ## 6. Starten
 
@@ -87,7 +92,22 @@ Gibt einen Anmeldelink aus (30 Minuten gültig, einmal nutzbar). Der Workspace l
 `coalform.mikrus.dev`. Weitere Anmeldelinks stehen im Log (`docker compose logs app | grep -i http`),
 solange Mails ins Log gehen (`EMAIL_PROVIDER=log`).
 
-## 8. Stündlicher Job und tägliches Backup
+## 8. Exposés veröffentlichen
+
+Auf deinem Rechner im Repo-Ordner, nicht auf dem Server: Die CLI verkleinert die Bilder mit `sharp`,
+und dafür reicht 1 GB RAM neben der App nicht (der Vorgang bricht mit Code 143 ab). Den Token legst du
+im Cockpit unter **Einstellungen → API-Tokens** an. PowerShell:
+
+```powershell
+pnpm.cmd install
+$env:AQUISITEUR_API_URL="https://aquisiteur.mikrus.dev"
+$env:AQUISITEUR_API_TOKEN="<token>"
+foreach ($e in "cafe-mueller","tischlerei-holzmann","eisenwerk-athletics","physio-lindenhof") { pnpm.cmd expose:publish exposes/$e }
+```
+
+Das veröffentlicht die vier Beispiel-Exposés in deinem Workspace. Eigene Exposés: `docs/EXPOSE_AUTHORING.md`.
+
+## 9. Stündlicher Job und tägliches Backup
 
 `crontab -e` und diese zwei Zeilen anhängen:
 
@@ -101,7 +121,7 @@ Ein Backup auf demselben Server schützt nicht vor dessen Verlust. Ab und zu her
 
 Zurückspielen: `docker compose exec -T db pg_restore -U aquisiteur -d aquisiteur --clean --if-exists < datei.dump`.
 
-## 9. Updates
+## 10. Updates
 
 Nach jedem Merge auf `main` baut GitHub ein neues Image (Actions → Image). Dann auf dem Server:
 
@@ -113,9 +133,10 @@ Die App spielt beim Start die Migrationen ein.
 
 ## Wenn etwas hakt
 
-| Zeichen                                 | Ursache und Abhilfe                                                   |
-| --------------------------------------- | --------------------------------------------------------------------- |
-| `unauthorized` beim Laden des Images    | `docker login ghcr.io` fehlt oder das Token hat kein `read:packages`. |
-| `set POSTGRES_PASSWORD in .env`         | Schritt 5, erste Zeile, fehlt.                                        |
-| Seite antwortet `404 Unknown host`      | Adresse passt weder zu `APP_URL` noch zu `<slug>.<PLATFORM_DOMAIN>`.  |
-| Mikrus meldet, dass kein Server lauscht | App läuft nicht: `docker compose ps` und `docker compose logs app`.   |
+| Zeichen                                 | Ursache und Abhilfe                                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `unauthorized` beim Laden des Images    | `docker login ghcr.io` fehlt oder das Token hat kein `read:packages`.                                 |
+| `set POSTGRES_PASSWORD in .env`         | Schritt 5, erste Zeile, fehlt.                                                                        |
+| Seite antwortet `404 Unknown host`      | Adresse passt weder zu `APP_URL` noch zu `<slug>.<PLATFORM_DOMAIN>`.                                  |
+| `expose:publish` bricht mit Code 143 ab | Auf dem Server zu wenig Speicher für die Bilder: auf dem eigenen Rechner veröffentlichen (Schritt 8). |
+| Mikrus meldet, dass kein Server lauscht | App läuft nicht: `docker compose ps` und `docker compose logs app`.                                   |
