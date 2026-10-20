@@ -132,7 +132,7 @@ cd /opt/aquisiteur && docker compose pull app && docker compose up -d
 
 Die App spielt beim Start die Migrationen ein.
 
-### Automatisch nach jedem Merge
+### Staging: automatisch nach jedem Merge
 
 Mit einem Deploy-Schlüssel loggt sich GitHub nach dem Bauen selbst ein und führt genau diesen Befehl
 aus. Werden mehrere Pull Requests kurz nacheinander gemergt, bricht GitHub den laufenden Durchgang ab
@@ -164,8 +164,55 @@ und baut nur den neuesten Stand, es entsteht also ein Image und ein Deployment. 
    `rm /root/.ssh/github-deploy`.
 
 Ab dann läuft nach jedem Merge **Actions → Image** mit den Jobs „Build and push the app image“ und
-„Deploy to the Compose server“. Von Hand anstoßen: **Actions → Image → Run workflow** (geht auch in der
+„Deploy to staging“. Von Hand anstoßen: **Actions → Image → Run workflow** (geht auch in der
 GitHub-App). Ohne die Secrets überspringt der Workflow das Deployment.
+
+### Produktion: nur freigegebene Versionen
+
+Staging bekommt jeden Merge, Produktion nur, was du freigibst (ADR-0057). Beide sind immer getrennte
+Installationen mit eigener Datenbank, eigenen Dateien und eigenen Subdomains. Ob sie auf einem Server
+liegen oder auf zwei, entscheiden nur die Secrets; ein Umzug von Staging auf einen eigenen Server
+später heißt: dort Schritt 4 bis 7 und die `DEPLOY_*`-Secrets ändern.
+
+**Für beide Varianten:**
+
+1. In der `.env` der Produktion zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
+   eintragen. Ohne diese Zeile lädt sie `latest` und damit jeden Merge wie Staging.
+2. Für Produktion einen eigenen Deploy-Schlüssel wie oben anlegen (`github-deploy-prod`, beschränkt
+   auf `cd /opt/aquisiteur && …`) und als Secrets `PROD_DEPLOY_SSH_KEY`, `PROD_DEPLOY_HOST`,
+   `PROD_DEPLOY_PORT` eintragen, optional `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`,
+   `PROD_DEPLOY_DIR`. Die `DEPLOY_*`-Secrets gehören zu Staging.
+3. Der stündliche Job und das Backup aus Schritt 9 laufen für Produktion; für Staging reicht der Job.
+
+**Getrennte Server** (sicherer, empfohlen): Staging bleibt, wie es ist, etwa auf dem kleinen
+Mikrus, Produktion bekommt einen eigenen Server mit Schritt 1 bis 9 in `/opt/aquisiteur`. Ein Fehler
+im ungeprüften Staging-Stand trifft so nie Produktion.
+
+**Ein gemeinsamer Server** (spart einen Server): Produktion in `/opt/aquisiteur`, Staging daneben in
+`/opt/aquisiteur-staging` (Schritt 4 bis 7 in diesem Ordner). Die Staging-`.env` bekommt:
+
+```bash
+COMPOSE_PROJECT_NAME=aquisiteur-staging   # sonst teilen sich beide Container und Datenbank
+APP_PORT=8080                             # Produktion belegt Port 80
+APP_URL=https://aquisiteur-staging.mikrus.dev
+```
+
+Bei Mikrus dafür eigene Subdomains auf Port 8080 anlegen, etwa `aquisiteur-staging.mikrus.dev` und
+`coalform-staging.mikrus.dev` (Slug `coalform-staging` beim ersten Login). Der Staging-Schlüssel ist
+auf `cd /opt/aquisiteur-staging && …` beschränkt, und `DEPLOY_DIR` ist `/opt/aquisiteur-staging`.
+Beide teilen sich Docker und Arbeitsspeicher; Staging sollte deshalb keine echten Kundendaten haben.
+
+Freigeben, auf eine von zwei Arten:
+
+- **Actions → Release → Run workflow** auf `main` (geht in der GitHub-App): bringt den aktuellen Stand
+  von `main` in Produktion.
+- Einen Tag wie `v2026.10.20` setzen, etwa über **Releases → Draft a new release**: bringt genau
+  diesen Commit in Produktion, und das Image bekommt den Tag als Namen.
+
+Zurück auf eine frühere Version: **Actions → Release → Run workflow** und statt `main` den älteren Tag
+wählen. Die Datenbank bleibt dabei, wie sie ist; Migrationen halten die vorige Version lauffähig.
+Freigaben warten aufeinander, statt sich abzubrechen. Ohne die `PROD_DEPLOY_*`-Secrets bekommt das
+Image nur den Namen `production`, ein Server wird nicht angefasst.
 
 ## Wenn etwas hakt
 

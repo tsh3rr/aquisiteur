@@ -2,9 +2,10 @@ name: Image
 
 # Builds the app image on GitHub and pushes it to ghcr.io, so the server only
 # pulls and starts it (ADR-0053). Pull requests that touch the image only build.
-# With the DEPLOY_* secrets set, a pushed image also goes live on a Compose
-# server over SSH (ADR-0054). The concurrency group cancels a running build
-# when a newer commit lands, so merges in quick succession build and deploy once.
+# With the DEPLOY_* secrets set, a pushed image also goes live on the staging
+# Compose server over SSH (ADR-0054, ADR-0057); production only gets released
+# versions (release.yml). The concurrency group cancels a running build when a
+# newer commit lands, so merges in quick succession build and deploy once.
 on:
   push:
     branches: [main]
@@ -54,35 +55,17 @@ jobs:
           curl -fsS -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK"
 
   deploy:
-    name: Deploy to the Compose server
+    name: Deploy to staging
     needs: image
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-      DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
-      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
     steps:
-      - name: Skip without deploy secrets
-        if: env.DEPLOY_SSH_KEY == '' || env.DEPLOY_HOST == ''
-        run: echo "DEPLOY_SSH_KEY or DEPLOY_HOST not set, nothing to deploy."
-      - name: Pull the new image and restart the app
-        if: env.DEPLOY_SSH_KEY != '' && env.DEPLOY_HOST != ''
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          port="${DEPLOY_PORT:-22}"
-          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
-            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          else
-            ssh-keyscan -p "$port" "$DEPLOY_HOST" > ~/.ssh/known_hosts
-          fi
-          # A key restricted with command="..." in authorized_keys runs its own
-          # command instead; this one is the same, so both setups work.
-          ssh -i ~/.ssh/deploy_key -p "$port" -o BatchMode=yes \
-            "${DEPLOY_USER:-root}@$DEPLOY_HOST" \
-            "cd ${DEPLOY_DIR:-/opt/aquisiteur} && docker compose pull -q app && docker compose up -d && docker image prune -f"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/compose-deploy
+        with:
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          user: ${{ secrets.DEPLOY_USER }}
+          dir: ${{ secrets.DEPLOY_DIR }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
