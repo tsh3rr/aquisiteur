@@ -7,6 +7,7 @@ import {
   chatDrafts,
   chatMessages,
   chatThreads,
+  contacts,
   events,
   exposes,
   prospects,
@@ -424,6 +425,39 @@ export async function sendOfflineNotice(
 }
 
 /** „Rückruf anfordern“ (§7.4). Works without a visit token, e.g. with tracking blocked. */
+/**
+ * The full number behind a masked one the callback form offered (§7.4),
+ * only for this exposé's prospect and only while the workspace offers known
+ * numbers. Null sends the visitor back to typing it in.
+ */
+async function knownPhone(
+  db: Database,
+  workspaceId: string,
+  prospectId: string,
+  ref: string,
+): Promise<string | null> {
+  const settings = await loadWorkspaceSettings(db, workspaceId);
+  if (!settings.chat.prefillCallbackPhone) return null;
+  if (ref === "p") {
+    const [row] = await db
+      .select({ phone: prospects.phone })
+      .from(prospects)
+      .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)));
+    return row?.phone?.trim() || null;
+  }
+  const [row] = await db
+    .select({ phone: contacts.phone })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.workspaceId, workspaceId),
+        eq(contacts.prospectId, prospectId),
+        eq(contacts.id, ref),
+      ),
+    );
+  return row?.phone?.trim() || null;
+}
+
 export async function createCallbackRequest(
   db: Database,
   input: { workspaceId: string; body: unknown; internal: boolean },
@@ -442,6 +476,12 @@ export async function createCallbackRequest(
     );
   if (!expose) return { error: "not_found" };
   if (!(await hitRateLimit(db, `callback:${expose.id}`, 10, 3600))) return { error: "limited" };
+  const phone =
+    parsed.data.phone ??
+    (await knownPhone(db, input.workspaceId, expose.prospectId, parsed.data.phoneRef!));
+  if (!phone) {
+    return { error: "invalid", fields: { phone: "Bitte geben Sie Ihre Nummer ein." } };
+  }
   const visit = parsed.data.token
     ? await visitForToken(db, input.workspaceId, parsed.data.token)
     : null;
@@ -456,7 +496,7 @@ export async function createCallbackRequest(
         exposeId: expose.id,
         visitId: ownVisit?.id ?? null,
         name: parsed.data.name,
-        phone: parsed.data.phone,
+        phone,
         preferredTime: parsed.data.preferredTime ?? null,
         note: parsed.data.note ?? null,
       })
@@ -498,7 +538,7 @@ export async function createCallbackRequest(
             trigger: "callback",
             company,
             name: parsed.data.name,
-            phone: parsed.data.phone,
+            phone,
             preferredTime: parsed.data.preferredTime ?? null,
           }),
         },
