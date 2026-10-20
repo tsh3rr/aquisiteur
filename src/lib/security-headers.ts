@@ -98,7 +98,7 @@ export const COCKPIT_SOURCES = {
 
 /**
  * Extra sources for the exposé hosts: only WebAssembly (not JS eval) for
- * the layout engine of the reader's PDF download (ADR-0058). No outside
+ * the layout engine of the reader's PDF download (ADR-0059). No outside
  * images or fonts.
  */
 export const EXPOSE_SOURCES = { wasm: true } as const;

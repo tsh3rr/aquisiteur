@@ -17,7 +17,7 @@ import {
 } from "../letters/teaser-page";
 
 /**
- * The designed PDF of a whole exposé (§7.9, ADR-0058): a cover with the
+ * The designed PDF of a whole exposé (§7.9, ADR-0059): a cover with the
  * hero, every block laid out for paper in the exposé's colours and headline
  * face, and a closing page with the way back online. Rendered in the
  * browser like the letters (ADR-0037).

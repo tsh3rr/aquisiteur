@@ -643,7 +643,31 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
   Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
 
-## ADR-0057 · Rückruf-Formular mit bekannter Nummer (2026-10-20)
+## ADR-0057 · Staging bekommt jeden Merge, Produktion nur Freigaben (2026-10-20, ergänzt ADR-0054)
+
+Seit Updates automatisch laufen, geht jeder Merge sofort live. Vor dem Go-live trennen wir deshalb:
+Staging bekommt jeden Merge (`image.yml`, Job „Deploy to staging“, Secrets `DEPLOY_*`), Produktion nur,
+was der Owner freigibt. Jede Umgebung ist ein eigenes Compose-Projekt mit eigener Datenbank, eigenen
+Dateien und eigenen Subdomains. Ob auf einem Server (mit `COMPOSE_PROJECT_NAME` und `APP_PORT`
+nebeneinander, rund 300 MB für beide) oder auf zwei, entscheiden nur die Secrets; getrennte Server
+sind sicherer, weil ungeprüfter Staging-Code dann weder Docker noch Speicher mit Produktion teilt. Die
+Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
+
+- `release.yml` läuft bei einem Tag `v*` oder per Hand auf `main` beziehungsweise einem Tag (auch aus
+  der GitHub-App). Er baut das Image für genau diesen Commit aus dem Cache, gibt ihm die Namen
+  `production`, den Commit-Hash und gegebenenfalls den Tag und deployt per SSH (Secrets
+  `PROD_DEPLOY_*`, eigener Schlüssel, auf den Produktionsordner beschränkt). Ein älterer Tag ist der
+  Rollback.
+- Der Produktionsserver lädt `APP_IMAGE=…:production` statt `latest`; die Freigabe ist also der
+  Wechsel dieses Namens. Neu bauen statt umtaggen, weil der Staging-Build eines Commits abgebrochen
+  sein kann, wenn kurz danach ein neuerer gemergt wurde.
+- Getrennte Secret-Namen statt GitHub Environments: Environments mit Secrets gibt es in privaten Repos
+  nur ab GitHub Pro, und ein gleichnamiges Secret würde bei fehlendem Environment still auf Staging
+  zeigen. Ohne `PROD_DEPLOY_*` wird kein Server angefasst.
+- Beide Deploy-Jobs teilen sich `.github/actions/compose-deploy`. Freigaben laufen nacheinander
+  (`cancel-in-progress: false`), Staging-Builds brechen sich weiter gegenseitig ab.
+
+## ADR-0058 · Rückruf-Formular mit bekannter Nummer (2026-10-20)
 
 - Quellen: Telefonnummer des Kunden (`prospects.phone`), danach die Nummern seiner Ansprechpartner
   (`contacts.phone`, Hauptkontakt zuerst). Doppelte Nummern (auch +49 und 0 gemischt) erscheinen einmal,
@@ -656,7 +680,7 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   (`chat.prefillCallbackPhone`, Standard an). Sie liegt im `chat`-JSON, weil sie im selben Formular
   gespeichert wird; so braucht es keine Migration.
 
-## ADR-0058 · Exposé als gestaltetes PDF (2026-10-20, ergänzt ADR-0037)
+## ADR-0059 · Exposé als gestaltetes PDF (2026-10-20, ergänzt ADR-0037)
 
 - Wie die Briefe rendert `@react-pdf/renderer` das PDF im Browser (`src/components/expose-pdf/`), erst beim
   Klick nachgeladen und per Alias aus dem Server-Bundle gehalten. Die Daten baut `printableExpose()`

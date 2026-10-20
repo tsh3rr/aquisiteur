@@ -3,7 +3,7 @@ import { exposePdfFilename } from "@/domain/expose/print";
 
 /**
  * Renders the exposé PDF in the browser and saves it. React-PDF and the
- * layout load only now, on the first click (ADR-0037, ADR-0058).
+ * layout load only now, on the first click (ADR-0037, ADR-0059).
  */
 export async function downloadExposePdf(
   doc: PrintableExpose,
