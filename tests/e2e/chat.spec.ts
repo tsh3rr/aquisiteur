@@ -146,6 +146,7 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
   expect(await phone.content()).not.toContain("9876543");
   await phone.getByRole("button", { name: "+49 341 ••• 43 verwenden?" }).click();
   await expect(phone.getByLabel("Telefonnummer")).toHaveValue("+49 341 ••• 43");
+  await expect(phone.getByLabel("Telefonnummer")).toBeFocused();
   await phone.getByRole("button", { name: "Andere Nummer eingeben" }).click();
   await expect(phone.getByRole("textbox", { name: "Telefonnummer" })).toBeFocused();
   await phone.getByRole("button", { name: "+49 341 ••• 43 verwenden?" }).click();

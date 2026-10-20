@@ -38,6 +38,7 @@ export function CallbackOption({
   const [state, setState] = useState<State>({ kind: "idle" });
   const [chosen, setChosen] = useState<KnownPhone | null>(null);
   const phoneInput = useRef<HTMLInputElement>(null);
+  const knownInput = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const id = useId();
   const error = (field: string) => (state.kind === "error" ? state.fields?.[field] : undefined);
@@ -148,6 +149,7 @@ export function CallbackOption({
                 <input type="hidden" name="phoneRef" value={chosen.ref} />
                 {/* No name: only the reference above is sent, never this masked text. */}
                 <input
+                  ref={knownInput}
                   id={`${id}-known`}
                   readOnly
                   value={chosen.masked}
@@ -192,7 +194,11 @@ export function CallbackOption({
                     key={known.ref}
                     type="button"
                     className={clsx(linkClass, "justify-self-start text-sm")}
-                    onClick={() => setChosen(known)}
+                    onClick={() => {
+                      setChosen(known);
+                      // The clicked button goes away; keep focus on the chosen number.
+                      requestAnimationFrame(() => knownInput.current?.focus());
+                    }}
                   >
                     <span className="tabular-nums">{known.masked}</span> verwenden?
                   </button>
