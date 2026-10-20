@@ -110,10 +110,8 @@ test("QR open → read → typing: the owner sees score and notification live", 
   await started;
 
   // The first real scan: a push to the phone and an entry in the cockpit.
-  await expect
-    .poll(() => pushes().map((p) => p.title))
-    .toContain("Café Müller hat das Exposé geöffnet");
-  expect(pushes()[0]!.body).toMatch(/^Über den QR-Code im Brief, auf dem Smartphone/);
+  await expect.poll(() => pushes().map((p) => p.title)).toContain("Café Müller · Exposé geöffnet");
+  expect(pushes()[0]!.body).toMatch(/^QR-Code · Smartphone/);
   await expect(
     page.getByRole("link", { name: /^Benachrichtigungen \(1 neu\)/ }).first(),
   ).toBeAttached();
@@ -146,7 +144,7 @@ test("QR open → read → typing: the owner sees score and notification live", 
   // Push and e-mail for the threshold.
   await expect
     .poll(() => pushes().map((p) => p.title))
-    .toContainEqual(expect.stringMatching(/^Café Müller: \d+ % – /));
+    .toContainEqual(expect.stringMatching(/^Café Müller · \d+ % – /));
   await expect.poll(() => mailCount(account.email)).toBe(mailsBefore + 1);
   await phoneContext.close();
 
@@ -158,12 +156,10 @@ test("QR open → read → typing: the owner sees score and notification live", 
   await expect(page.getByRole("heading", { name: "Benachrichtigungen", level: 1 })).toBeVisible();
   const list = page.getByRole("list", { name: "Benachrichtigungen, neueste zuerst" });
   await expect(list.getByRole("listitem")).toHaveCount(2);
-  await expect(list.getByRole("listitem").first()).toContainText(/Café Müller: \d+ %/);
+  await expect(list.getByRole("listitem").first()).toContainText(/Café Müller · \d+ %/);
   await expect(list.getByRole("listitem").first()).toContainText("Push gesendet");
   await expect(list.getByRole("listitem").first()).toContainText("E-Mail gesendet");
-  await expect(list.getByRole("listitem").nth(1)).toContainText(
-    "Café Müller hat das Exposé geöffnet",
-  );
+  await expect(list.getByRole("listitem").nth(1)).toContainText("Café Müller · Exposé geöffnet");
   await expectAccessible(page, "notifications");
 
   // The customer page explains the score; the list sorts by it.

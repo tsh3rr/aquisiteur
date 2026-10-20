@@ -142,8 +142,8 @@ describe("notification copy", () => {
         visit: { source: "qr", device: "mobile", city: "Leipzig" },
       }),
     ).toEqual({
-      title: "Café Müller hat das Exposé geöffnet",
-      body: "Über den QR-Code im Brief, auf dem Smartphone in Leipzig.",
+      title: "Café Müller · Exposé geöffnet",
+      body: "QR-Code · Smartphone · Leipzig",
     });
     expect(
       notificationCopy({
@@ -153,7 +153,10 @@ describe("notification copy", () => {
         phone: "0341 1234567",
         preferredTime: null,
       }).body,
-    ).toBe("Sabine Müller, 0341 1234567");
+    ).toBe("Sabine Müller · 0341 1234567");
+    expect(
+      notificationCopy({ trigger: "chat_message", company: "Café Müller", message: "Hallo!" }),
+    ).toEqual({ title: "Café Müller · Chat", body: "Hallo!" });
   });
 });
 

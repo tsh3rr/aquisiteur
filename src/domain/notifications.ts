@@ -222,16 +222,16 @@ export interface VisitContext {
 }
 
 const SOURCE_PHRASES: Record<VisitContext["source"], string> = {
-  qr: "Über den QR-Code im Brief",
-  typed: "Über den abgetippten Kurzlink",
-  direct: "Direkt aufgerufen",
-  share: "Über einen weitergeleiteten Link",
+  qr: "QR-Code",
+  typed: "Kurzlink",
+  direct: "Direktaufruf",
+  share: "Weitergeleitet",
 };
 
 const DEVICE_PHRASES: Record<VisitContext["device"], string | null> = {
-  mobile: "auf dem Smartphone",
-  tablet: "auf dem Tablet",
-  desktop: "am Computer",
+  mobile: "Smartphone",
+  tablet: "Tablet",
+  desktop: "Computer",
   unknown: null,
 };
 
@@ -248,43 +248,35 @@ export type NotificationCopyInput =
   | { trigger: "score_threshold"; company: string; headline: string; recommendation: string }
   | { trigger: "opt_out"; company: string };
 
-/** Title and body of a push, an e-mail and the cockpit list (§7.7). */
+/**
+ * Title and body of a push, an e-mail and the cockpit list (§7.7). Tight on
+ * purpose: the system already shows the app name and time above it, so the
+ * title is „who · what“ and the body only adds what the title cannot.
+ */
 export function notificationCopy(input: NotificationCopyInput): { title: string; body: string } {
+  const title = (what: string) => `${input.company} · ${what}`;
   switch (input.trigger) {
     case "first_visit":
     case "return_visit": {
       const { visit } = input;
-      const where = [DEVICE_PHRASES[visit.device], visit.city ? `in ${visit.city}` : null]
-        .filter(Boolean)
-        .join(" ");
       return {
-        title:
-          input.trigger === "first_visit"
-            ? `${input.company} hat das Exposé geöffnet`
-            : `${input.company} liest wieder`,
-        body: `${SOURCE_PHRASES[visit.source]}${where ? `, ${where}` : ""}.`,
+        title: title(input.trigger === "first_visit" ? "Exposé geöffnet" : "liest wieder"),
+        body: [SOURCE_PHRASES[visit.source], DEVICE_PHRASES[visit.device], visit.city]
+          .filter(Boolean)
+          .join(" · "),
       };
     }
     case "chat_message":
-      return { title: `${input.company} schreibt im Chat`, body: clip(input.message) };
+      return { title: title("Chat"), body: clip(input.message) };
     case "callback":
       return {
-        title: `${input.company} bittet um Rückruf`,
-        body: [
-          input.name,
-          input.phone,
-          input.preferredTime ? `Wunschzeit: ${input.preferredTime}` : null,
-        ]
-          .filter(Boolean)
-          .join(", "),
+        title: title("Rückruf erbeten"),
+        body: [input.name, input.phone, input.preferredTime].filter(Boolean).join(" · "),
       };
     case "score_threshold":
-      return { title: `${input.company}: ${input.headline}`, body: input.recommendation };
+      return { title: title(input.headline.replace(/\.$/, "")), body: input.recommendation };
     case "opt_out":
-      return {
-        title: `${input.company} möchte keinen Kontakt`,
-        body: "Hat im Exposé „Kein Interesse“ bestätigt. Bitte nicht mehr anschreiben.",
-      };
+      return { title: title("kein Interesse"), body: "Bitte nicht mehr anschreiben." };
   }
 }
 

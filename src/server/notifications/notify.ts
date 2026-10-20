@@ -186,7 +186,7 @@ export async function dispatch(db: Database | Transaction, pending: Pending): Pr
           },
           {
             title: row.title,
-            body: row.count > 1 ? `${row.body} (${row.count} Updates)` : row.body,
+            body: row.count > 1 ? `${row.body} (${row.count}×)` : row.body,
             url: row.url,
             tag: row.id,
             renotify: pending.update,

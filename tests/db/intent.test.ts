@@ -137,7 +137,7 @@ describe("intent score and notifications", () => {
     expect(first).toMatchObject({
       trigger: "first_visit",
       prospectId: cafe.prospectId,
-      title: "Café Müller hat das Exposé geöffnet",
+      title: "Café Müller · Exposé geöffnet",
       channels: ["push"],
       suppressed: null,
     });
@@ -184,7 +184,7 @@ describe("intent score and notifications", () => {
       groupKey: `score:${cafe.prospectId}:50`,
       channels: ["push", "email"],
     });
-    expect(latest!.title).toContain("Café Müller:");
+    expect(latest!.title).toContain("Café Müller · ");
     expect(latest!.emailedAt).toBeInstanceOf(Date);
     expect(pushes).toHaveBeenCalledTimes(1);
     expect(mails).toHaveBeenCalledTimes(1);
@@ -202,7 +202,7 @@ describe("intent score and notifications", () => {
       trigger: "chat_message" as const,
       prospectId: cafe.prospectId,
       groupKey: "chat:test",
-      title: "Café Müller schreibt im Chat",
+      title: "Café Müller · Chat",
       body: "Hallo",
       url: `/kunden/${cafe.prospectId}`,
     };
@@ -238,7 +238,7 @@ describe("intent score and notifications", () => {
       trigger: "chat_message",
       prospectId: cafe.prospectId,
       groupKey: "chat:quiet",
-      title: "Café Müller schreibt im Chat",
+      title: "Café Müller · Chat",
       body: "Spät noch",
       url: `/kunden/${cafe.prospectId}`,
     });
