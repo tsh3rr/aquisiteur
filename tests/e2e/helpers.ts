@@ -22,6 +22,23 @@ export async function expectAccessible(
     "wcag22aa",
   ]);
   for (const selector of exclude) builder = builder.exclude(selector);
+  // An element still fading in (the nudge's 240 ms entrance) reads as low contrast.
+  // Waits for running one-off animations, at most a second.
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.playState === "running" &&
+              animation.effect?.getTiming().iterations !== Infinity,
+          )
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 1000)),
+    ]),
+  );
   const results = await builder.analyze();
   const summary = results.violations.map(
     (v) => `${v.id}: ${v.help} (${v.nodes.map((n) => n.target.join(" ")).join(", ")})`,
