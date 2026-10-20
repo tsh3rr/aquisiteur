@@ -55,7 +55,7 @@ export function ExposeView({
       data-expose-theme
       data-expose-style={document.theme.style}
       lang={document.meta.lang}
-      className={`${displayFont.variable} min-h-dvh bg-background text-foreground`}
+      className={`${displayFont.variable} min-h-dvh bg-background pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-foreground`}
     >
       {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}
       {mode === "public" && data.settings.replay.enabled && links.privacy ? (

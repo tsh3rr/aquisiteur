@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -14,6 +14,13 @@ const load = cache(async (host: string, slug: string) => {
   if (!workspace) return null;
   return loadPublicExpose(getDb(), workspace.id, slug);
 });
+
+/**
+ * Edge-to-edge on phones so env(safe-area-inset-*) is real: the contact bar,
+ * chat button and chat sheet keep clear of the rounded corners and the home
+ * indicator instead of iOS reporting 0.
+ */
+export const viewport: Viewport = { viewportFit: "cover" };
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { host, slug } = await params;

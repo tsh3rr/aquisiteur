@@ -221,8 +221,10 @@ export function ContactLayer(props: ContactLayerProps) {
     <div className="print:hidden">
       <div
         className={cn(
-          "fixed right-4 z-40 flex flex-col items-end",
-          bar ? "bottom-20 md:bottom-4" : "bottom-4",
+          "fixed right-[max(1rem,calc(env(safe-area-inset-right)+0.5rem))] z-40 flex flex-col items-end",
+          bar
+            ? "bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-4"
+            : "bottom-[max(1rem,calc(env(safe-area-inset-bottom)+0.25rem))]",
         )}
       >
         <div aria-live="polite">
@@ -292,7 +294,7 @@ export function ContactLayer(props: ContactLayerProps) {
       {bar ? (
         <nav
           aria-label="Kontakt"
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pt-2 pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] backdrop-blur md:hidden"
         >
           <ul className="flex gap-2">
             {chat.enabled ? (

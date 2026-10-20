@@ -132,7 +132,7 @@ export function ReplayConsent({ privacyHref }: { privacyHref: string }) {
     return (
       <div
         data-replay-block
-        className="fixed bottom-24 left-3 z-30 md:bottom-4 md:left-4 print:hidden"
+        className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-30 md:bottom-4 md:left-4 print:hidden"
       >
         <button
           type="button"
