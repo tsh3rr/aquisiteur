@@ -646,14 +646,16 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 ## ADR-0057 · Staging bekommt jeden Merge, Produktion nur Freigaben (2026-10-20, ergänzt ADR-0054)
 
 Seit Updates automatisch laufen, geht jeder Merge sofort live. Vor dem Go-live trennen wir deshalb:
-Der heutige Mikrus-Testserver wird Staging und bekommt weiter jeden Merge (`image.yml`, Job „Deploy to
-staging“, Secrets `DEPLOY_*`). Produktion kommt auf einen eigenen Server (geplant: Mikrus 3.5, beide
-Umgebungen passen nicht in 1 GB RAM) und bekommt nur, was der Owner freigibt.
+Staging bekommt jeden Merge (`image.yml`, Job „Deploy to staging“, Secrets `DEPLOY_*`), Produktion nur,
+was der Owner freigibt. Beide laufen auf demselben Server (geplant: Mikrus 3.5, rund 300 MB für beide
+zusammen) als zwei Compose-Projekte mit eigenem Ordner, eigener Datenbank, eigenem Port und eigenen
+Subdomains (`COMPOSE_PROJECT_NAME`, `APP_PORT`). Bis dahin ist der Mikrus mit 1 GB der Testserver.
 
 - `release.yml` läuft bei einem Tag `v*` oder per Hand auf `main` beziehungsweise einem Tag (auch aus
   der GitHub-App). Er baut das Image für genau diesen Commit aus dem Cache, gibt ihm die Namen
   `production`, den Commit-Hash und gegebenenfalls den Tag und deployt per SSH (Secrets
-  `PROD_DEPLOY_*`). Ein älterer Tag ist der Rollback.
+  `PROD_DEPLOY_*`, eigener Schlüssel, auf den Produktionsordner beschränkt). Ein älterer Tag ist der
+  Rollback.
 - Der Produktionsserver lädt `APP_IMAGE=…:production` statt `latest`; die Freigabe ist also der
   Wechsel dieses Namens. Neu bauen statt umtaggen, weil der Staging-Build eines Commits abgebrochen
   sein kann, wenn kurz danach ein neuerer gemergt wurde.

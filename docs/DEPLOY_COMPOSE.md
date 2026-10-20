@@ -169,14 +169,34 @@ GitHub-App). Ohne die Secrets überspringt der Workflow das Deployment.
 
 ### Produktion: nur freigegebene Versionen
 
-Der Server, der jeden Merge bekommt, ist Staging. Produktion läuft auf einem eigenen Server (etwa
-einem Mikrus 3.5) und bekommt nur, was du freigibst (ADR-0057). Einrichten wie oben, mit zwei
-Unterschieden:
+Staging bekommt jeden Merge, Produktion nur, was du freigibst (ADR-0057). Beide laufen auf demselben
+Server (etwa einem Mikrus 3.5), aber als zwei getrennte Installationen mit eigener Datenbank, eigenen
+Dateien und eigenen Subdomains: Produktion in `/opt/aquisiteur`, Staging in `/opt/aquisiteur-staging`.
 
-1. In der `.env` des Produktionsservers zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
-   eintragen. Ohne diese Zeile lädt er `latest` und damit jeden Merge wie Staging.
-2. Die Secrets heißen `PROD_DEPLOY_SSH_KEY`, `PROD_DEPLOY_HOST`, `PROD_DEPLOY_PORT` und optional
-   `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`, `PROD_DEPLOY_DIR`.
+1. Staging einrichten wie in Schritt 4 bis 7, nur im Ordner `/opt/aquisiteur-staging` und mit diesen
+   Zeilen in seiner `.env`:
+
+   ```bash
+   COMPOSE_PROJECT_NAME=aquisiteur-staging   # sonst teilen sich beide Container und Datenbank
+   APP_PORT=8080                             # Produktion belegt Port 80
+   APP_URL=https://aquisiteur-staging.mikrus.dev
+   ```
+
+   Bei Mikrus dafür eigene Subdomains auf Port 8080 anlegen, etwa `aquisiteur-staging.mikrus.dev`
+   und für den Workspace `coalform-staging.mikrus.dev` (Slug `coalform-staging` beim ersten Login).
+
+2. In der `.env` der Produktion zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
+   eintragen. Ohne diese Zeile lädt sie `latest` und damit jeden Merge wie Staging.
+3. Zwei Deploy-Schlüssel wie oben, jeder auf seinen Ordner beschränkt: `github-deploy` mit
+   `cd /opt/aquisiteur-staging && …` für Staging, `github-deploy-prod` mit `cd /opt/aquisiteur && …`
+   für Produktion.
+4. Secrets: Die `DEPLOY_*` gehören zu Staging, dazu `DEPLOY_DIR` = `/opt/aquisiteur-staging`. Für
+   Produktion dieselben Werte noch einmal als `PROD_DEPLOY_SSH_KEY` (der zweite Schlüssel),
+   `PROD_DEPLOY_HOST` und `PROD_DEPLOY_PORT`, optional `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`,
+   `PROD_DEPLOY_DIR`.
+
+Der stündliche Job und das Backup aus Schritt 9 laufen nur für Produktion; für Staging reicht der Job
+ohne Backup, mit `cd /opt/aquisiteur-staging`.
 
 Freigeben, auf eine von zwei Arten:
 
