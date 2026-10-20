@@ -566,6 +566,10 @@ Nur das Schema von `APP_URL` wirkt beim Build (HSTS-Header in `next.config.ts`);
 `https` gebaut und ist sonst unabhängig von Domain und Workspace, alles Übrige liest die App zur
 Laufzeit. Nixpacks bleibt der Weg für Server mit genug Speicher, wie den Mikrus 3.5.
 
+Nachtrag: Das Image enthält nur Laufzeit-Abhängigkeiten (`pnpm prune --prod`) und keinen Build-Cache, etwa
+1,4 GB statt 2,5 GB. `next.config.ts` lädt `@opennextjs/cloudflare` deshalb nur bei Bedarf. Skripte mit
+`sharp` (`expose:publish`) laufen auf dem eigenen Rechner, auf 1 GB RAM bräche die Bildoptimierung ohnehin ab.
+
 ## ADR-0054 · Docker Compose statt Coolify auf sehr kleinen Servern (2026-10-19, ergänzt ADR-0053)
 
 Auch ohne Build hielt Coolify auf dem Testserver mit 1 GB RAM nicht durch: Oberfläche, Warteschlange,

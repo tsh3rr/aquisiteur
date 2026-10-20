@@ -15,6 +15,10 @@ COPY . .
 # baked into the routes (next.config.ts). Everything else is read at runtime.
 ARG APP_URL=https://build.invalid
 RUN APP_URL=$APP_URL PLATFORM_DOMAIN=build.invalid pnpm build
+# The runtime needs neither dev tooling (Playwright, wrangler, eslint …) nor the
+# build cache; dropping both shrinks the image from about 2.5 GB to well under 1 GB.
+# Scripts that need sharp (expose:publish) run on the owner's machine instead.
+RUN rm -rf .next/cache && CI=true pnpm prune --prod
 
 FROM base AS runtime
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0

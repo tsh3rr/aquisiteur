@@ -1,4 +1,3 @@
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 import path from "node:path";
 import type { NextConfig } from "next";
 import { hstsHeader, staticSecurityHeaders } from "./src/lib/security-headers";
@@ -50,5 +49,6 @@ export default nextConfig;
 
 if (process.env.HOSTING_PROFILE === "cloudflare" && process.env.NODE_ENV === "development") {
   // Exposes Cloudflare bindings (Hyperdrive, R2 …) to `next dev` via wrangler's local proxy.
-  void initOpenNextCloudflareForDev();
+  // Imported lazily: it is a dev dependency, and the app image ships without those (Dockerfile).
+  void import("@opennextjs/cloudflare").then((m) => m.initOpenNextCloudflareForDev());
 }
