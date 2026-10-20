@@ -450,3 +450,4 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 - Der Owner bekommt im richtigen Moment genau eine sinnvolle Benachrichtigung und sieht sofort: **wer, wie sicher, über welchen Kanal, was jetzt tun.**
 - Ein neues Exposé kann von Claude Code in einem Schritt validiert und veröffentlicht werden.
 - Alles datenschutzkonform dokumentiert, getestet, deploybar.
+- **Vor dem Go-live:** Der stündliche Job (`/api/jobs/hourly`: Digests, Retention, Replay-Löschung, Geocoding) läuft per Cron, und die Datenbank wird täglich gesichert, **extern in Cloudflare R2** (EU) und nicht nur auf demselben Server, weil ein lokales Backup bei Verlust des Servers mit verloren geht. Gilt für jede Betriebsvariante, auch Docker Compose (ADR-0054). Auf dem Mikrus-Testserver für die Entwicklung bewusst weggelassen.
