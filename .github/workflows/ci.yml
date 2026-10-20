@@ -1,9 +1,16 @@
 name: CI
 
+# Actions minutes are limited on a private repo, so CI spends them where they count
+# (steward skill): docs-only changes skip CI, draft PRs run only the quick checks, the
+# long jobs start once the quick ones pass, and pushes to main skip Lighthouse and
+# the Cloudflare bundle, which the PR already checked.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ["docs/**", "**/*.md"]
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -22,6 +29,7 @@ jobs:
   quality:
     name: Lint, format, typecheck, unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,6 +48,7 @@ jobs:
   database:
     name: Tenant isolation (Postgres)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16
@@ -64,7 +73,10 @@ jobs:
 
   e2e:
     name: E2E + accessibility (Playwright, axe)
+    needs: [quality, database]
+    if: github.event_name == 'push' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -98,7 +110,10 @@ jobs:
 
   lighthouse:
     name: Lighthouse (public exposés, mobile)
+    needs: [quality, database]
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -151,7 +166,10 @@ jobs:
 
   cloudflare:
     name: Cloudflare bundle (OpenNext)
+    needs: [quality, database]
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

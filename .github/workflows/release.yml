@@ -24,6 +24,7 @@ jobs:
     name: Release to production
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
