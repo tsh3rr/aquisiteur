@@ -3,7 +3,7 @@ import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
 import { events, exposes, prospects, touchpoints, visits } from "@/db/schema";
-import { notificationCopy } from "@/domain/notifications";
+import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import { activityPhrase } from "@/domain/tracking/activity";
 import {
   eventBatchSchema,
@@ -374,7 +374,7 @@ async function visitSignal(
           input.trigger === "first_visit"
             ? `first_visit:${input.prospectId}`
             : `return_visit:${input.visitId}`,
-        url: `/kunden/${input.prospectId}`,
+        url: notificationUrl({ trigger: input.trigger, prospectId: input.prospectId }),
         ...notificationCopy({ trigger: input.trigger, company: visit.company, visit }),
       };
     }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { LiveProvider } from "@/components/cockpit/live";
 import { CockpitNav } from "@/components/cockpit/nav";
 import { NotificationBell } from "@/components/cockpit/notification-bell";
+import { NotificationNavigator } from "@/components/cockpit/notification-navigator";
 import { SignOutButton } from "@/components/cockpit/sign-out-button";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -27,6 +28,7 @@ export default async function CockpitLayout({ children }: { children: ReactNode 
 
   return (
     <LiveProvider subscription={live}>
+      <NotificationNavigator />
       <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
         <a
           href="#main"

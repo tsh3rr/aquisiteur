@@ -8,6 +8,7 @@ import {
   inQuietHours,
   localClock,
   notificationCopy,
+  notificationUrl,
   repushOnUpdate,
   ruleInputSchema,
 } from "./notifications";
@@ -153,5 +154,26 @@ describe("notification copy", () => {
         preferredTime: null,
       }).body,
     ).toBe("Sabine Müller, 0341 1234567");
+  });
+});
+
+describe("notificationUrl", () => {
+  const prospectId = "11111111-1111-4111-8111-111111111111";
+  it("opens the spot the event happened, not an overview", () => {
+    expect(notificationUrl({ trigger: "chat_message", threadId: "t1" })).toBe("/chat/t1");
+    expect(notificationUrl({ trigger: "callback", prospectId })).toBe(`/kunden/${prospectId}#chat`);
+    expect(notificationUrl({ trigger: "first_visit", prospectId })).toBe(
+      `/kunden/${prospectId}#besuche`,
+    );
+    expect(notificationUrl({ trigger: "return_visit", prospectId })).toBe(
+      `/kunden/${prospectId}#besuche`,
+    );
+    expect(notificationUrl({ trigger: "score_threshold", prospectId })).toBe(
+      `/kunden/${prospectId}#kontaktabsicht`,
+    );
+    expect(notificationUrl({ trigger: "opt_out", prospectId })).toBe(
+      `/kunden/${prospectId}#datenschutz`,
+    );
+    expect(notificationUrl({ trigger: "daily_digest" })).toBe("/");
   });
 });

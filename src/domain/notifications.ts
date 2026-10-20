@@ -287,3 +287,42 @@ export function notificationCopy(input: NotificationCopyInput): { title: string;
       };
   }
 }
+
+export type NotificationTarget =
+  | { trigger: "chat_message"; threadId: string }
+  | {
+      trigger: "first_visit" | "return_visit" | "callback" | "score_threshold" | "opt_out";
+      prospectId: string;
+    }
+  | { trigger: "daily_digest" };
+
+/** Section anchors on the prospect page that a notification can open. */
+export const PROSPECT_ANCHORS = {
+  intent: "kontaktabsicht",
+  visits: "besuche",
+  contact: "chat",
+  privacy: "datenschutz",
+} as const;
+
+/**
+ * Where tapping a notification lands (§7.7): the spot the event happened,
+ * not an overview. A chat message opens the conversation; everything else
+ * opens the prospect page at the matching section.
+ */
+export function notificationUrl(target: NotificationTarget): string {
+  switch (target.trigger) {
+    case "chat_message":
+      return `/chat/${target.threadId}`;
+    case "daily_digest":
+      return "/";
+    case "first_visit":
+    case "return_visit":
+      return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.visits}`;
+    case "callback":
+      return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.contact}`;
+    case "score_threshold":
+      return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.intent}`;
+    case "opt_out":
+      return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.privacy}`;
+  }
+}

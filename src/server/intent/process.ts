@@ -1,6 +1,6 @@
 import "server-only";
 import type { Database } from "@/db";
-import { crossedThresholds, notificationCopy } from "@/domain/notifications";
+import { crossedThresholds, notificationCopy, notificationUrl } from "@/domain/notifications";
 import { recomputeIntent } from "@/server/intent/recompute";
 import {
   dispatch,
@@ -64,7 +64,7 @@ export async function processProspect(
           prospectId: input.prospectId,
           groupKey: `score:${input.prospectId}:${threshold}`,
           threshold,
-          url: `/kunden/${input.prospectId}`,
+          url: notificationUrl({ trigger: "score_threshold", prospectId: input.prospectId }),
           ...copy,
         },
         now,

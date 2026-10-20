@@ -274,7 +274,14 @@ Die Empfehlung nennt den **Kanal, den der Prospect zuletzt angesteuert hat**, pl
   - Score ≥ 50 % → Push + E-Mail sofort
   - Tägliche Zusammenfassung 8:00 per E-Mail
 - **Debounce**: Ein Besuch mit 30 Events erzeugt eine Benachrichtigung, keine 30. Updates werden in die bestehende Benachrichtigung gruppiert.
-- Jede Benachrichtigung verlinkt direkt auf die Prospect-Timeline.
+- **Ziel beim Antippen**: Jede Benachrichtigung (Push, E-Mail, Liste im Cockpit) führt direkt an die Stelle, an der das Ereignis passiert ist, nicht auf eine Übersicht:
+  - Chat-Nachricht → der Chat selbst (Zusatzknopf „Zum Kunden“ → Kundenseite)
+  - Rückrufwunsch → Kundenseite, Bereich „Chat und Rückrufe“
+  - Erster Scan, wiederholter Besuch → Kundenseite, „Besuche im Detail“
+  - Score überschreitet Schwelle → Kundenseite, „Kontaktabsicht“
+  - „Kein Interesse“ → Kundenseite, „Datenschutz“
+  - Tägliche Zusammenfassung → „Heute“
+  - Ist die App schon offen, wechselt das offene Fenster dorthin.
 
 ### 7.8 Cockpit (Backend): Dashboards und Kundenverwaltung
 
