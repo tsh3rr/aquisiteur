@@ -146,7 +146,7 @@ describe("live chat", () => {
         event: "notification.created",
         payload: {
           id: expect.any(String),
-          title: "Café Müller schreibt im Chat",
+          title: "Café Müller · Chat",
           url: `/chat/${result.message.threadId}`,
         },
       },
