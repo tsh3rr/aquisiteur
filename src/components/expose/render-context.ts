@@ -1,4 +1,5 @@
 import type { AssetManifest, ManifestEntry } from "@/db/schema";
+import type { KnownPhone } from "@/domain/expose/known-phones";
 import type { ExposeImage } from "@/domain/expose/schema";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 
@@ -15,6 +16,8 @@ export interface RenderContext {
   slug: string;
   prospectName: string;
   workspaceName: string;
+  /** Masked numbers the callback form may offer (§7.4). */
+  knownPhones: KnownPhone[];
 }
 
 export interface ResolvedImage {
@@ -84,4 +87,19 @@ export function resolveFile(
 
 export function ownerPhoto(context: RenderContext, alt: string): ResolvedImage | null {
   return resolveEntry(context.ownerPhoto, context.assetBase, alt);
+}
+
+/**
+ * The largest WebP (or PNG) rendition up to 1600 px, for printed pages: the
+ * browser converts it to JPEG for the PDF renderer (ADR-0037).
+ */
+export function printSource(image: ResolvedImage): string {
+  const candidates = (image.webpSrcSet || image.pngSrcSet)
+    .split(", ")
+    .map((entry) => {
+      const [url, width] = entry.split(" ");
+      return { url, width: Number.parseInt(width ?? "", 10) };
+    })
+    .filter((entry) => entry.url && entry.width <= 1600);
+  return candidates.at(-1)?.url ?? image.src;
 }

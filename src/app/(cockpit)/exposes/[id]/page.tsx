@@ -11,7 +11,8 @@ import { can } from "@/domain/authz";
 import { getExposeDetail } from "@/server/exposes/list";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { requireCockpit } from "@/server/session";
-import { setExposeOnline } from "./actions";
+import { ExposePdfButton } from "@/components/expose-pdf/pdf-button";
+import { loadExposePdf, setExposeOnline } from "./actions";
 import { PreviewFrame } from "./preview-frame";
 
 export const metadata: Metadata = { title: "Exposé" };
@@ -121,6 +122,21 @@ export default async function ExposeDetailPage({
               ) : null}
             </CardContent>
           </Card>
+
+          {shown ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>PDF</CardTitle>
+                <CardDescription>
+                  Gestaltete Fassung von Version {shown.version}, etwa als Beilage zum Brief. Mit
+                  QR-Code zum Exposé, solange es online ist.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ExposePdfButton load={loadExposePdf.bind(null, expose.id, shown.version)} />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

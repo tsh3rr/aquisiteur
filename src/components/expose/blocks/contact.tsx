@@ -91,6 +91,7 @@ export function ContactBlock({
                   <CallbackOption
                     key={channel}
                     slug={context.slug}
+                    knownPhones={context.knownPhones}
                     primary={primary}
                     disabled={context.mode === "preview"}
                   />

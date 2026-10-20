@@ -36,7 +36,7 @@ import type { ExposeDocument, ExposeImage } from "@/domain/expose/schema";
 import { modulesPath, qrMatrix } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import type { AssetManifest } from "@/db/schema";
-import { resolveEntry, type ResolvedImage } from "@/components/expose/render-context";
+import { printSource, resolveEntry } from "@/components/expose/render-context";
 import { getInfra } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { advanceStatus } from "@/server/prospects/auto-status";
@@ -293,23 +293,12 @@ export interface PrintableLetter extends ComposedLetter {
 }
 
 /** The largest rendition up to 1600 px: sharp enough for print, small enough to embed. */
-function printSrc(image: ResolvedImage): string {
-  const candidates = (image.webpSrcSet || image.pngSrcSet)
-    .split(", ")
-    .map((entry) => {
-      const [url, width] = entry.split(" ");
-      return { url, width: Number.parseInt(width ?? "", 10) };
-    })
-    .filter((entry) => entry.url && entry.width <= 1600);
-  return candidates.at(-1)?.url ?? image.src;
-}
-
 function teaserImage(manifest: AssetManifest, image: ExposeImage | null) {
   if (!image) return null;
   const resolved = resolveEntry(manifest[image.src], "/preview/assets", image.alt);
   if (!resolved) return null;
   return {
-    src: printSrc(resolved),
+    src: printSource(resolved),
     alt: image.alt,
     width: resolved.width,
     height: resolved.height,
@@ -475,7 +464,7 @@ async function brandImageSrc(tx: Transaction, workspaceId: string, assetId: stri
     .from(assets)
     .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
   const image = row && resolveEntry({ ...row, assetId: row.id }, "/preview/assets", "");
-  return image ? printSrc(image) : null;
+  return image ? printSource(image) : null;
 }
 
 const STATUS_TIMESTAMP: Partial<Record<LetterStatus, keyof typeof letters.$inferInsert>> = {
