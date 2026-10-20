@@ -24,7 +24,7 @@ import {
 } from "@/domain/chat";
 import { contactLinks } from "@/domain/expose/contact-links";
 import { LONG_DRAFT, SHORT_DRAFT } from "@/domain/intent/score";
-import { notificationCopy } from "@/domain/notifications";
+import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import type { ChatMessageView } from "@/domain/realtime";
 import { signToken, verifyToken } from "@/domain/tracking/signed-token";
 import type { RealtimeSubscription } from "@/infra";
@@ -185,8 +185,8 @@ export async function postVisitorMessage(
           prospectId: thread.prospectId,
           // One notification per conversation burst; each message updates the push.
           groupKey: `chat:${thread.id}`,
-          url: `/kunden/${thread.prospectId}`,
-          action: { title: "Antworten", url: `/chat/${thread.id}` },
+          url: notificationUrl({ trigger: "chat_message", threadId: thread.id }),
+          action: { title: "Zum Kunden", url: `/kunden/${thread.prospectId}` },
           ...notificationCopy({ trigger: "chat_message", company, message: parsed.data.body }),
         },
       });
@@ -493,7 +493,7 @@ export async function createCallbackRequest(
           trigger: "callback",
           prospectId: expose.prospectId,
           groupKey: `callback:${request.id}`,
-          url: `/kunden/${expose.prospectId}`,
+          url: notificationUrl({ trigger: "callback", prospectId: expose.prospectId }),
           ...notificationCopy({
             trigger: "callback",
             company,
