@@ -13,6 +13,7 @@ import {
 } from "@react-pdf/renderer";
 import { Fragment } from "react";
 import { parseRichText, type Inline } from "@/domain/expose/rich-text";
+import { MAX_BADGE_LOGO_RATIO, tintLogo } from "@/domain/letters/tint";
 import { displayStyle, LetterDecor, TeaserPage, TeaserQrCard } from "./teaser-page";
 import type { PrintableLetterData } from "./types";
 
@@ -289,6 +290,41 @@ async function printableImage(src: string) {
   }
 }
 
+/**
+ * The agency logo for the middle of the QR code: one colour on the accent,
+ * as a square JPEG (see above why not PNG). Null for a wordmark too wide to
+ * read at badge size, or when it fails to load; the badge is then a plain dot.
+ */
+async function badgeLogo(src: string, background: string, ink: string) {
+  try {
+    const response = await fetch(src);
+    if (!response.ok) return null;
+    const bitmap = await createImageBitmap(await response.blob());
+    const ratio = Math.max(bitmap.width / bitmap.height, bitmap.height / bitmap.width);
+    if (ratio > MAX_BADGE_LOGO_RATIO) {
+      bitmap.close();
+      return null;
+    }
+    const side = 256;
+    const scale = side / Math.max(bitmap.width, bitmap.height);
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = side;
+    canvas.height = side;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(bitmap, (side - width) / 2, (side - height) / 2, width, height);
+    bitmap.close();
+    const pixels = context.getImageData(0, 0, side, side);
+    tintLogo(pixels.data, background, ink);
+    context.putImageData(pixels, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.92);
+  } catch {
+    return null;
+  }
+}
+
 async function withPrintableImages(letters: PrintableLetterData[]) {
   const cache = new Map<string, Promise<string | null>>();
   const convert = async (src: string | null) => {
@@ -308,6 +344,10 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
         convert(teaser?.beforeAfter?.after.src ?? null),
         convert(letter.senderLogo),
       ]);
+      const qrLogo =
+        teaser && letter.senderLogo
+          ? await badgeLogo(letter.senderLogo, teaser.colors.accent, teaser.colors.onAccent)
+          : null;
       const missingImages =
         Boolean(teaser?.image && !image) ||
         Boolean(teaser?.logo && !logo) ||
@@ -333,6 +373,7 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
                 }
               : null,
           ownerPhoto,
+          qrLogo,
         },
       };
     }),

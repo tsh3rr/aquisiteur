@@ -450,6 +450,7 @@ export async function loadPrintableLetters(
               image: teaserImage(source.manifest, teaser.image),
               logo: teaserImage(source.manifest, teaser.logo),
               beforeAfter: printableBeforeAfter(source.manifest, teaser.beforeAfter),
+              qrLogo: null,
               ownerPhoto,
               contact:
                 letter.options.contact !== false && (sender.phone || sender.email)

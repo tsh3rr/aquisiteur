@@ -78,7 +78,6 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
       "lead": "…", // sonst hero.lead
       "image": { "src": "assets/teaser.png", "alt": "…" }, // sonst hero.image, Nachher-Bild oder erstes Mockup
       "ideas": [{ "title": "Vorbestellen", "text": "…" }], // 1–3, sonst die ersten drei des proposal-Blocks
-      "qrBadge": "Los", // Mitte des QR-Codes: bis 4 Zeichen, false für nichts; sonst ein Pfeil
       // "enabled": false druckt den Brief ohne zweite Seite
     },
   },
@@ -106,8 +105,7 @@ Damit sie gut wirkt:
 - Ideen mit kurzen Titeln (unter 30 Zeichen) und Beschreibungen unter 170 Zeichen; Längeres wird am
   Wortende gekürzt.
 
-Mit `letter.teaser` lassen sich Headline, Lead, Bild und Ideen für den Brief überschreiben, mit
-`qrBadge` auch das Zeichen in der Mitte des QR-Codes (Standard: ein Pfeil).
+Mit `letter.teaser` lassen sich Headline, Lead, Bild und Ideen für den Brief überschreiben.
 
 ### Texte
 

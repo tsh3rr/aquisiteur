@@ -501,12 +501,6 @@ const letterTeaserSchema = z
       .max(3)
       .optional()
       .describe("Up to three ideas; defaults to the first three items of the proposal block."),
-    qrBadge: z
-      .union([z.string().trim().min(1).max(4), z.literal(false)])
-      .optional()
-      .describe(
-        "Centre of the QR code on the letter: up to 4 characters (e.g. 'Los'), false for none. Defaults to an arrow.",
-      ),
   })
   .strict();
 

@@ -34,8 +34,6 @@ export interface LetterTeaser {
   } | null;
   /** Headline face follows the exposé style. */
   style: ExposeStyle;
-  /** Centre of the letter's QR code: an arrow „go here“, a short word, or nothing. */
-  qrBadge: QrBadge;
   /** sRGB hex for the PDF renderer, each text colour at least 4.5:1 on its background. */
   colors: {
     accent: string;
@@ -48,8 +46,6 @@ export interface LetterTeaser {
     paper: string;
   };
 }
-
-export type QrBadge = { kind: "arrow" } | { kind: "text"; text: string } | null;
 
 export const MAX_TEASER_IDEAS = 3;
 
@@ -154,12 +150,6 @@ export function buildLetterTeaser(document: ExposeDocument): LetterTeaser | null
           }
         : null,
     style,
-    qrBadge:
-      override?.qrBadge === false
-        ? null
-        : override?.qrBadge
-          ? { kind: "text", text: override.qrBadge }
-          : { kind: "arrow" },
     logo: theme.logo ?? null,
     ideasTitle: clip(
       override?.ideas ? "Meine Ideen für Sie" : (proposal?.title ?? "Meine Ideen für Sie"),
@@ -200,4 +190,9 @@ export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo" | "
   contact: { phone: string | null; email: string | null } | null;
   /** The same code as `qrModules`, at level H for the dotted style with a logo in the middle. */
   qr: { size: number; bits: string };
+  /**
+   * Agency logo for the middle of the code, already tinted onto the accent
+   * (JPEG data URL, made in the browser); null leaves a plain accent dot.
+   */
+  qrLogo: string | null;
 }
