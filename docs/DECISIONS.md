@@ -642,3 +642,23 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   sind `relative`, sonst ziehen absolut positionierte `sr-only`-Texte die Seite breiter.
 - Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
   Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
+
+## ADR-0057 · Aufgaben und Wiedervorlagen (2026-10-20)
+
+- Tabelle `tasks` je Prospect: Fälligkeit als lokales Kalenderdatum (`due_date`) plus optionale Uhrzeit
+  (`due_time`, „14:00“), damit „Freitag anrufen“ ohne Uhrzeit den ganzen Tag fällig bleibt und erst
+  danach überfällig wird. Erinnerungsart (`reminder`: keine, zur Fälligkeit, 1 Stunde vorher, am Vortag)
+  wird beim Speichern in der Zeitzone des Workspaces zu `remind_at`; ganztägige Aufgaben erinnern um
+  8:00. Liegt der Zeitpunkt beim Speichern schon zurück, gilt die Erinnerung als erledigt (kein Ping
+  beim Anlegen). Ein neues Datum setzt sie zurück.
+- Versand im stündlichen Job (`runTaskReminders`): Aufgabe erst per `reminded_at` beanspruchen, dann
+  benachrichtigen, so erinnert ein doppelter Lauf nie zweimal. Eine Erinnerung für 9:00 kommt beim
+  Cron `5 * * * *` um 9:05; feiner wird es nur mit einem häufigeren Aufruf desselben Endpunkts.
+- Benachrichtigung mit Trigger `task_due`, Tippen öffnet `/kunden/<id>#aufgabe-<id>` (hervorgehoben
+  per `:target`). Erinnerungen sind pro Aufgabe gewünscht und brauchen deshalb keine Regel: ohne
+  `task_due`-Regel gehen sie per Push und E-Mail raus (`TASK_REMINDER_FALLBACK`), eine Regel ändert
+  Kanäle und Ruhezeiten, eine abgeschaltete Regel stellt sie ab. Kein Backfill, weil der neue
+  Enum-Wert in derselben Migrations-Transaktion nicht nutzbar wäre.
+- „Heute“ zeigt Überfälliges und heute Fälliges, `/aufgaben` alles offene über alle Kunden; die
+  Tageszusammenfassung nennt die Zahl der heute fälligen Aufgaben. Aufgaben gehören zum
+  Prospect-Export und werden mit dem Prospect gelöscht.

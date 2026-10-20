@@ -1,4 +1,4 @@
-import { FileJson, Inbox, MailOpen, MessageCircle } from "lucide-react";
+import { ArrowRight, FileJson, Inbox, MailOpen, MessageCircle } from "lucide-react";
 import { eq } from "drizzle-orm";
 import type { Metadata, Route } from "next";
 import Link from "next/link";
@@ -8,27 +8,37 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { IntentSummary } from "@/components/cockpit/intent";
 import { LiveFeed } from "@/components/cockpit/live-feed";
+import { TaskList } from "@/components/cockpit/tasks";
+import { can } from "@/domain/authz";
+import { localDateString } from "@/domain/tasks";
 import { listCallbacks, listThreads } from "@/server/chat/owner";
 import { listHotProspects } from "@/server/intent/list";
 import { requireCockpit } from "@/server/session";
+import { listOpenTasks, taskClock, taskItemView } from "@/server/tasks";
 import { CallbackList } from "./chat/callbacks";
 import { LiveRefresh } from "./chat/live-refresh";
 
 export const metadata: Metadata = { title: "Heute" };
 
 export default async function TodayPage() {
-  const { workspace, user, tenant } = await requireCockpit();
+  const { workspace, user, actor, tenant } = await requireCockpit();
   const [row] = await tenant((tx) =>
     tx
       .select({ profile: workspaceSettings.profile })
       .from(workspaceSettings)
       .where(eq(workspaceSettings.workspaceId, workspace.id)),
   );
-  const [threads, callbacks, hot] = await tenant(async (tx) =>
+  const [threads, callbacks, hot, { tasks, clock }] = await tenant(async (tx) =>
     Promise.all([
       listThreads(tx, workspace.id, { limit: 50 }),
       listCallbacks(tx, workspace.id, { openOnly: true }),
       listHotProspects(tx, workspace.id, { minScore: 24, limit: 8 }),
+      taskClock(tx, workspace.id).then(async (clock) => ({
+        clock,
+        tasks: await listOpenTasks(tx, workspace.id, {
+          until: localDateString(new Date(clock.now), clock.timeZone),
+        }),
+      })),
     ]),
   );
   const unreadThreads = threads.filter((thread) => thread.unread > 0);
@@ -50,7 +60,13 @@ export default async function TodayPage() {
       </header>
 
       <LiveRefresh
-        events={["chat.message", "callback.created", "intent.updated", "notification.created"]}
+        events={[
+          "chat.message",
+          "callback.created",
+          "intent.updated",
+          "notification.created",
+          "task.changed",
+        ]}
       />
       <section aria-labelledby="needs-reaction" className="grid gap-4">
         <div className="flex items-center gap-2">
@@ -125,6 +141,35 @@ export default async function TodayPage() {
             ) : null}
             {callbacks.length > 0 ? <CallbackList callbacks={callbacks} showCompany /> : null}
           </div>
+        )}
+      </section>
+
+      <section aria-labelledby="follow-ups" className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 id="follow-ups" className="text-lg font-semibold">
+            Wiedervorlagen
+          </h2>
+          <Badge tone={tasks.length > 0 ? "accent" : "neutral"}>{tasks.length}</Badge>
+          <Link
+            href="/aufgaben"
+            className="ml-auto inline-flex min-h-11 items-center gap-1 text-sm font-medium text-accent underline-offset-4 hover:underline"
+          >
+            Alle Aufgaben
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </div>
+        {tasks.length === 0 ? (
+          <p className="text-sm text-foreground-muted">
+            Heute ist nichts fällig. Wiedervorlagen legen Sie auf der Kundenseite an.
+          </p>
+        ) : (
+          <TaskList
+            tasks={tasks.map(taskItemView)}
+            clock={clock}
+            showCompany
+            canManage={can(actor, "prospects.manage", { workspaceId: workspace.id })}
+            label="Heute und überfällig"
+          />
         )}
       </section>
 

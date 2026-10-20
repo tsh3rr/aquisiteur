@@ -82,7 +82,8 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [x] Einstellungen → System mit Limits (ADR-0045)
 - [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
-- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
+- [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0057)
+- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
 
 ## Später
 

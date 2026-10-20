@@ -1,5 +1,17 @@
 import "server-only";
-import { and, count, countDistinct, desc, eq, gt, gte, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  isNull,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database } from "@/db";
 import {
@@ -11,6 +23,7 @@ import {
   notificationRules,
   notifications,
   prospects,
+  tasks,
   users,
   visits,
 } from "@/db/schema";
@@ -41,6 +54,8 @@ export interface DigestContent {
   prospects: number;
   unreadChats: number;
   openCallbacks: number;
+  /** Open tasks due today or earlier. */
+  dueTasks: number;
   top: { prospectId: string; company: string; score: number; headline: string; detail: string }[];
 }
 
@@ -49,9 +64,10 @@ export async function digestContent(
   db: Database,
   workspaceId: string,
   now: Date,
+  timeZone = "Europe/Berlin",
 ): Promise<DigestContent> {
   const since = new Date(now.getTime() - DAY_MS);
-  const [visitRow, unreadRow, callbackRow, top] = await Promise.all([
+  const [visitRow, unreadRow, callbackRow, taskRow, top] = await Promise.all([
     db
       .select({ visits: count(), prospects: countDistinct(visits.prospectId) })
       .from(visits)
@@ -88,6 +104,16 @@ export async function digestContent(
         and(eq(callbackRequests.workspaceId, workspaceId), eq(callbackRequests.status, "open")),
       ),
     db
+      .select({ value: count() })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.workspaceId, workspaceId),
+          isNull(tasks.doneAt),
+          lte(tasks.dueDate, localDate(now, timeZone)),
+        ),
+      ),
+    db
       .select({
         prospectId: intentScores.prospectId,
         company: prospects.companyName,
@@ -117,6 +143,7 @@ export async function digestContent(
     prospects: visitRow[0]?.prospects ?? 0,
     unreadChats: unreadRow[0]?.value ?? 0,
     openCallbacks: callbackRow[0]?.value ?? 0,
+    dueTasks: taskRow[0]?.value ?? 0,
     top: top.map((row) => ({
       prospectId: row.prospectId,
       company: row.company,
@@ -142,9 +169,14 @@ export function digestSummary(content: DigestContent): string | null {
   if (content.openCallbacks > 0) {
     parts.push(plural(content.openCallbacks, "offene Rückrufbitte", "offene Rückrufbitten"));
   }
-  if (parts.length === 0) return null;
+  const tasks =
+    content.dueTasks > 0
+      ? `Heute fällig: ${plural(content.dueTasks, "Aufgabe", "Aufgaben")}.`
+      : null;
+  if (parts.length === 0) return tasks;
   const last = parts.pop()!;
-  return `In den letzten 24 Stunden: ${parts.length > 0 ? `${parts.join(", ")} und ${last}` : last}.`;
+  const activity = `In den letzten 24 Stunden: ${parts.length > 0 ? `${parts.join(", ")} und ${last}` : last}.`;
+  return tasks ? `${activity} ${tasks}` : activity;
 }
 
 export type DigestOutcome = "sent" | "recorded" | "nothing" | "not_due" | "done";
@@ -168,7 +200,7 @@ export async function runDigest(
     );
   if (existing) return "done";
 
-  const content = await digestContent(db, rule.workspaceId, now);
+  const content = await digestContent(db, rule.workspaceId, now, settings.timezone);
   const summary = digestSummary(content);
   if (!summary) return "nothing";
 

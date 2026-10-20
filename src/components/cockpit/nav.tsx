@@ -4,6 +4,7 @@ import {
   BarChart3,
   FileText,
   Flag,
+  ListChecks,
   Mail,
   MessageCircle,
   Palette,
@@ -23,6 +24,7 @@ import { useLiveEvents } from "./live";
 const items: { href: Route; label: string; icon: typeof Sun; mobile: boolean }[] = [
   { href: "/", label: "Heute", icon: Sun, mobile: true },
   { href: "/kunden", label: "Kunden", icon: Users, mobile: true },
+  { href: "/aufgaben", label: "Aufgaben", icon: ListChecks, mobile: false },
   { href: "/kampagnen", label: "Kampagnen", icon: Flag, mobile: false },
   { href: "/briefe", label: "Briefe", icon: Mail, mobile: false },
   { href: "/auswertung", label: "Auswertung", icon: BarChart3, mobile: false },
