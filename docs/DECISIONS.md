@@ -642,3 +642,23 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   sind `relative`, sonst ziehen absolut positionierte `sr-only`-Texte die Seite breiter.
 - Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
   Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
+
+## ADR-0057 · Globale Suche, Command Palette und Tastaturkürzel (2026-10-20)
+
+- Eine Palette für Suche und Befehle (§7.8): ⌘K / Strg+K überall, „/“ außerhalb von Textfeldern, auf
+  dem Handy ein Suchknopf im Kopf, am Desktop ein Suchfeld in der Seitenleiste. Radix Dialog sorgt für
+  Fokusfalle, Escape und Fokus-Rückgabe (beim Tippen auf iOS bekommt der Knopf keinen Fokus, daher gibt
+  die Palette ihn ausdrücklich zurück).
+- Muster: ARIA-Combobox mit `aria-activedescendant`, Treffer als `listbox` mit Gruppen (Kunden, Exposés,
+  Kampagnen, Seiten, Aktionen), Trefferzahl über eine `status`-Region.
+- Datensätze sucht `searchWorkspace()` (`src/server/search.ts`) als Tenant, also unter RLS und zusätzlich
+  mit `workspace_id`-Filter: Firma, Ort, Branche, E-Mail, Telefon, Schlüssel und Ansprechpartner,
+  Exposé-Titel und Ref-Code, Kampagnenname. Umlaute werden in SQL gefaltet (ä = ae = a), ohne
+  `unaccent`-Extension, damit es reines Postgres bleibt. Bei Hunderten Kunden je Workspace reicht ein
+  Scan; ein Trigramm-Index folgt erst, wenn es spürbar langsam wird.
+- Befehle und Kürzel stehen zentral in `src/domain/search.ts` (`COMMANDS`). Folgen wie „G K“ statt
+  Einzeltasten mit Modifikator, weil Browser die meisten Strg-Kombinationen belegen.
+- WCAG 2.1.4: Kürzel aus einzelnen Zeichen („/“, „?“, „G K“) lassen sich in der Kürzel-Übersicht („?“)
+  pro Gerät abschalten (localStorage). ⌘K / Strg+K bleibt immer aktiv. In Eingabefeldern und Dialogen
+  greifen Einzeltasten nie.
+- Aufgaben und Wiedervorlagen kommen als Treffergruppe dazu, sobald das Feature auf `main` ist.
