@@ -123,13 +123,49 @@ Zurückspielen: `docker compose exec -T db pg_restore -U aquisiteur -d aquisiteu
 
 ## 10. Updates
 
-Nach jedem Merge auf `main` baut GitHub ein neues Image (Actions → Image). Dann auf dem Server:
+Nach jedem Merge auf `main` baut GitHub ein neues Image (Actions → Image). Von Hand geht es auf dem
+Server so:
 
 ```bash
 cd /opt/aquisiteur && docker compose pull app && docker compose up -d
 ```
 
 Die App spielt beim Start die Migrationen ein.
+
+### Automatisch nach jedem Merge
+
+Mit einem Deploy-Schlüssel loggt sich GitHub nach dem Bauen selbst ein und führt genau diesen Befehl
+aus. Werden mehrere Pull Requests kurz nacheinander gemergt, bricht GitHub den laufenden Durchgang ab
+und baut nur den neuesten Stand, es entsteht also ein Image und ein Deployment. Einmal einrichten:
+
+1. Auf dem Server einen eigenen Schlüssel erzeugen, der nur das Update ausführen darf (auch wenn er in
+   falsche Hände gerät, kann er keine Shell öffnen):
+
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C github-deploy -f /root/.ssh/github-deploy
+   echo "command=\"cd /opt/aquisiteur && docker compose pull -q app && docker compose up -d && docker image prune -f\",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty $(cat /root/.ssh/github-deploy.pub)" >> /root/.ssh/authorized_keys
+   cat /root/.ssh/github-deploy                 # privater Schlüssel, für DEPLOY_SSH_KEY
+   ssh-keyscan -p <port> <server> 2>/dev/null   # Fingerabdruck des Servers, für DEPLOY_KNOWN_HOSTS
+   ```
+
+2. Auf GitHub im Repo unter **Settings → Secrets and variables → Actions → New repository secret**
+   anlegen (am Handy im Browser, die GitHub-App kann keine Secrets):
+
+   | Name                 | Wert                                                                    |
+   | -------------------- | ----------------------------------------------------------------------- |
+   | `DEPLOY_SSH_KEY`     | die ganze Ausgabe von `cat`, mit den Zeilen `-----BEGIN` und `-----END` |
+   | `DEPLOY_HOST`        | `<server>`, etwa `srv44.mikr.us`                                        |
+   | `DEPLOY_PORT`        | `<port>`, etwa `10123`                                                  |
+   | `DEPLOY_KNOWN_HOSTS` | Ausgabe von `ssh-keyscan` (optional, schützt vor einem falschen Server) |
+
+   Optional `DEPLOY_USER` (Standard `root`) und `DEPLOY_DIR` (Standard `/opt/aquisiteur`).
+
+3. Den privaten Schlüssel vom Server löschen, er liegt jetzt nur noch bei GitHub:
+   `rm /root/.ssh/github-deploy`.
+
+Ab dann läuft nach jedem Merge **Actions → Image** mit den Jobs „Build and push the app image“ und
+„Deploy to the Compose server“. Von Hand anstoßen: **Actions → Image → Run workflow** (geht auch in der
+GitHub-App). Ohne die Secrets überspringt der Workflow das Deployment.
 
 ## Wenn etwas hakt
 
@@ -140,3 +176,5 @@ Die App spielt beim Start die Migrationen ein.
 | Seite antwortet `404 Unknown host`      | Adresse passt weder zu `APP_URL` noch zu `<slug>.<PLATFORM_DOMAIN>`.                                  |
 | `expose:publish` bricht mit Code 143 ab | Auf dem Server zu wenig Speicher für die Bilder: auf dem eigenen Rechner veröffentlichen (Schritt 8). |
 | Mikrus meldet, dass kein Server lauscht | App läuft nicht: `docker compose ps` und `docker compose logs app`.                                   |
+| Deploy-Job: `Permission denied`         | Schlüssel fehlt in `authorized_keys` oder `DEPLOY_SSH_KEY` ist unvollständig kopiert.                 |
+| Deploy-Job: `Host key verification`     | `DEPLOY_KNOWN_HOSTS` passt nicht zu Server und Port: `ssh-keyscan` erneut ausführen.                  |
