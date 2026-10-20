@@ -169,7 +169,12 @@ function DownArrow({ width, color }: { width: number; color: string }) {
 /** Small line icons for the contact card; the text next to them carries the meaning. */
 function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string }) {
   return (
-    <Svg width={mm(3.4)} height={mm(3.4)} viewBox="0 0 24 24" style={{ marginRight: mm(1.5) }}>
+    <Svg
+      width={mm(3.4)}
+      height={mm(3.4)}
+      viewBox="0 0 24 24"
+      style={{ marginRight: mm(1.5), marginTop: mm(0.5) }}
+    >
       {kind === "phone" ? (
         <Path
           d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"
@@ -204,8 +209,9 @@ function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string })
 }
 
 /**
- * The white tile with the dotted code and a small „Scannen“ label centred
- * below it, clear of the modules. Everything stays upright: rotated raster and fine dots
+ * The white tile with the dotted code and a small „Scannen“ label centred on
+ * its lower edge. Half the label overlaps the tile's padding and the quiet
+ * module, never the modules themselves. Everything stays upright: rotated raster and fine dots
  * print blurry.
  */
 function QrTile({
@@ -219,7 +225,7 @@ function QrTile({
 }) {
   const { colors } = teaser;
   return (
-    <View style={{ alignItems: "center" }}>
+    <View style={{ paddingBottom: LABEL_HEIGHT / 2 }}>
       <View
         style={{
           backgroundColor: "#ffffff",
@@ -243,7 +249,7 @@ function QrTile({
           />
         </Link>
       </View>
-      <View style={{ marginTop: mm(1.5) }}>
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, alignItems: "center" }}>
         <Label background={colors.accent} color={colors.onAccent}>
           Scannen
         </Label>
@@ -332,21 +338,12 @@ export function TeaserQrCard({
                 rowGap: mm(1),
               }}
             >
-              <Link
-                src={`https://${letter.qr.shortLink}`}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: colors.onAccent,
-                  backgroundColor: colors.accent,
-                  paddingVertical: mm(1),
-                  paddingHorizontal: mm(2.5),
-                  borderRadius: mm(3),
-                  textDecoration: "none",
-                }}
-              >
-                {letter.qr.shortLink}
-              </Link>
+              <LinkPill
+                href={`https://${letter.qr.shortLink}`}
+                text={letter.qr.shortLink}
+                size={12}
+                colors={colors}
+              />
             </View>
           ) : null}
         </View>
@@ -462,6 +459,46 @@ function BrowserWindow({ image, width }: { image: PrintImage; width: number }) {
   );
 }
 
+/** Label box: 8.5 pt text at line height 1 plus 1.3 mm padding top and bottom. */
+const LABEL_HEIGHT = 8.5 + mm(2.6);
+
+/**
+ * The typed link as a pill. Line height 1 so padding alone sets the box and
+ * the text sits in its middle, not on the leading of the page.
+ */
+function LinkPill({
+  href,
+  text,
+  size,
+  colors,
+}: {
+  href: string;
+  text: string;
+  size: number;
+  colors: PrintableTeaser["colors"];
+}) {
+  return (
+    <View style={{ flexDirection: "row" }}>
+      <Link
+        src={href}
+        style={{
+          backgroundColor: colors.accent,
+          // Geist sits low in its line box; less top padding centres it optically.
+          paddingTop: size * 0.16,
+          paddingBottom: size * 0.46,
+          paddingHorizontal: size * 0.7,
+          borderRadius: size,
+          textDecoration: "none",
+        }}
+      >
+        <Text style={{ fontSize: size, lineHeight: 1, fontWeight: 600, color: colors.onAccent }}>
+          {text}
+        </Text>
+      </Link>
+    </View>
+  );
+}
+
 /** A small upright label in capitals; centring is up to the parent. */
 function Label({
   children,
@@ -476,7 +513,8 @@ function Label({
     <View
       style={{
         backgroundColor: background,
-        paddingVertical: mm(1),
+        paddingTop: mm(1.1),
+        paddingBottom: mm(1.5),
         paddingHorizontal: mm(2.8),
         borderRadius: mm(3),
       }}
@@ -484,6 +522,7 @@ function Label({
       <Text
         style={{
           fontSize: 8.5,
+          lineHeight: 1,
           fontWeight: 600,
           letterSpacing: 0.4,
           textTransform: "uppercase",
@@ -664,6 +703,18 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
   const display = displayStyle(teaser.style);
   const name = letter.signer.name;
   const showContact = Boolean(name || teaser.ownerPhoto || contact?.phone || contact?.email);
+  const gap = mm(4);
+  // The code spans the left column: its top on the headline, its label's
+  // bottom on the contact row. Heights of the fixed parts, in points.
+  const leftHeight =
+    20 +
+    mm(2) +
+    10 * 1.4 +
+    (letter.qr.shortLink ? gap + 14 * 1.62 : 0) +
+    (showContact ? gap * 2 + 0.75 + mm(11) : 0);
+  // The tile starts on the headline's cap height, not on its line box.
+  const capInset = mm(1.3);
+  const qrSize = Math.max(mm(28), leftHeight - capInset - mm(4.4) - 2.4 - LABEL_HEIGHT / 2);
   return (
     <View
       wrap={false}
@@ -673,46 +724,40 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
         left: mm(18),
         right: mm(18),
         flexDirection: "row",
-        alignItems: "center",
-        gap: mm(6),
-        padding: mm(5),
-        paddingLeft: mm(7),
+        alignItems: "stretch",
+        padding: mm(6),
         borderRadius: mm(5),
         backgroundColor: colors.accentSoft,
         color: colors.ink,
       }}
     >
-      <View style={{ flex: 1 }}>
-        <Text style={{ ...display, fontSize: 20 }}>Alles Weitere auf dieser Seite</Text>
-        <Text style={{ fontSize: 10, marginTop: mm(1.5), color: colors.muted }}>
-          Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
-        </Text>
-        {letter.qr.shortLink ? (
-          <View style={{ flexDirection: "row", marginTop: mm(3) }}>
-            <Link
-              src={`https://${letter.qr.shortLink}`}
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: colors.onAccent,
-                backgroundColor: colors.accent,
-                paddingVertical: mm(1.4),
-                paddingHorizontal: mm(3.5),
-                borderRadius: mm(3.5),
-                textDecoration: "none",
-              }}
-            >
-              {letter.qr.shortLink}
-            </Link>
-          </View>
-        ) : null}
+      {/* Left column: top edge on the headline, bottom edge on the contact row. */}
+      <View style={{ flex: 1, justifyContent: "space-between", marginRight: mm(8) }}>
+        <View>
+          <Text style={{ ...display, fontSize: 20, lineHeight: 1 }}>
+            Alles Weitere auf dieser Seite
+          </Text>
+          <Text style={{ fontSize: 10, marginTop: mm(2), color: colors.muted }}>
+            Alle Entwürfe, Beispiele und ein Preisrahmen.
+          </Text>
+          {letter.qr.shortLink ? (
+            <View style={{ marginTop: gap }}>
+              <LinkPill
+                href={`https://${letter.qr.shortLink}`}
+                text={letter.qr.shortLink}
+                size={14}
+                colors={colors}
+              />
+            </View>
+          ) : null}
+        </View>
         {showContact ? (
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              marginTop: mm(4),
-              paddingTop: mm(3.5),
+              marginTop: gap,
+              paddingTop: gap,
               borderTopWidth: 0.75,
               borderTopColor: colors.muted,
             }}
@@ -731,26 +776,43 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
               />
             ) : null}
             <View style={{ flexShrink: 1 }}>
-              {name ? <Text style={{ fontSize: 10.5, fontWeight: 600 }}>{name}</Text> : null}
-              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: mm(0.8) }}>
+              {name ? (
+                <Text style={{ fontSize: 10.5, lineHeight: 1, fontWeight: 600 }}>{name}</Text>
+              ) : null}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: name ? mm(2) : 0 }}>
                 {contact?.phone ? (
-                  <View style={{ flexDirection: "row", alignItems: "center", marginRight: mm(5) }}>
-                    <ContactIcon kind="phone" color={colors.accent} />
-                    <Text style={{ fontSize: 10 }}>{contact.phone}</Text>
-                  </View>
+                  <ContactLine kind="phone" color={colors.accent} text={contact.phone} />
                 ) : null}
                 {contact?.email ? (
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <ContactIcon kind="mail" color={colors.accent} />
-                    <Text style={{ fontSize: 10 }}>{contact.email}</Text>
-                  </View>
+                  <ContactLine kind="mail" color={colors.accent} text={contact.email} />
                 ) : null}
               </View>
             </View>
           </View>
         ) : null}
       </View>
-      <QrTile letter={letter} teaser={teaser} size={mm(32)} />
+      {/* Right column: code on the top edge, its label on the bottom edge. */}
+      <View style={{ justifyContent: "flex-end", alignItems: "center", paddingTop: capInset }}>
+        <QrTile letter={letter} teaser={teaser} size={qrSize} />
+      </View>
+    </View>
+  );
+}
+
+/** Icon and text on one centre line. */
+function ContactLine({
+  kind,
+  color,
+  text,
+}: {
+  kind: "phone" | "mail";
+  color: string;
+  text: string;
+}) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", marginRight: mm(6) }}>
+      <ContactIcon kind={kind} color={color} />
+      <Text style={{ fontSize: 10, lineHeight: 1 }}>{text}</Text>
     </View>
   );
 }
