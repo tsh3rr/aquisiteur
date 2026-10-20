@@ -303,7 +303,7 @@ export function ChatPanel(props: ChatPanelProps) {
       </div>
 
       <form
-        className="grid gap-2 border-t border-border px-4 py-3"
+        className="grid gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3"
         onSubmit={(event) => {
           event.preventDefault();
           void send();

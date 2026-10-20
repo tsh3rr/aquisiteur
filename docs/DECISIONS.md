@@ -640,3 +640,5 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Ein Seitenraster direkt in `#main` hat eine Spalte `minmax(0, 1fr)` (globals.css), damit breite
   Tabellen und Filterzeilen die Seite auf dem Handy nicht verbreitern. Scroll-Container um Tabellen
   sind `relative`, sonst ziehen absolut positionierte `sr-only`-Texte die Seite breiter.
+- Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
+  Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
