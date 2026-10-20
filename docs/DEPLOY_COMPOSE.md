@@ -132,7 +132,7 @@ cd /opt/aquisiteur && docker compose pull app && docker compose up -d
 
 Die App spielt beim Start die Migrationen ein.
 
-### Automatisch nach jedem Merge
+### Staging: automatisch nach jedem Merge
 
 Mit einem Deploy-Schlüssel loggt sich GitHub nach dem Bauen selbst ein und führt genau diesen Befehl
 aus. Werden mehrere Pull Requests kurz nacheinander gemergt, bricht GitHub den laufenden Durchgang ab
@@ -164,8 +164,31 @@ und baut nur den neuesten Stand, es entsteht also ein Image und ein Deployment. 
    `rm /root/.ssh/github-deploy`.
 
 Ab dann läuft nach jedem Merge **Actions → Image** mit den Jobs „Build and push the app image“ und
-„Deploy to the Compose server“. Von Hand anstoßen: **Actions → Image → Run workflow** (geht auch in der
+„Deploy to staging“. Von Hand anstoßen: **Actions → Image → Run workflow** (geht auch in der
 GitHub-App). Ohne die Secrets überspringt der Workflow das Deployment.
+
+### Produktion: nur freigegebene Versionen
+
+Der Server, der jeden Merge bekommt, ist Staging. Produktion läuft auf einem eigenen Server (etwa
+einem Mikrus 3.5) und bekommt nur, was du freigibst (ADR-0057). Einrichten wie oben, mit zwei
+Unterschieden:
+
+1. In der `.env` des Produktionsservers zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
+   eintragen. Ohne diese Zeile lädt er `latest` und damit jeden Merge wie Staging.
+2. Die Secrets heißen `PROD_DEPLOY_SSH_KEY`, `PROD_DEPLOY_HOST`, `PROD_DEPLOY_PORT` und optional
+   `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`, `PROD_DEPLOY_DIR`.
+
+Freigeben, auf eine von zwei Arten:
+
+- **Actions → Release → Run workflow** auf `main` (geht in der GitHub-App): bringt den aktuellen Stand
+  von `main` in Produktion.
+- Einen Tag wie `v2026.10.20` setzen, etwa über **Releases → Draft a new release**: bringt genau
+  diesen Commit in Produktion, und das Image bekommt den Tag als Namen.
+
+Zurück auf eine frühere Version: **Actions → Release → Run workflow** und statt `main` den älteren Tag
+wählen. Die Datenbank bleibt dabei, wie sie ist; Migrationen halten die vorige Version lauffähig.
+Freigaben warten aufeinander, statt sich abzubrechen. Ohne die `PROD_DEPLOY_*`-Secrets bekommt das
+Image nur den Namen `production`, ein Server wird nicht angefasst.
 
 ## Wenn etwas hakt
 
