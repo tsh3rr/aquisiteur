@@ -75,6 +75,11 @@ export const chatSettingsSchema = z.object({
    * length is kept. When on, the widget says so above the text field.
    */
   storeDraftContent: z.boolean().default(false),
+  /**
+   * Offer the prospect's known number in the callback form, masked
+   * (§7.4). Lives here because it shares the „Kontakt und Chat“ form.
+   */
+  prefillCallbackPhone: z.boolean().default(true),
 });
 
 /** Behaviour-based nudges in exposés (§7.4). Each can be switched off. */

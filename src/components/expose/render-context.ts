@@ -1,4 +1,5 @@
 import type { AssetManifest, ManifestEntry } from "@/db/schema";
+import type { KnownPhone } from "@/domain/expose/known-phones";
 import type { ExposeImage } from "@/domain/expose/schema";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 
@@ -15,6 +16,8 @@ export interface RenderContext {
   slug: string;
   prospectName: string;
   workspaceName: string;
+  /** Masked numbers the callback form may offer (§7.4). */
+  knownPhones: KnownPhone[];
 }
 
 export interface ResolvedImage {

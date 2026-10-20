@@ -37,6 +37,7 @@ export function ExposeView({
     slug: data.expose.slug,
     prospectName: data.prospect.companyName,
     workspaceName: data.workspace.name,
+    knownPhones: data.knownPhones,
   };
   const { document } = data;
   const logo = resolveImage(document.theme.logo, context);

@@ -200,7 +200,7 @@ exposes/
 - **WhatsApp** (`https://wa.me/<nummer>?text=…`)
 - **E-Mail** (`mailto:` mit Betreff und Text)
 - **Anrufen** (`tel:`) und **Rückruf anfordern** (Formular: Name, Telefon, Wunschzeit)
-- **Später (nicht v1): Rückruf-Formular vorausfüllen.** Sind in den Stammdaten des Kunden eine Telefon-, Handy- oder bestätigte WhatsApp-Nummer hinterlegt, bietet das Formular sie an, damit der Interessent nichts eintippen muss. Datenschutz: Der Exposé-Link kann weitergeleitet werden, deshalb erscheint die Nummer nur maskiert (z. B. „+49 170 ••• 67 verwenden?“) und wird erst nach einem Klick übernommen; die volle Nummer verlässt den Server nicht, der Rückruf geht an die gespeicherte Nummer. Pro Workspace abschaltbar.
+- **Rückruf-Formular vorausfüllen.** Sind in den Stammdaten des Kunden eine Telefon-, Handy- oder bestätigte WhatsApp-Nummer hinterlegt, bietet das Formular sie an, damit der Interessent nichts eintippen muss. Datenschutz: Der Exposé-Link kann weitergeleitet werden, deshalb erscheint die Nummer nur maskiert (z. B. „+49 170 ••• 67 verwenden?“) und wird erst nach einem Klick übernommen; die volle Nummer verlässt den Server nicht, der Rückruf geht an die gespeicherte Nummer. Pro Workspace abschaltbar.
 - **Termin buchen** (optional, Einbettung z. B. Cal.com, als Block konfigurierbar)
 - Vorbereitet: Facebook Messenger (`https://m.me/<page>?ref=…`), SMS (`sms:`)
 

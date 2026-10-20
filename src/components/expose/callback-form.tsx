@@ -3,6 +3,7 @@
 import { clsx } from "clsx";
 import { PhoneCall } from "lucide-react";
 import { useId, useRef, useState } from "react";
+import type { KnownPhone } from "@/domain/expose/known-phones";
 import { track, visitToken } from "./tracking-client";
 
 type State =
@@ -14,18 +15,29 @@ type State =
 const fieldClass =
   "min-h-11 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring aria-invalid:border-danger";
 
-/** „Rückruf anfordern“ (§7.4): name, phone, preferred time. Opens in place. */
+const linkClass =
+  "min-h-11 rounded-lg px-1 text-left font-medium text-foreground underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+
+/**
+ * „Rückruf anfordern“ (§7.4): name, phone, preferred time. Opens in place.
+ * Known numbers from the customer record are offered masked and only used
+ * after a click; the form then sends their reference, never the number.
+ */
 export function CallbackOption({
   slug,
   primary,
   disabled,
+  knownPhones,
 }: {
   slug: string;
   primary: boolean;
   disabled: boolean;
+  knownPhones: KnownPhone[];
 }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [chosen, setChosen] = useState<KnownPhone | null>(null);
+  const phoneInput = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const id = useId();
   const error = (field: string) => (state.kind === "error" ? state.fields?.[field] : undefined);
@@ -49,6 +61,8 @@ export function CallbackOption({
     const body = (await response?.json().catch(() => null)) as {
       fields?: Record<string, string>;
     } | null;
+    // The known number is gone or no longer offered: ask for it instead.
+    if (body?.fields?.phone) setChosen(null);
     setState({
       kind: "error",
       message:
@@ -126,27 +140,65 @@ export function CallbackOption({
                 </p>
               ) : null}
             </div>
-            <div className="grid gap-1.5">
-              <label htmlFor={`${id}-phone`} className="text-sm font-medium">
-                Telefonnummer
-              </label>
-              <input
-                id={`${id}-phone`}
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                required
-                maxLength={40}
-                aria-invalid={error("phone") ? true : undefined}
-                aria-describedby={error("phone") ? `${id}-phone-error` : undefined}
-                className={fieldClass}
-              />
-              {error("phone") ? (
-                <p id={`${id}-phone-error`} className="text-sm text-danger-soft-foreground">
-                  {error("phone")}
-                </p>
-              ) : null}
-            </div>
+            {chosen ? (
+              <div className="grid content-start gap-1.5">
+                <label htmlFor={`${id}-known`} className="text-sm font-medium">
+                  Telefonnummer
+                </label>
+                <input type="hidden" name="phoneRef" value={chosen.ref} />
+                {/* No name: only the reference above is sent, never this masked text. */}
+                <input
+                  id={`${id}-known`}
+                  readOnly
+                  value={chosen.masked}
+                  className={clsx(fieldClass, "tabular-nums")}
+                />
+                <button
+                  type="button"
+                  className={clsx(linkClass, "justify-self-start text-sm")}
+                  onClick={() => {
+                    setChosen(null);
+                    // The input mounts on the next render; focus it there.
+                    requestAnimationFrame(() => phoneInput.current?.focus());
+                  }}
+                >
+                  Andere Nummer eingeben
+                </button>
+              </div>
+            ) : (
+              <div className="grid content-start gap-1.5">
+                <label htmlFor={`${id}-phone`} className="text-sm font-medium">
+                  Telefonnummer
+                </label>
+                <input
+                  ref={phoneInput}
+                  id={`${id}-phone`}
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  maxLength={40}
+                  aria-invalid={error("phone") ? true : undefined}
+                  aria-describedby={error("phone") ? `${id}-phone-error` : undefined}
+                  className={fieldClass}
+                />
+                {error("phone") ? (
+                  <p id={`${id}-phone-error`} className="text-sm text-danger-soft-foreground">
+                    {error("phone")}
+                  </p>
+                ) : null}
+                {knownPhones.map((known) => (
+                  <button
+                    key={known.ref}
+                    type="button"
+                    className={clsx(linkClass, "justify-self-start text-sm")}
+                    onClick={() => setChosen(known)}
+                  >
+                    <span className="tabular-nums">{known.masked}</span> verwenden?
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid gap-1.5 sm:col-span-2">
               <label htmlFor={`${id}-time`} className="text-sm font-medium">
                 Wann passt es Ihnen?{" "}

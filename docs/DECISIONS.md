@@ -642,3 +642,16 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
   sind `relative`, sonst ziehen absolut positionierte `sr-only`-Texte die Seite breiter.
 - Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
   Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
+
+## ADR-0057 · Rückruf-Formular mit bekannter Nummer (2026-10-20)
+
+- Quellen: Telefonnummer des Kunden (`prospects.phone`), danach die Nummern seiner Ansprechpartner
+  (`contacts.phone`, Hauptkontakt zuerst). Doppelte Nummern (auch +49 und 0 gemischt) erscheinen einmal,
+  höchstens drei. Separate Handy- oder WhatsApp-Felder gibt es in den Stammdaten nicht.
+- Das Exposé bekommt nur die maskierte Form („+49 170 ••• 67“: Ländervorwahl, drei Ziffern, letzte zwei)
+  und einen Verweis (`p` oder die Kontakt-ID). Ein Klick auf „… verwenden?“ setzt den Verweis, das
+  Formular schickt `phoneRef` statt `phone`. Der Server sucht die Nummer erneut, nur beim Kunden dieses
+  Exposés und nur, solange die Einstellung an ist; sonst muss der Besucher die Nummer eintippen.
+- Einstellung: Einstellungen → Kontakt und Chat → „Bekannte Nummer anbieten“
+  (`chat.prefillCallbackPhone`, Standard an). Sie liegt im `chat`-JSON, weil sie im selben Formular
+  gespeichert wird; so braucht es keine Migration.
