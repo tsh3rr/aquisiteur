@@ -51,6 +51,7 @@ const tenantTables = {
   letters: schema.letters,
   consents: schema.consents,
   session_replays: schema.sessionReplays,
+  tasks: schema.tasks,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -165,6 +166,12 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
   await db
     .insert(schema.sessionReplays)
     .values({ workspaceId, prospectId: chat.prospectId, visitId: visit!.id });
+  await db.insert(schema.tasks).values({
+    workspaceId,
+    prospectId: chat.prospectId,
+    title: `Anrufen ${tag}`,
+    dueDate: "2026-10-23",
+  });
 }
 
 beforeAll(async () => {
