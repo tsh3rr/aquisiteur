@@ -609,8 +609,12 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden nach dem
   Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
   Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
-- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
-  der Mitte, deshalb Fehlerkorrektur H. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
+- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein Punkt in
+  der Akzentfarbe in der Mitte, deshalb Fehlerkorrektur H. Hat der Workspace ein Logo, steht es einfarbig
+  im Punkt (im Browser auf die Akzentfarbe umgefärbt, `src/domain/letters/tint.ts`, als JPEG wie alle
+  Briefbilder). Logos mit Transparenz zählen über den Alphakanal, deckende über ihre Helligkeit; breite
+  Wortmarken (Seitenverhältnis über 2,2) bleiben draußen, weil sie bei 5 mm unleserlich wären. Früher
+  stand dort ein „Hi!“, das nichts sagte. Die codierte URL ändert sich nicht. Der QR-Code im Exposé-PDF bekommt den reinen Punkt. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
   QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
 - Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
   mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.
