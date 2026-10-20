@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { renderTokensCss } from "@/design/render-css";
 import { contrastPairs, dark, light } from "@/design/tokens";
-import { contrastRatio, ensureContrast, oklchToLinearSrgb } from "./color";
+import { contrastRatio, ensureContrast, hexToOklch, oklchToHex, oklchToLinearSrgb } from "./color";
 
 describe("OKLCH conversion", () => {
   it("maps white and black correctly", () => {
@@ -12,6 +12,12 @@ describe("OKLCH conversion", () => {
       b: expect.closeTo(1, 3),
     });
     expect(contrastRatio({ l: 1, c: 0, h: 0 }, { l: 0, c: 0, h: 0 })).toBeCloseTo(21, 0);
+  });
+
+  it("round-trips hex colours", () => {
+    for (const hex of ["#3f8f7a", "#000000", "#ffffff", "#c2410c"]) {
+      expect(oklchToHex(hexToOklch(hex))).toBe(hex);
+    }
   });
 });
 

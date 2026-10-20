@@ -112,3 +112,15 @@ export function clampChroma(color: Oklch): Oklch {
   }
   return { ...color, c: lo };
 }
+
+/** OKLCH → #rrggbb, for renderers that only take sRGB hex (React-PDF). */
+export function oklchToHex(color: Oklch): string {
+  const { r, g, b } = oklchToLinearSrgb(color);
+  const encode = (channel: number) => {
+    const c = channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055;
+    return Math.round(Math.min(1, Math.max(0, c)) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${encode(r)}${encode(g)}${encode(b)}`;
+}

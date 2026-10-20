@@ -579,3 +579,25 @@ solche Server gibt es `deploy/compose.yml`: Postgres 16 und das App-Image von Gi
 Job und ein tägliches `pg_dump` laufen per Cron auf dem Server, Updates per `docker compose pull`.
 Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mit Cloudflare und R2
 (ADR-0052) der Weg, weil es Backups nach R2, Logs und Deployments per Oberfläche mitbringt.
+
+## ADR-0055 · Brief mit Exposé-Vorschau als zweite Seite (2026-10-20, ergänzt ADR-0037)
+
+Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“).
+Seite 1 bleibt das DIN-5008-Anschreiben, bekommt aber einen Briefkopf mit Absender, „Persönlich für …“
+und einem Bildstreifen aus dem Exposé oberhalb der Fensterzone; die QR-Box nimmt die Akzentfarbe an.
+Seite 2 ist eine gestaltete Teaser-Seite: großes Bild, Headline, Lead, bis zu drei Ideen als Karten
+und unten ein Band mit QR-Code, Kurzlink und Foto des Owners. Mehr Seiten bringen nichts, was das
+Exposé nicht besser kann; der Brief soll neugierig machen, nicht ersetzen.
+
+- Inhalte kommen automatisch aus `hero` und `proposal` (ersatzweise `findings`, Nachher-Bild,
+  erstes Mockup), reine Logik in `src/domain/letters/teaser.ts`. Optionale Überschreibungen stehen im
+  Exposé unter `letter.teaser` (additiv, Schema-Version bleibt 1).
+- Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden als Hex an
+  React-PDF gegeben; jede Textfarbe hat mindestens 4,5:1 auf ihrem Untergrund.
+- Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
+  mit Teaser-Seite. Die Seite zeigt immer die aktuelle Exposé-Version.
+- Bilder: Exposé-Bilder liegen nur als WebP/AVIF vor, React-PDF bettet nur PNG und JPEG ein. Der
+  Browser, der das PDF ohnehin rendert, wandelt sie per Canvas in JPEG (bis 1600 px). PNG wird bewusst
+  vermieden, auch für Logo und Unterschrift: React-PDF entpackt PNGs in einem Blob-Worker, den die CSP
+  (`worker-src 'self'`) blockiert, und das PDF würde nie fertig. Alle Bilder liegen auf weißem Papier,
+  JPEG auf Weiß verliert also nichts.

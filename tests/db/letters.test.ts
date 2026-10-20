@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant, type Transaction } from "@/db/client";
 import * as schema from "@/db/schema";
 import type { Actor } from "@/domain/authz";
+import type { StoredPrintOptions } from "@/domain/letters/lifecycle";
 import { previewImport } from "@/domain/prospects/import";
 import { NO_FILTER } from "@/server/analytics/filters";
 import { loadContent } from "@/server/analytics/content";
@@ -201,6 +202,28 @@ describe("letters", () => {
     expect(printable!.address).toEqual(["Café Müller", "Muster", "Markt 1", "04109 Leipzig"]);
     expect(printable!.qr.shortLink).toMatch(/^agentur-l\.localhost:3000\/[a-z0-9]+$/);
     expect(printable!.qrModules.path).toMatch(/^M\d/);
+    // Teaser page from the current exposé version (ADR-0055), on unless the letter says otherwise.
+    expect(printable!.teaser).toMatchObject({ headline: "Hallo Café Müller", ideas: [] });
+
+    const legacy: StoredPrintOptions = {
+      color: false,
+      duplex: false,
+      shipping: "standard",
+      envelope: "DL",
+      inserts: [],
+    };
+    const setOptions = (options: StoredPrintOptions) =>
+      asLea((tx) =>
+        tx.update(schema.letters).set({ options }).where(eq(schema.letters.id, cafeLetter)),
+      );
+    // Letters from before the teaser page have no `teaser` and print with it.
+    await setOptions(legacy);
+    const [old] = await asLea((tx) => loadPrintableLetters(tx, wsL, [cafeLetter]));
+    expect(old!.teaser).not.toBeNull();
+    await setOptions({ ...legacy, teaser: false });
+    const [plain] = await asLea((tx) => loadPrintableLetters(tx, wsL, [cafeLetter]));
+    expect(plain!.teaser).toBeNull();
+    await setOptions({ ...legacy, teaser: true });
   });
 
   it("marking as posted walks the lifecycle and sets the prospect's status", async () => {

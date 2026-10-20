@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ export function NewLettersForm({ ids, kind }: { ids: string[]; kind: "initial" |
   const [state, action, pending] = useActionState<CreateState, FormData>(createLettersAction, {
     ok: false,
   });
+  const teaserId = useId();
   return (
     <Card>
       <CardHeader>
@@ -52,6 +53,23 @@ export function NewLettersForm({ ids, kind }: { ids: string[]; kind: "initial" |
           </fieldset>
           <fieldset className="grid gap-1">
             <legend className="mb-1 text-sm font-medium">Druck</legend>
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 text-sm">
+              <input
+                id={teaserId}
+                type="checkbox"
+                name="teaser"
+                defaultChecked
+                aria-describedby={`${teaserId}-hint`}
+                className={radio}
+              />
+              <label htmlFor={teaserId} className="flex min-h-11 items-center font-medium">
+                Exposé-Vorschau als zweite Seite
+              </label>
+              <p id={`${teaserId}-hint`} className="col-start-2 -mt-2 mb-1 text-foreground-muted">
+                Titelbild, Überschrift und die drei wichtigsten Ideen aus dem Exposé, in seinen
+                Farben. Wirkt am besten im Farbdruck.
+              </p>
+            </div>
             <label className="flex min-h-11 items-center gap-3 text-sm">
               <input type="checkbox" name="color" className={radio} />
               Farbdruck

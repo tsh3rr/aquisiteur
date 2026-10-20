@@ -27,9 +27,12 @@ import {
   type LetterStatus,
   type PrintOptions,
 } from "@/domain/letters/lifecycle";
+import { buildLetterTeaser, type LetterTeaser } from "@/domain/letters/teaser";
+import type { ExposeDocument, ExposeImage } from "@/domain/expose/schema";
 import { modulesPath } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
-import { resolveEntry } from "@/components/expose/render-context";
+import type { AssetManifest } from "@/db/schema";
+import { resolveEntry, type ResolvedImage } from "@/components/expose/render-context";
 import { getInfra } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { advanceStatus } from "@/server/prospects/auto-status";
@@ -274,12 +277,71 @@ export async function listLetters(
   return rows.map((row) => ({ ...row, openedAt: row.openedAt ? new Date(row.openedAt) : null }));
 }
 
+/** The teaser page with every image as a cockpit URL (still WebP; the browser converts). */
+export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo"> {
+  image: { src: string; alt: string; width: number; height: number } | null;
+  logo: { src: string; alt: string; width: number; height: number } | null;
+  ownerPhoto: string | null;
+}
+
 export interface PrintableLetter extends ComposedLetter {
   id: string;
   prospectId: string;
   companyName: string;
   qrModules: { size: number; path: string };
   problems: string[];
+  teaser: PrintableTeaser | null;
+}
+
+/** The largest rendition up to 1600 px: sharp enough for print, small enough to embed. */
+function printSrc(image: ResolvedImage): string {
+  const candidates = (image.webpSrcSet || image.pngSrcSet)
+    .split(", ")
+    .map((entry) => {
+      const [url, width] = entry.split(" ");
+      return { url, width: Number.parseInt(width ?? "", 10) };
+    })
+    .filter((entry) => entry.url && entry.width <= 1600);
+  return candidates.at(-1)?.url ?? image.src;
+}
+
+function teaserImage(manifest: AssetManifest, image: ExposeImage | null) {
+  if (!image) return null;
+  const resolved = resolveEntry(manifest[image.src], "/preview/assets", image.alt);
+  if (!resolved) return null;
+  return {
+    src: printSrc(resolved),
+    alt: image.alt,
+    width: resolved.width,
+    height: resolved.height,
+  };
+}
+
+/** Current published version of each exposé, keyed by exposé id. */
+async function currentDocuments(tx: Transaction, workspaceId: string, exposeIds: string[]) {
+  if (exposeIds.length === 0)
+    return new Map<string, { document: ExposeDocument; manifest: AssetManifest }>();
+  const rows = await tx
+    .select({
+      exposeId: exposes.id,
+      document: exposeVersions.document,
+      manifest: exposeVersions.assetManifest,
+    })
+    .from(exposes)
+    .innerJoin(
+      exposeVersions,
+      and(
+        eq(exposeVersions.workspaceId, exposes.workspaceId),
+        eq(exposeVersions.id, exposes.currentVersionId),
+      ),
+    )
+    .where(and(eq(exposes.workspaceId, workspaceId), inArray(exposes.id, exposeIds)));
+  return new Map(
+    rows.map((row) => [
+      row.exposeId,
+      { document: row.document as ExposeDocument, manifest: row.manifest },
+    ]),
+  );
 }
 
 /** Everything the browser needs to lay out the PDFs of these letters. */
@@ -327,7 +389,16 @@ export async function loadPrintableLetters(
       ),
     )
     .orderBy(desc(contacts.isPrimary), asc(contacts.createdAt));
-  const signatureUrl = await signatureSrc(tx, workspaceId, settings.letter.signatureAssetId);
+  const signatureUrl = await brandImageSrc(tx, workspaceId, settings.letter.signatureAssetId);
+  const documents = await currentDocuments(tx, workspaceId, [
+    ...new Set(
+      rows
+        .filter((row) => row.letter.options.teaser !== false)
+        .map((row) => row.touchpoint.exposeId),
+    ),
+  ]);
+  const ownerPhoto =
+    documents.size > 0 ? await brandImageSrc(tx, workspaceId, settings.profile.photoAssetId) : null;
 
   return rows.map(({ letter, prospect, touchpoint }) => {
     const urls = touchpointUrls(origin, touchpoint);
@@ -353,11 +424,22 @@ export async function loadPrintableLetters(
       timeZone: settings.notifications.timezone,
       signatureUrl,
     });
+    const source = letter.options.teaser !== false ? documents.get(touchpoint.exposeId) : undefined;
+    const teaser = source ? buildLetterTeaser(source.document) : null;
     return {
       ...composed,
       id: letter.id,
       prospectId: prospect.id,
       companyName: prospect.companyName,
+      teaser:
+        source && teaser
+          ? {
+              ...teaser,
+              image: teaserImage(source.manifest, teaser.image),
+              logo: teaserImage(source.manifest, teaser.logo),
+              ownerPhoto,
+            }
+          : null,
       qrModules: modulesPath(urls.qrUrl),
       problems: [
         ...letterProblems({ sender, recipient }),
@@ -367,15 +449,15 @@ export async function loadPrintableLetters(
   });
 }
 
-async function signatureSrc(tx: Transaction, workspaceId: string, assetId: string | undefined) {
+/** Owner photo or signature as a cockpit URL; the browser converts it for the PDF. */
+async function brandImageSrc(tx: Transaction, workspaceId: string, assetId: string | undefined) {
   if (!assetId) return null;
   const [row] = await tx
     .select()
     .from(assets)
     .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
   const image = row && resolveEntry({ ...row, assetId: row.id }, "/preview/assets", "");
-  // React-PDF reads PNG and JPEG, not WebP or AVIF.
-  return image ? (image.pngSrcSet.split(" ")[0] ?? image.src) : null;
+  return image ? printSrc(image) : null;
 }
 
 const STATUS_TIMESTAMP: Partial<Record<LetterStatus, keyof typeof letters.$inferInsert>> = {

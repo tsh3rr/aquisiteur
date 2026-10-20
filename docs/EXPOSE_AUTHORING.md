@@ -69,9 +69,17 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
     "style": "editorial", // editorial (Magazin, Serifen) | bold (kantig, schwer, harte Schatten) | soft (rund, warm, freundlich)
   },
   "letter": {
-    // optional, für den Brief (Phase 3)
+    // optional, für den Brief
     "subject": "Drei Ideen für Ihre Website",
     "body": "Sehr geehrte Frau Korn, …",
+    "teaser": {
+      // optional, zweite Seite des Briefs; ohne Angabe aus hero und proposal gebaut
+      "headline": "Frische Brötchen, schon online bestellt", // sonst hero.headline
+      "lead": "…", // sonst hero.lead
+      "image": { "src": "assets/teaser.png", "alt": "…" }, // sonst hero.image, Nachher-Bild oder erstes Mockup
+      "ideas": [{ "title": "Vorbestellen", "text": "…" }], // 1–3, sonst die ersten drei des proposal-Blocks
+      // "enabled": false druckt den Brief ohne zweite Seite
+    },
   },
   "blocks": [/* 1 bis 40 Bausteine, siehe unten */],
 }
@@ -79,6 +87,15 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
 
 Pflicht sind `schemaVersion`, `prospect` (mit `key` und `company`), `meta.title` und `blocks`.
 `prospect.key` besteht aus 3–60 Kleinbuchstaben, Ziffern und Bindestrichen.
+
+### Brief mit Exposé-Vorschau
+
+Der gedruckte Brief hat eine zweite Seite, die das Exposé anteasert: großes Bild, Headline, Lead und
+bis zu drei Ideen in der Akzentfarbe, unten noch einmal QR-Code und Kurzlink. Sie entsteht
+automatisch aus `hero` und `proposal` (ersatzweise `findings`). Damit sie gut wirkt: ein Bild im
+Querformat für den `hero`, Ideen mit kurzen Titeln (unter 30 Zeichen) und Beschreibungen unter 170
+Zeichen. Längere Texte werden am Wortende gekürzt. Mit `letter.teaser` lassen sich einzelne Felder
+für den Brief überschreiben.
 
 ### Texte
 

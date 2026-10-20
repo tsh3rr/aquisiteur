@@ -475,6 +475,25 @@ export const prospectSchema = z
     "Created in the cockpit on first publish. Later publishes do not overwrite data edited in the cockpit.",
   );
 
+/**
+ * Overrides for the teaser page of the printed letter (§7.9 „Exposé-Vorschau
+ * im Brief“). Every field is optional; what is missing comes from the blocks.
+ */
+const letterTeaserSchema = z
+  .object({
+    enabled: z.boolean().default(true).describe("false prints the letter without teaser page."),
+    headline: optionalText(120),
+    lead: optionalText(300),
+    image: imageSchema.optional().describe("Large image on the teaser page, landscape works best."),
+    ideas: z
+      .array(z.object({ title: text(80), text: text(220) }).strict())
+      .min(1)
+      .max(3)
+      .optional()
+      .describe("Up to three ideas; defaults to the first three items of the proposal block."),
+  })
+  .strict();
+
 export const EXPOSE_STYLES = ["editorial", "bold", "soft"] as const;
 export type ExposeStyle = (typeof EXPOSE_STYLES)[number];
 
@@ -509,7 +528,15 @@ export const exposeSchema = z
       .strict()
       .prefault({}),
     letter: z
-      .object({ subject: text(160), body: richText(4000) })
+      .object({
+        subject: text(160),
+        body: richText(4000),
+        teaser: letterTeaserSchema
+          .optional()
+          .describe(
+            "Second page of the printed letter: a teaser of this exposé. Built from hero and proposal when omitted.",
+          ),
+      })
       .strict()
       .optional()
       .describe("Text for the printed letter (phase 5)."),
@@ -550,6 +577,7 @@ export function collectAssetPaths(document: ExposeDocument): string[] {
   const paths = new Set<string>();
   const image = (value: ExposeImage | undefined) => value && paths.add(value.src);
   image(document.theme.logo);
+  image(document.letter?.teaser?.image);
   for (const block of document.blocks) {
     switch (block.type) {
       case "hero":

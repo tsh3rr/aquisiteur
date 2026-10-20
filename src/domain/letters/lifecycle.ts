@@ -81,10 +81,14 @@ export const printOptionsSchema = z.object({
   shipping: z.enum(["standard", "priority"]).default("standard"),
   /** DL window envelope (DIN 5008 Form B); larger formats come with print APIs. */
   envelope: z.enum(["DL"]).default("DL"),
+  /** Second page with a teaser of the exposé (§7.9 „Exposé-Vorschau im Brief“). */
+  teaser: z.boolean().default(true),
   /** Asset ids of PDFs to enclose; empty in v1. */
   inserts: z.array(z.uuid()).max(5).default([]),
 });
 export type PrintOptions = z.infer<typeof printOptionsSchema>;
+/** As stored in `letters.options`: rows from before the teaser page lack `teaser` (read as true). */
+export type StoredPrintOptions = Omit<PrintOptions, "teaser"> & { teaser?: boolean };
 
 export const LETTER_KINDS = ["initial", "follow_up"] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];

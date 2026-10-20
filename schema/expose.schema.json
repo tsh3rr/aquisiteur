@@ -197,6 +197,77 @@
           "minLength": 1,
           "maxLength": 4000,
           "description": "Markdown subset: blank line = new paragraph, **bold**, *italic*, [text](https://…), lines starting with '- ' form a list."
+        },
+        "teaser": {
+          "description": "Second page of the printed letter: a teaser of this exposé. Built from hero and proposal when omitted.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "false prints the letter without teaser page.",
+              "type": "boolean"
+            },
+            "headline": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "lead": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "image": {
+              "description": "Large image on the teaser page, landscape works best.",
+              "type": "object",
+              "properties": {
+                "src": {
+                  "type": "string",
+                  "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                  "description": "Relative path, e.g. assets/vorher.png"
+                },
+                "alt": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "description": "What the image shows. Empty string only for purely decorative images."
+                },
+                "caption": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "src",
+                "alt"
+              ],
+              "additionalProperties": false
+            },
+            "ideas": {
+              "description": "Up to three ideas; defaults to the first three items of the proposal block.",
+              "minItems": 1,
+              "maxItems": 3,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 220
+                  }
+                },
+                "required": [
+                  "title",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [

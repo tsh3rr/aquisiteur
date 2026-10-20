@@ -54,7 +54,14 @@ export interface ComposedLetter {
   salutation: string | null;
   body: string;
   closing: string;
-  signer: { name: string | null; role: string | null; signatureUrl: string | null };
+  /** Agency or owner name for the letterhead. */
+  senderName: string;
+  signer: {
+    name: string | null;
+    role: string | null;
+    phone: string | null;
+    signatureUrl: string | null;
+  };
   qr: { url: string; hint: string; shortLink: string | null };
   /** Contact details in the footer. */
   footer: string[];
@@ -91,7 +98,7 @@ export function salutationFor(contact: LetterRecipient["contact"]): string {
   return "Sehr geehrte Damen und Herren,";
 }
 
-const OWN_SALUTATION = /^(sehr geehrte|liebe|lieber|hallo|guten tag|moin|servus|grüß gott)\b/i;
+const OWN_SALUTATION = /^(sehr geehrte[rs]?|liebe[rs]?|hallo|guten tag|moin|servus|grüß gott)\b/i;
 
 /** Replaces {{name}} placeholders; unknown names stay visible so they get noticed. */
 export function fillPlaceholders(
@@ -152,7 +159,13 @@ export function composeLetter(input: LetterInput): ComposedLetter {
     salutation: OWN_SALUTATION.test(body.text) ? null : salutationFor(recipient.contact),
     body: body.text,
     closing: input.closing,
-    signer: { name: sender.name, role: sender.role, signatureUrl: input.signatureUrl },
+    senderName: sender.company,
+    signer: {
+      name: sender.name,
+      role: sender.role,
+      phone: sender.phone,
+      signatureUrl: input.signatureUrl,
+    },
     qr: { url: input.qrUrl, hint: input.qrHint, shortLink: input.shortLink },
     footer: [
       [sender.company, sender.street, senderPlace].filter(Boolean).join(", "),
