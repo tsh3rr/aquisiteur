@@ -1,6 +1,5 @@
 import {
   Circle,
-  Font,
   G,
   Image,
   Link,
@@ -17,8 +16,8 @@ import type { Styles } from "@react-pdf/renderer";
 
 type Style = Styles[string];
 import type { ReactNode } from "react";
-import type { ExposeStyle } from "@/domain/expose/schema";
 import type { PrintImage, PrintableTeaser } from "@/domain/letters/teaser";
+import { displayStyle } from "./pdf-fonts";
 import type { PrintableLetterData } from "./types";
 
 /**
@@ -31,23 +30,7 @@ import type { PrintableLetterData } from "./types";
 
 const mm = (value: number) => value * 2.8346;
 
-// Headline faces of the exposé styles; React-PDF reads WOFF, not WOFF2.
-Font.register({ family: "AqSerif", src: "/fonts/letter/instrument-serif-latin-400-normal.woff" });
-Font.register({ family: "AqAnton", src: "/fonts/letter/anton-latin-400-normal.woff" });
-Font.register({
-  family: "AqNunito",
-  src: "/fonts/letter/nunito-latin-800-normal.woff",
-  fontWeight: 800,
-});
-
-const DISPLAY: Record<ExposeStyle, Style> = {
-  editorial: { fontFamily: "AqSerif", fontWeight: 400, lineHeight: 1.05 },
-  bold: { fontFamily: "AqAnton", fontWeight: 400, lineHeight: 1.05, textTransform: "uppercase" },
-  soft: { fontFamily: "AqNunito", fontWeight: 800, lineHeight: 1.12 },
-};
-
-/** Headline style of the exposé, for the subject line on page 1 too. */
-export const displayStyle = (style: ExposeStyle) => DISPLAY[style];
+export { displayStyle };
 
 /* ---------- small drawn pieces ---------- */
 
@@ -56,7 +39,7 @@ export const displayStyle = (style: ExposeStyle) => DISPLAY[style];
  * small „Hi!“ badge in the middle (level H keeps it readable with the hole).
  * Includes one module of quiet zone; the white tile around it adds the rest.
  */
-function DottedQr({
+export function DottedQr({
   qr,
   size,
   dot,
@@ -167,7 +150,7 @@ function DownArrow({ width, color }: { width: number; color: string }) {
 }
 
 /** Small line icons for the contact card; the text next to them carries the meaning. */
-function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string }) {
+export function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string }) {
   return (
     <Svg
       width={mm(3.4)}
@@ -263,7 +246,11 @@ function QrTile({
  * shapes in the exposé mockups. One page-sized SVG clips them, so they
  * never push content onto a new page.
  */
-function Blobs({ circles }: { circles: { color: string; cx: number; cy: number; r: number }[] }) {
+export function Blobs({
+  circles,
+}: {
+  circles: { color: string; cx: number; cy: number; r: number }[];
+}) {
   return (
     <Svg
       fixed
@@ -380,7 +367,15 @@ export function TeaserQrCard({
 
 const PHONE_RATIO = 760 / 360;
 
-function Phone({ image, width, desktop }: { image: PrintImage; width: number; desktop: boolean }) {
+export function Phone({
+  image,
+  width,
+  desktop,
+}: {
+  image: PrintImage;
+  width: number;
+  desktop: boolean;
+}) {
   const bezel = width * 0.04;
   const screenWidth = width - bezel * 2;
   const screenHeight = screenWidth * PHONE_RATIO;
@@ -430,7 +425,7 @@ function Phone({ image, width, desktop }: { image: PrintImage; width: number; de
   );
 }
 
-function BrowserWindow({ image, width }: { image: PrintImage; width: number }) {
+export function BrowserWindow({ image, width }: { image: PrintImage; width: number }) {
   return (
     <View style={{ width, borderRadius: mm(2.5), backgroundColor: "#1d2320", padding: mm(0.8) }}>
       <View style={{ flexDirection: "row", gap: mm(1), padding: mm(1.2) }}>
@@ -460,13 +455,13 @@ function BrowserWindow({ image, width }: { image: PrintImage; width: number }) {
 }
 
 /** Label box: 8.5 pt text at line height 1 plus 1.3 mm padding top and bottom. */
-const LABEL_HEIGHT = 8.5 + mm(2.6);
+export const LABEL_HEIGHT = 8.5 + mm(2.6);
 
 /**
  * The typed link as a pill. Line height 1 so padding alone sets the box and
  * the text sits in its middle, not on the leading of the page.
  */
-function LinkPill({
+export function LinkPill({
   href,
   text,
   size,
@@ -500,7 +495,7 @@ function LinkPill({
 }
 
 /** A small upright label in capitals; centring is up to the parent. */
-function Label({
+export function Label({
   children,
   background,
   color,

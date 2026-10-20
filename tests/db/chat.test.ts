@@ -348,6 +348,66 @@ describe("callback requests", () => {
     ).toEqual({ error: "not_found" });
     expect(foreign.slug).not.toBe(cafe.slug);
   });
+
+  it("resolves a known number on the server and only for the exposé's prospect", async () => {
+    await db
+      .update(schema.prospects)
+      .set({ phone: "+49 170 1234567" })
+      .where(eq(schema.prospects.id, bakery.prospectId));
+    const [stranger] = await db
+      .select({ id: schema.contacts.id })
+      .from(schema.contacts)
+      .where(eq(schema.contacts.prospectId, cafe.prospectId));
+    await db
+      .update(schema.contacts)
+      .set({ phone: "0171 7654321" })
+      .where(eq(schema.contacts.id, stranger!.id));
+    const base = { slug: bakery.slug, name: "Bernd Korn" };
+
+    expect(
+      await createCallbackRequest(db, { workspaceId: wsH, body: base, internal: true }),
+    ).toMatchObject({ error: "invalid", fields: { phone: expect.any(String) } });
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsH,
+        body: { ...base, phoneRef: stranger!.id },
+        internal: true,
+      }),
+    ).toMatchObject({ error: "invalid", fields: { phone: expect.any(String) } });
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsH,
+        body: { ...base, phoneRef: "p" },
+        internal: true,
+      }),
+    ).toEqual({ ok: true });
+    const [stored] = await db
+      .select({ phone: schema.callbackRequests.phone })
+      .from(schema.callbackRequests)
+      .where(eq(schema.callbackRequests.name, "Bernd Korn"));
+    expect(stored?.phone).toBe("+49 170 1234567");
+
+    // Switched off in the settings: the reference no longer resolves.
+    const [saved] = await db
+      .select({ chat: schema.workspaceSettings.chat })
+      .from(schema.workspaceSettings)
+      .where(eq(schema.workspaceSettings.workspaceId, wsH));
+    await db
+      .update(schema.workspaceSettings)
+      .set({ chat: { prefillCallbackPhone: false } })
+      .where(eq(schema.workspaceSettings.workspaceId, wsH));
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsH,
+        body: { ...base, phoneRef: "p" },
+        internal: true,
+      }),
+    ).toMatchObject({ error: "invalid" });
+    await db
+      .update(schema.workspaceSettings)
+      .set({ chat: saved!.chat })
+      .where(eq(schema.workspaceSettings.workspaceId, wsH));
+  });
 });
 
 describe("availability", () => {

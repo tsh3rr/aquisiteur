@@ -53,6 +53,7 @@ export async function saveContactSettings(
       responseTime: text(formData, "chat.responseTime") || undefined,
       offlineMessage: text(formData, "chat.offlineMessage") || undefined,
       storeDraftContent: flag(formData, "chat.storeDraftContent"),
+      prefillCallbackPhone: flag(formData, "chat.prefillCallbackPhone"),
     },
     nudges: {
       enabled: flag(formData, "nudges.enabled"),

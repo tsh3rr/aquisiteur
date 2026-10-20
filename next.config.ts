@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
         // Next treats react-pdf as an external server package, which an alias cannot
         // replace; dropping the one module that imports it keeps it out instead.
         [path.join(process.cwd(), "src/components/letters/letter-document.tsx")]: false,
+        [path.join(process.cwd(), "src/components/expose-pdf/expose-document.tsx")]: false,
         leaflet$: false,
         rrweb$: false,
       };

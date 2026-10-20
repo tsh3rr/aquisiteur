@@ -151,6 +151,17 @@ export function ContactSettingsForm({
       </fieldset>
 
       <fieldset className="grid gap-1" disabled={disabled}>
+        <legend className="mb-2 text-base font-semibold">Rückruf-Formular</legend>
+        <Toggle
+          name="chat.prefillCallbackPhone"
+          label="Bekannte Nummer anbieten"
+          hint="Steht beim Kunden eine Telefonnummer, bietet das Formular sie maskiert an (z. B. „+49 170 ••• 67“). Die volle Nummer erscheint nie im Exposé, weil der Link weitergeleitet werden kann."
+          defaultChecked={chat.prefillCallbackPhone}
+          disabled={disabled}
+        />
+      </fieldset>
+
+      <fieldset className="grid gap-1" disabled={disabled}>
         <legend className="mb-2 text-base font-semibold">Hinweise im Exposé</legend>
         <p className="mb-2 text-sm text-foreground-muted">
           Höchstens ein Hinweis pro Besuch, nie als Pop-up, jederzeit schließbar.
