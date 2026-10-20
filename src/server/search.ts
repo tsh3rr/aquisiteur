@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { campaigns, contacts, exposes, prospects } from "@/db/schema";
+import { campaigns, contacts, exposes, prospects, tasks } from "@/db/schema";
+import { taskAnchor } from "@/domain/notifications";
 import { STATUS_LABELS } from "@/domain/prospects/status";
 import {
   likePattern,
@@ -36,6 +37,12 @@ function matchesAll(words: string[], columns: (AnyColumn | SQL)[]): SQL {
       );
     }),
   )!;
+}
+
+/** "2026-10-24" → "24.10.2026". */
+function germanDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}.${month}.${year}`;
 }
 
 function byScore(query: string, hits: SearchHit[]): SearchHit[] {
@@ -122,6 +129,30 @@ export async function searchWorkspace(
     .orderBy(sql`${campaigns.archivedAt} is not null`, asc(campaigns.name))
     .limit(fetch);
 
+  const taskRows = await tx
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      dueDate: tasks.dueDate,
+      doneAt: tasks.doneAt,
+      prospectId: tasks.prospectId,
+      companyName: prospects.companyName,
+    })
+    .from(tasks)
+    .innerJoin(
+      prospects,
+      and(eq(prospects.workspaceId, tasks.workspaceId), eq(prospects.id, tasks.prospectId)),
+    )
+    .where(
+      and(
+        eq(tasks.workspaceId, workspaceId),
+        matchesAll(words, [tasks.title, tasks.note, prospects.companyName]),
+      ),
+    )
+    // Open tasks first, the most urgent on top.
+    .orderBy(sql`${tasks.doneAt} is not null`, asc(tasks.dueDate))
+    .limit(fetch);
+
   return [
     ...byScore(
       query,
@@ -153,6 +184,19 @@ export async function searchWorkspace(
         title: row.name,
         detail: row.archivedAt ? "archiviert" : null,
         href: `/kampagnen/${row.id}`,
+      })),
+    ),
+    ...byScore(
+      query,
+      taskRows.map((row) => ({
+        kind: "task" as const,
+        id: row.id,
+        title: row.title,
+        detail: [
+          row.companyName,
+          row.doneAt ? "erledigt" : `fällig ${germanDate(row.dueDate)}`,
+        ].join(" · "),
+        href: `/kunden/${row.prospectId}#${taskAnchor(row.id)}`,
       })),
     ),
   ];

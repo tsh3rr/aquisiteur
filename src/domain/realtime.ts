@@ -34,6 +34,8 @@ export type RealtimeEvent =
   | { event: "intent.updated"; payload: { prospectId: string; score: number; level: string } }
   /** A new owner notification (§7.7); grouped updates do not repeat it. */
   | { event: "notification.created"; payload: { id: string; title: string; url: string } }
+  /** A task was added, edited, done or deleted (§7.8). */
+  | { event: "task.changed"; payload: { prospectId: string } }
   /** Live feed on „Heute“: what a prospect is doing right now. */
   | {
       event: "visit.activity";

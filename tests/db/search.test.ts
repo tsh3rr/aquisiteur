@@ -4,6 +4,7 @@ import { createDatabase, withTenant, type Transaction } from "@/db/client";
 import * as schema from "@/db/schema";
 import { createCampaign } from "@/server/campaigns";
 import { publishExpose } from "@/server/exposes/publish";
+import { createTask } from "@/server/tasks";
 import { searchWorkspace } from "@/server/search";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
@@ -17,8 +18,8 @@ process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 
 const { db, close } = createDatabase(process.env.TEST_DATABASE_URL ?? "", { max: 2 });
 
-const sue = { id: "user-search-sue", email: "sue@s.test", name: "Sue" };
-const tom = { id: "user-search-tom", email: "tom@t.test", name: "Tom" };
+const sue = { id: "user-search-sue", email: "sue@suche.test", name: "Sue" };
+const tom = { id: "user-search-tom", email: "tom@suche.test", name: "Tom" };
 let wsS = "";
 let wsT = "";
 let cafeProspect = "";
@@ -115,5 +116,32 @@ describe("searchWorkspace", () => {
     expect(forged).toEqual([]);
     const toms = await asTom((tx) => searchWorkspace(tx, wsT, "müller"));
     expect(toms.map((hit) => hit.title)).toContain("Café Müller Tom");
+  });
+
+  it("finds tasks by title and company, linking to the task on the customer page", async () => {
+    const taskId = await asSue((tx) =>
+      createTask(tx, { userId: sue.id, role: "owner", workspaceId: wsS }, cafeProspect, {
+        title: "Freitag anrufen",
+        note: null,
+        dueDate: "2026-10-23",
+        dueTime: "10:00",
+        // No reminder: the reminder job in tasks.test.ts runs over all workspaces.
+        reminder: "none",
+      }),
+    );
+    expect(taskId).toBeTruthy();
+    const hits = await asSue((tx) => searchWorkspace(tx, wsS, "anrufen"));
+    expect(hits).toEqual([
+      {
+        kind: "task",
+        id: taskId,
+        title: "Freitag anrufen",
+        detail: "Café Müller · fällig 23.10.2026",
+        href: `/kunden/${cafeProspect}#aufgabe-${taskId}`,
+      },
+    ]);
+    const byCompany = await asSue((tx) => searchWorkspace(tx, wsS, "mueller"));
+    expect(byCompany.map((hit) => hit.kind)).toContain("task");
+    expect(await asTom((tx) => searchWorkspace(tx, wsT, "anrufen"))).toEqual([]);
   });
 });

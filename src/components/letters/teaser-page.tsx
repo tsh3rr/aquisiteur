@@ -12,9 +12,6 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import type { Styles } from "@react-pdf/renderer";
-
-type Style = Styles[string];
 import type { ReactNode } from "react";
 import type { PrintImage, PrintableTeaser } from "@/domain/letters/teaser";
 import { displayStyle } from "./pdf-fonts";
@@ -36,7 +33,8 @@ export { displayStyle };
 
 /**
  * The QR code as dots with rounded finder eyes in the accent colour and a
- * small „Hi!“ badge in the middle (level H keeps it readable with the hole).
+ * dot in the accent colour in the middle, carrying the agency logo when
+ * there is one (level H keeps the code readable with the hole).
  * Includes one module of quiet zone; the white tile around it adds the rest.
  */
 export function DottedQr({
@@ -50,7 +48,7 @@ export function DottedQr({
   size: number;
   dot: string;
   eye: string;
-  badge: { background: string; color: string; font: Style } | null;
+  badge: { background: string; logo: string | null } | null;
 }) {
   const n = qr.size;
   const isEye = (x: number, y: number) =>
@@ -112,7 +110,11 @@ export function DottedQr({
             justifyContent: "center",
           }}
         >
-          <Text style={{ ...badge.font, color: badge.color, fontSize: badgeSize * 0.42 }}>Hi!</Text>
+          {badge.logo ? (
+            // A square inside the circle: its corners stay on the accent.
+            // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
+            <Image src={badge.logo} style={{ width: badgeSize * 0.66, height: badgeSize * 0.66 }} />
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -224,11 +226,7 @@ function QrTile({
             size={size}
             dot={colors.ink}
             eye={colors.accent}
-            badge={{
-              background: colors.accent,
-              color: colors.onAccent,
-              font: displayStyle(teaser.style),
-            }}
+            badge={{ background: colors.accent, logo: teaser.qrLogo }}
           />
         </Link>
       </View>

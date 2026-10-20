@@ -157,6 +157,14 @@ describe("notification copy", () => {
     expect(
       notificationCopy({ trigger: "chat_message", company: "Café Müller", message: "Hallo!" }),
     ).toEqual({ title: "Café Müller · Chat", body: "Hallo!" });
+    expect(
+      notificationCopy({
+        trigger: "task_due",
+        company: "Café Müller",
+        task: "Anrufen, Termin vorschlagen",
+        due: "heute 10:00",
+      }),
+    ).toEqual({ title: "Café Müller · Anrufen, Termin vorschlagen", body: "Fällig heute 10:00" });
   });
 });
 
@@ -176,6 +184,9 @@ describe("notificationUrl", () => {
     );
     expect(notificationUrl({ trigger: "opt_out", prospectId })).toBe(
       `/kunden/${prospectId}#datenschutz`,
+    );
+    expect(notificationUrl({ trigger: "task_due", prospectId, taskId: "t2" })).toBe(
+      `/kunden/${prospectId}#aufgabe-t2`,
     );
     expect(notificationUrl({ trigger: "daily_digest" })).toBe("/");
   });

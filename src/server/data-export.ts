@@ -38,6 +38,7 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.chatMessages,
   schema.chatDrafts,
   schema.callbackRequests,
+  schema.tasks,
   schema.intentScores,
   schema.notificationRules,
   schema.notifications,

@@ -5,6 +5,7 @@ import {
   FileText,
   Flag,
   Keyboard,
+  ListChecks,
   Monitor,
   Moon,
   Plus,
@@ -225,12 +226,14 @@ const KIND_LABELS: Record<SearchHitKind, string> = {
   prospect: "Kunden",
   expose: "Exposés",
   campaign: "Kampagnen",
+  task: "Aufgaben",
 };
 
 const KIND_ICONS: Record<SearchHitKind, typeof Users> = {
   prospect: Users,
   expose: FileText,
   campaign: Flag,
+  task: ListChecks,
 };
 
 const COMMAND_ICONS: Partial<Record<CommandId, typeof Users>> = {
@@ -339,7 +342,7 @@ function PaletteBody({
 
   const groups = useMemo<Group[]>(() => {
     const result: Group[] = [];
-    for (const kind of ["prospect", "expose", "campaign"] as const) {
+    for (const kind of ["prospect", "task", "expose", "campaign"] as const) {
       const hits = search.hits.filter((hit) => hit.kind === kind);
       if (hits.length > 0) {
         result.push({
@@ -422,8 +425,8 @@ function PaletteBody({
     <>
       <Dialog.Title className="sr-only">Suche und Befehle</Dialog.Title>
       <Dialog.Description className="sr-only">
-        Kunden, Exposés, Kampagnen und Befehle durchsuchen. Mit den Pfeiltasten auswählen, mit
-        Eingabe öffnen, mit Escape schließen.
+        Kunden, Aufgaben, Exposés, Kampagnen und Befehle durchsuchen. Mit den Pfeiltasten auswählen,
+        mit Eingabe öffnen, mit Escape schließen.
       </Dialog.Description>
       <div className="flex items-center gap-3 border-b border-border px-4">
         <Search aria-hidden className="size-5 shrink-0 text-foreground-muted" />

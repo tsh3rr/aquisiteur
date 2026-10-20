@@ -13,6 +13,7 @@ export const NOTIFICATION_TRIGGERS = [
   "score_threshold",
   "opt_out",
   "daily_digest",
+  "task_due",
 ] as const;
 export type NotificationTrigger = (typeof NOTIFICATION_TRIGGERS)[number];
 export type NotificationChannel = "push" | "email";
@@ -25,6 +26,7 @@ export const TRIGGER_LABELS: Record<NotificationTrigger, string> = {
   score_threshold: "Score überschreitet Schwelle",
   opt_out: "„Kein Interesse“ geklickt",
   daily_digest: "Tägliche Zusammenfassung",
+  task_due: "Erinnerung an Aufgabe",
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, string> = {
@@ -43,6 +45,12 @@ export interface NotificationRule {
   quietTo: string | null;
   weekdaysOnly: boolean;
 }
+
+/**
+ * Task reminders are asked for per task, so they go out even without a rule;
+ * a task_due rule only changes the channels, quiet hours or turns them off.
+ */
+export const TASK_REMINDER_FALLBACK: NotificationChannel[] = ["push", "email"];
 
 /** Inserted for every new workspace (and by migrations 0010 and 0015 for old ones). */
 export const DEFAULT_RULES: Omit<NotificationRule, "id">[] = [
@@ -246,7 +254,8 @@ export type NotificationCopyInput =
       preferredTime: string | null;
     }
   | { trigger: "score_threshold"; company: string; headline: string; recommendation: string }
-  | { trigger: "opt_out"; company: string };
+  | { trigger: "opt_out"; company: string }
+  | { trigger: "task_due"; company: string; task: string; due: string };
 
 /**
  * Title and body of a push, an e-mail and the cockpit list (§7.7). Tight on
@@ -277,6 +286,8 @@ export function notificationCopy(input: NotificationCopyInput): { title: string;
       return { title: title(input.headline.replace(/\.$/, "")), body: input.recommendation };
     case "opt_out":
       return { title: title("kein Interesse"), body: "Bitte nicht mehr anschreiben." };
+    case "task_due":
+      return { title: title(clip(input.task, 80)), body: `Fällig ${input.due}` };
   }
 }
 
@@ -286,6 +297,7 @@ export type NotificationTarget =
       trigger: "first_visit" | "return_visit" | "callback" | "score_threshold" | "opt_out";
       prospectId: string;
     }
+  | { trigger: "task_due"; prospectId: string; taskId: string }
   | { trigger: "daily_digest" };
 
 /** Section anchors on the prospect page that a notification can open. */
@@ -294,7 +306,11 @@ export const PROSPECT_ANCHORS = {
   visits: "besuche",
   contact: "chat",
   privacy: "datenschutz",
+  tasks: "aufgaben",
 } as const;
+
+/** Anchor of one task on the prospect page. */
+export const taskAnchor = (taskId: string) => `aufgabe-${taskId}`;
 
 /**
  * Where tapping a notification lands (§7.7): the spot the event happened,
@@ -316,5 +332,7 @@ export function notificationUrl(target: NotificationTarget): string {
       return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.intent}`;
     case "opt_out":
       return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.privacy}`;
+    case "task_due":
+      return `/kunden/${target.prospectId}#${taskAnchor(target.taskId)}`;
   }
 }

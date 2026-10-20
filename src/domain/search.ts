@@ -13,7 +13,7 @@ export const SEARCH_GROUP_LIMIT = 6;
 
 export const searchQuerySchema = z.string().trim().min(1).max(SEARCH_MAX_LENGTH);
 
-export type SearchHitKind = "prospect" | "expose" | "campaign";
+export type SearchHitKind = "prospect" | "expose" | "campaign" | "task";
 
 export interface SearchHit {
   kind: SearchHitKind;
@@ -29,6 +29,7 @@ export type CommandId =
   | "go.prospects"
   | "go.pipeline"
   | "go.campaigns"
+  | "go.tasks"
   | "go.letters"
   | "go.analytics"
   | "go.chat"
@@ -79,6 +80,14 @@ export const COMMANDS: readonly Command[] = [
     keywords: ["kanban", "status"],
     href: "/kunden/pipeline",
     keys: ["g", "p"],
+  },
+  {
+    id: "go.tasks",
+    label: "Aufgaben",
+    group: "Seiten",
+    keywords: ["wiedervorlagen", "todo", "erinnerung", "fällig"],
+    href: "/aufgaben",
+    keys: ["g", "w"],
   },
   {
     id: "go.campaigns",

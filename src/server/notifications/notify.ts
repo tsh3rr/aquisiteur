@@ -36,6 +36,8 @@ export interface NotifyInput {
   threshold?: number;
   /** Push button, e.g. „Antworten“ → the chat. */
   action?: { title: string; url: string };
+  /** Channels when the workspace has no rule for the trigger (task reminders); default: none. */
+  fallbackChannels?: NotificationChannel[];
 }
 
 export interface Pending {
@@ -69,6 +71,22 @@ async function rulesFor(
   return rows;
 }
 
+/** Whether the workspace has a rule for the trigger at all, enabled or not. */
+async function anyRuleFor(
+  db: Database | Transaction,
+  workspaceId: string,
+  trigger: NotificationTrigger,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: notificationRules.id })
+    .from(notificationRules)
+    .where(
+      and(eq(notificationRules.workspaceId, workspaceId), eq(notificationRules.trigger, trigger)),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 /** Thresholds of the enabled score rules. */
 export async function scoreThresholds(db: Database | Transaction, workspaceId: string) {
   const rules = await rulesFor(db, workspaceId, "score_threshold");
@@ -85,11 +103,18 @@ export async function notify(
   now = new Date(),
 ): Promise<Pending | null> {
   const rules = await rulesFor(db, input.workspaceId, input.trigger, input.threshold);
-  if (rules.length === 0) return null;
-  const { notifications: settings } = await loadWorkspaceSettings(db, input.workspaceId);
-  const deliveries = rules.map((rule) => deliveryFor(rule, now, settings.timezone));
-  const channels = [...new Set(deliveries.flatMap((delivery) => delivery.channels))];
-  const suppressed = channels.length === 0 ? (deliveries[0]?.suppressed ?? null) : null;
+  let channels: NotificationChannel[];
+  let suppressed: string | null = null;
+  if (rules.length > 0) {
+    const { notifications: settings } = await loadWorkspaceSettings(db, input.workspaceId);
+    const deliveries = rules.map((rule) => deliveryFor(rule, now, settings.timezone));
+    channels = [...new Set(deliveries.flatMap((delivery) => delivery.channels))];
+    suppressed = channels.length === 0 ? (deliveries[0]?.suppressed ?? null) : null;
+  } else if (input.fallbackChannels && !(await anyRuleFor(db, input.workspaceId, input.trigger))) {
+    channels = [...input.fallbackChannels];
+  } else {
+    return null;
+  }
 
   const [existing] = await db
     .select({ id: notifications.id })
@@ -131,7 +156,7 @@ export async function notify(
     .insert(notifications)
     .values({
       workspaceId: input.workspaceId,
-      ruleId: rules[0]!.id,
+      ruleId: rules[0]?.id ?? null,
       prospectId: input.prospectId,
       trigger: input.trigger,
       groupKey: input.groupKey,

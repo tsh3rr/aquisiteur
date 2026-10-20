@@ -82,14 +82,15 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [x] Einstellungen → System mit Limits (ADR-0045)
 - [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
-- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
+- [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0060)
+- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
 
 ## Später
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
 - [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; automatische Follow-ups
 - [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
-- [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0060)
+- [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)
 - [x] Rückruf-Formular mit bekannter Nummer aus den Stammdaten vorausfüllen, maskiert (ZIELPROMPT §7.4, ADR-0058)
 - [ ] Messenger, SMS, Telegram, A/B-Varianten, KI-Assistent für Exposé-Entwürfe

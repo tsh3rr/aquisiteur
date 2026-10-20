@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IntentSummary } from "@/components/cockpit/intent";
+import { AddTask, TaskList } from "@/components/cockpit/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollRegion } from "@/components/ui/misc";
@@ -22,6 +23,7 @@ import { formatRelative } from "@/lib/relative-time";
 import { CallbackList } from "../../chat/callbacks";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { requireCockpit } from "@/server/session";
+import { listDoneTasks, listOpenTasks, taskClock, taskItemView } from "@/server/tasks";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { touchpointUrls } from "@/server/tracking/touchpoints";
 import { signOwnerLink } from "@/server/tracking/visits";
@@ -81,10 +83,14 @@ export default async function CustomerPage({
       campaigns: await listCampaigns(tx, workspace.id),
       letters: await listLetters(tx, workspace.id, { prospectId: id }, 20),
       settings: await loadWorkspaceSettings(tx, workspace.id),
+      openTasks: await listOpenTasks(tx, workspace.id, { prospectId: id }),
+      doneTasks: await listDoneTasks(tx, workspace.id, { prospectId: id, limit: 20 }),
+      clock: await taskClock(tx, workspace.id),
     };
   });
   if (!loaded) notFound();
-  const { detail, origin, intent, campaigns, letters, settings } = loaded;
+  const { detail, origin, intent, campaigns, letters, settings, openTasks, doneTasks, clock } =
+    loaded;
   const optOutDays = settings.retention.optOutTrackingDays;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
@@ -94,7 +100,13 @@ export default async function CustomerPage({
   return (
     <div className="grid gap-6">
       <LiveRefresh
-        events={["chat.message", "callback.created", "chat.thread", "intent.updated"]}
+        events={[
+          "chat.message",
+          "callback.created",
+          "chat.thread",
+          "intent.updated",
+          "task.changed",
+        ]}
         prospectId={prospect.id}
       />
       <Link
@@ -185,6 +197,42 @@ export default async function CustomerPage({
           </CardContent>
         </Card>
       ) : null}
+
+      <Card id={PROSPECT_ANCHORS.tasks} className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Aufgaben</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {openTasks.length > 0 ? (
+            <TaskList
+              tasks={openTasks.map(taskItemView)}
+              clock={clock}
+              canManage={canManage}
+              label="Offene Aufgaben"
+            />
+          ) : (
+            <p className="text-sm text-foreground-muted">
+              Keine offene Aufgabe. Legen Sie eine Wiedervorlage an, damit nichts liegen bleibt.
+            </p>
+          )}
+          {canManage ? <AddTask prospectId={prospect.id} clock={clock} /> : null}
+          {doneTasks.length > 0 ? (
+            <details>
+              <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-foreground-muted hover:text-foreground">
+                Erledigt ({doneTasks.length})
+              </summary>
+              <div className="pt-2">
+                <TaskList
+                  tasks={doneTasks.map(taskItemView)}
+                  clock={clock}
+                  canManage={canManage}
+                  label="Erledigte Aufgaben"
+                />
+              </div>
+            </details>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <div className="grid items-start gap-6 xl:grid-cols-5">
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-3 [&>*]:min-w-0">

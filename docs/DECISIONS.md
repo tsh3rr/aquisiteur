@@ -609,8 +609,12 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden nach dem
   Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
   Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
-- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
-  der Mitte, deshalb Fehlerkorrektur H. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
+- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein Punkt in
+  der Akzentfarbe in der Mitte, deshalb Fehlerkorrektur H. Hat der Workspace ein Logo, steht es einfarbig
+  im Punkt (im Browser auf die Akzentfarbe umgefärbt, `src/domain/letters/tint.ts`, als JPEG wie alle
+  Briefbilder). Logos mit Transparenz zählen über den Alphakanal, deckende über ihre Helligkeit; breite
+  Wortmarken (Seitenverhältnis über 2,2) bleiben draußen, weil sie bei 5 mm unleserlich wären. Früher
+  stand dort ein „Hi!“, das nichts sagte. Die codierte URL ändert sich nicht. Der QR-Code im Exposé-PDF bekommt den reinen Punkt. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
   QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
 - Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
   mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.
@@ -700,7 +704,27 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - Die Fußzeile steht per `top` statt `bottom`: mit der Zeilenhöhe der Seite fällt eine an `bottom`
   verankerte, wiederholte Fußzeile in React-PDF aus der Seite.
 
-## ADR-0060 · Globale Suche, Command Palette und Tastaturkürzel (2026-10-20)
+## ADR-0060 · Aufgaben und Wiedervorlagen (2026-10-20)
+
+- Tabelle `tasks` je Prospect: Fälligkeit als lokales Kalenderdatum (`due_date`) plus optionale Uhrzeit
+  (`due_time`, „14:00“), damit „Freitag anrufen“ ohne Uhrzeit den ganzen Tag fällig bleibt und erst
+  danach überfällig wird. Erinnerungsart (`reminder`: keine, zur Fälligkeit, 1 Stunde vorher, am Vortag)
+  wird beim Speichern in der Zeitzone des Workspaces zu `remind_at`; ganztägige Aufgaben erinnern um
+  8:00. Liegt der Zeitpunkt beim Speichern schon zurück, gilt die Erinnerung als erledigt (kein Ping
+  beim Anlegen). Ein neues Datum setzt sie zurück.
+- Versand im stündlichen Job (`runTaskReminders`): Aufgabe erst per `reminded_at` beanspruchen, dann
+  benachrichtigen, so erinnert ein doppelter Lauf nie zweimal. Eine Erinnerung für 9:00 kommt beim
+  Cron `5 * * * *` um 9:05; feiner wird es nur mit einem häufigeren Aufruf desselben Endpunkts.
+- Benachrichtigung mit Trigger `task_due`, Tippen öffnet `/kunden/<id>#aufgabe-<id>` (hervorgehoben
+  per `:target`). Erinnerungen sind pro Aufgabe gewünscht und brauchen deshalb keine Regel: ohne
+  `task_due`-Regel gehen sie per Push und E-Mail raus (`TASK_REMINDER_FALLBACK`), eine Regel ändert
+  Kanäle und Ruhezeiten, eine abgeschaltete Regel stellt sie ab. Kein Backfill, weil der neue
+  Enum-Wert in derselben Migrations-Transaktion nicht nutzbar wäre.
+- „Heute“ zeigt Überfälliges und heute Fälliges, `/aufgaben` alles offene über alle Kunden; die
+  Tageszusammenfassung nennt die Zahl der heute fälligen Aufgaben. Aufgaben gehören zum
+  Prospect-Export und werden mit dem Prospect gelöscht.
+
+## ADR-0061 · Globale Suche, Command Palette und Tastaturkürzel (2026-10-20)
 
 - Eine Palette für Suche und Befehle (§7.8): ⌘K / Strg+K überall, „/“ außerhalb von Textfeldern, auf
   dem Handy ein Suchknopf im Kopf, am Desktop ein Suchfeld in der Seitenleiste. Radix Dialog sorgt für
@@ -718,7 +742,7 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - WCAG 2.1.4: Kürzel aus einzelnen Zeichen („/“, „?“, „G K“) lassen sich in der Kürzel-Übersicht („?“)
   pro Gerät abschalten (localStorage). ⌘K / Strg+K bleibt immer aktiv. In Eingabefeldern und Dialogen
   greifen Einzeltasten nie.
-- Aufgaben und Wiedervorlagen kommen als Treffergruppe dazu, sobald das Feature auf `main` ist.
+- Aufgaben und Wiedervorlagen (ADR-0060) sind eine eigene Treffergruppe; offene zuerst, nach Fälligkeit.
 - Noch offen: Kürzel für Aktionen auf der Kundenseite (Notiz, Status ändern, Anrufen) und in der
   Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
   mit einer Erweiterung der Palette um seitenbezogene Befehle.
