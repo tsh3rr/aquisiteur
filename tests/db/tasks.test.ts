@@ -5,6 +5,7 @@ import * as schema from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import { getInfra } from "@/infra";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
+import { exportProspect } from "@/server/data-export";
 import { digestContent, digestSummary } from "@/server/notifications/digest";
 import {
   createTask,
@@ -251,6 +252,45 @@ describe("reminder job", () => {
     });
   });
 
+  it("stops follow-ups for a prospect that opted out", async () => {
+    const id = await asTom((tx) =>
+      createTask(
+        tx,
+        actorT,
+        cafe.prospectId,
+        form({ title: "Nach Opt-out", dueDate: "2026-10-30" }),
+        new Date("2026-10-28T10:00:00Z"),
+      ),
+    );
+    await db
+      .update(schema.prospects)
+      .set({ doNotContactAt: new Date("2026-10-29T10:00:00Z") })
+      .where(eq(schema.prospects.id, cafe.prospectId));
+    expect(await runTaskReminders(db, new Date("2026-10-30T12:00:00Z"))).toEqual({
+      due: 0,
+      sent: 0,
+    });
+    expect(
+      await asTom((tx) => listOpenTasks(tx, actorT.workspaceId, { until: "2026-10-30" })),
+    ).toEqual([]);
+    // Still listed in full, e.g. on the customer page.
+    expect(
+      (await asTom((tx) => listOpenTasks(tx, actorT.workspaceId))).map((t) => t.title),
+    ).toContain("Nach Opt-out");
+    const content = await digestContent(db, actorT.workspaceId, new Date("2026-10-30T07:00:00Z"));
+    expect(content.dueTasks).toBe(0);
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, id!));
+    await db
+      .update(schema.prospects)
+      .set({ doNotContactAt: null })
+      .where(eq(schema.prospects.id, cafe.prospectId));
+  });
+
+  it("exports tasks with the prospect", async () => {
+    const data = await asTom((tx) => exportProspect(tx, actorT.workspaceId, cafe.prospectId));
+    expect((data?.tables.tasks ?? []).length).toBeGreaterThan(0);
+  });
+
   it("counts open tasks due today in the digest", async () => {
     const content = await digestContent(
       db,
@@ -259,6 +299,6 @@ describe("reminder job", () => {
       "Europe/Berlin",
     );
     expect(content.dueTasks).toBe(3);
-    expect(digestSummary(content)).toBe("Heute fällig: 3 Aufgaben.");
+    expect(digestSummary(content)).toBe("Fällig oder überfällig: 3 Aufgaben.");
   });
 });

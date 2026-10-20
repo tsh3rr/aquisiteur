@@ -51,7 +51,8 @@ function joined(tx: Transaction) {
 
 /**
  * Open tasks, earliest first. `until` (a local date) limits them to what is
- * due by then, e.g. today for „Heute“.
+ * due by then, e.g. today for „Heute“; that view leaves out prospects with a
+ * block marker, since „Kein Interesse“ stops follow-ups (§7.3).
  */
 export async function listOpenTasks(
   tx: Transaction,
@@ -64,6 +65,7 @@ export async function listOpenTasks(
         eq(tasks.workspaceId, workspaceId),
         isNull(tasks.doneAt),
         options.until ? lte(tasks.dueDate, options.until) : undefined,
+        options.until ? isNull(prospects.doNotContactAt) : undefined,
         options.prospectId ? eq(tasks.prospectId, options.prospectId) : undefined,
       ),
     )
@@ -258,7 +260,15 @@ export async function runTaskReminders(db: Database, now = new Date()) {
       prospects,
       and(eq(prospects.workspaceId, tasks.workspaceId), eq(prospects.id, tasks.prospectId)),
     )
-    .where(and(lte(tasks.remindAt, now), isNull(tasks.remindedAt), isNull(tasks.doneAt)))
+    .where(
+      and(
+        lte(tasks.remindAt, now),
+        isNull(tasks.remindedAt),
+        isNull(tasks.doneAt),
+        // „Kein Interesse“ stops follow-ups (§7.3); the task stays on the customer page.
+        isNull(prospects.doNotContactAt),
+      ),
+    )
     .orderBy(asc(tasks.remindAt))
     .limit(200);
 

@@ -2,7 +2,15 @@
 
 import { BellRing, CalendarClock, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useEffect, useId, useOptimistic, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   deleteTaskAction,
   saveTaskAction,
@@ -97,6 +105,14 @@ function TaskItem({
   canManage: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (!editing && refocus.current) {
+      refocus.current = false;
+      editButton.current?.focus();
+    }
+  }, [editing]);
   const [done, setDone] = useOptimistic(task.done);
   const [pending, startTransition] = useTransition();
   const now = new Date(clock.now);
@@ -110,7 +126,10 @@ function TaskItem({
           task={task}
           prospectId={task.prospectId}
           clock={clock}
-          onClose={() => setEditing(false)}
+          onClose={() => {
+            refocus.current = true;
+            setEditing(false);
+          }}
         />
       </li>
     );
@@ -222,6 +241,7 @@ function TaskItem({
           <Button
             variant="ghost"
             size="icon"
+            ref={editButton}
             aria-label={`${task.title} bearbeiten`}
             onClick={() => setEditing(true)}
           >
@@ -256,23 +276,46 @@ function SnoozeButton({
 /** „Aufgabe hinzufügen“ button that opens the form in place. */
 export function AddTask({ prospectId, clock }: { prospectId: string; clock: Clock }) {
   const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <Button
-        variant="secondary"
-        size="sm"
-        className="justify-self-start"
-        onClick={() => setOpen(true)}
-      >
-        <Plus aria-hidden />
-        Aufgabe hinzufügen
-      </Button>
-    );
-  }
+  const [status, setStatus] = useState("");
+  const button = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    // Keyboard and screen-reader users land back on the button, not at the top of the page.
+    if (!open && refocus.current) {
+      refocus.current = false;
+      button.current?.focus();
+    }
+  }, [open]);
+  const close = (message?: string) => {
+    refocus.current = true;
+    setStatus(message ?? "");
+    setOpen(false);
+  };
   return (
-    <div className="rounded-xl border border-border-strong p-4">
-      <TaskForm prospectId={prospectId} clock={clock} onClose={() => setOpen(false)} />
-    </div>
+    <>
+      {open ? (
+        <div className="rounded-xl border border-border-strong p-4">
+          <TaskForm prospectId={prospectId} clock={clock} onClose={close} />
+        </div>
+      ) : (
+        <Button
+          ref={button}
+          variant="secondary"
+          size="sm"
+          className="justify-self-start"
+          onClick={() => {
+            setStatus("");
+            setOpen(true);
+          }}
+        >
+          <Plus aria-hidden />
+          Aufgabe hinzufügen
+        </Button>
+      )}
+      <p aria-live="polite" className="sr-only">
+        {status}
+      </p>
+    </>
   );
 }
 
@@ -285,7 +328,8 @@ export function TaskForm({
   task?: TaskItemView;
   prospectId: string;
   clock: Clock;
-  onClose: () => void;
+  /** `message` is announced, e.g. „Aufgabe angelegt.“ */
+  onClose: (message?: string) => void;
 }) {
   const [state, action, pending] = useActionState<TaskFormState, FormData>(saveTaskAction, {
     ok: false,
@@ -303,7 +347,7 @@ export function TaskForm({
   const titleId = useId();
 
   useEffect(() => {
-    if (state.ok && state.savedAt) onClose();
+    if (state.ok && state.savedAt) onClose(state.message);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per save
   }, [state.savedAt]);
 
@@ -408,7 +452,7 @@ export function TaskForm({
         <Button type="submit" disabled={pending}>
           {task ? "Speichern" : "Anlegen"}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={() => onClose()}>
           Abbrechen
         </Button>
         {task ? (
@@ -418,7 +462,7 @@ export function TaskForm({
             disabled={deleting}
             onClick={() =>
               startDelete(async () => {
-                if (await deleteTaskAction(task.id, task.prospectId)) onClose();
+                if (await deleteTaskAction(task.id, task.prospectId)) onClose("Aufgabe gelöscht.");
               })
             }
           >

@@ -54,7 +54,7 @@ export interface DigestContent {
   prospects: number;
   unreadChats: number;
   openCallbacks: number;
-  /** Open tasks due today or earlier. */
+  /** Open tasks due today or overdue, without blocked prospects. */
   dueTasks: number;
   top: { prospectId: string; company: string; score: number; headline: string; detail: string }[];
 }
@@ -106,10 +106,15 @@ export async function digestContent(
     db
       .select({ value: count() })
       .from(tasks)
+      .innerJoin(
+        prospects,
+        and(eq(prospects.workspaceId, tasks.workspaceId), eq(prospects.id, tasks.prospectId)),
+      )
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           isNull(tasks.doneAt),
+          isNull(prospects.doNotContactAt),
           lte(tasks.dueDate, localDate(now, timeZone)),
         ),
       ),
@@ -171,7 +176,7 @@ export function digestSummary(content: DigestContent): string | null {
   }
   const tasks =
     content.dueTasks > 0
-      ? `Heute fällig: ${plural(content.dueTasks, "Aufgabe", "Aufgaben")}.`
+      ? `Fällig oder überfällig: ${plural(content.dueTasks, "Aufgabe", "Aufgaben")}.`
       : null;
   if (parts.length === 0) return tasks;
   const last = parts.pop()!;

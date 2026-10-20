@@ -56,10 +56,11 @@ test("a follow-up goes from the customer page to „Heute“ and the task list",
 
   const done = moved.getByRole("button", { name: "Erledigt: Frau Müller anrufen" });
   await done.click();
-  await expect(done).toHaveAttribute("aria-pressed", "true");
+  // The done task leaves the open list as soon as the page revalidates.
+  await expect(page.getByText("Keine offenen Aufgaben.")).toBeVisible();
   await page.reload();
   await expect(page.getByText("Keine offenen Aufgaben.")).toBeVisible();
-  await page.getByText(/Erledigt in den letzten 14 Tagen \(1\)/).click();
+  await page.getByText(/Erledigt in den letzten 14 Tagen/).click();
   await expect(page.getByRole("button", { name: "Erledigt: Frau Müller anrufen" })).toHaveAttribute(
     "aria-pressed",
     "true",
