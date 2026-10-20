@@ -55,6 +55,7 @@ export async function createLettersAction(
         color: formData.get("color") === "on",
         duplex: formData.get("duplex") === "on",
         teaser: formData.get("teaser") === "on",
+        contact: formData.get("contact") === "on",
       },
     }),
   );

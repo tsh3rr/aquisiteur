@@ -55,7 +55,11 @@ const styles = StyleSheet.create({
     textDecoration: "underline",
   },
   address: { position: "absolute", top: mm(62.7), left: mm(25), width: mm(85), fontSize: 10.5 },
-  info: { position: "absolute", top: mm(50), left: mm(125), width: mm(65), fontSize: 9.5 },
+  // Starts level with the recipient's first line, so both addresses read as one row.
+  info: { position: "absolute", top: mm(62.7), left: mm(125), width: mm(65), fontSize: 9.5 },
+  // Letterhead zone of Form B (top 45 mm), left so it never meets the decor in the corner.
+  letterhead: { position: "absolute", top: mm(14), left: mm(25), height: mm(18), width: mm(80) },
+  logo: { height: mm(18), maxWidth: mm(80), objectFit: "contain", objectPositionX: 0 },
   mark: {
     position: "absolute",
     left: mm(4),
@@ -131,6 +135,21 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
       <View fixed style={[styles.mark, { top: mm(105) }]} />
       <View fixed style={[styles.mark, { top: mm(148.5), width: mm(7) }]} />
       <View fixed style={[styles.mark, { top: mm(210) }]} />
+      <View fixed style={styles.letterhead}>
+        {letter.senderLogo ? (
+          // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
+          <Image src={letter.senderLogo} style={styles.logo} />
+        ) : (
+          <Text
+            style={[
+              teaser ? displayStyle(teaser.style) : { fontWeight: 600 },
+              { fontSize: 16, color: teaser?.colors.ink ?? "#111111" },
+            ]}
+          >
+            {letter.senderName}
+          </Text>
+        )}
+      </View>
       <Text fixed style={styles.returnAddress}>
         {letter.returnAddress}
       </Text>
@@ -141,7 +160,11 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
       </View>
       <View fixed style={styles.info}>
         {letter.signer.name ? <Text>{letter.signer.name}</Text> : null}
-        {letter.footer[1] ? <Text style={{ color: "#555555" }}>{letter.footer[1]}</Text> : null}
+        {letter.senderContact.map((line, index) => (
+          <Text key={index} style={{ color: "#555555" }}>
+            {line}
+          </Text>
+        ))}
         <Text style={{ marginTop: mm(4) }}>{letter.date}</Text>
       </View>
 
@@ -273,23 +296,26 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
   return Promise.all(
     letters.map(async (letter) => {
       const { teaser, signer } = letter;
-      const [image, logo, ownerPhoto, signatureUrl, before, after] = await Promise.all([
+      const [image, logo, ownerPhoto, signatureUrl, before, after, senderLogo] = await Promise.all([
         convert(teaser?.image?.src ?? null),
         convert(teaser?.logo?.src ?? null),
         convert(teaser?.ownerPhoto ?? null),
         convert(signer.signatureUrl),
         convert(teaser?.beforeAfter?.before.src ?? null),
         convert(teaser?.beforeAfter?.after.src ?? null),
+        convert(letter.senderLogo),
       ]);
       const missingImages =
         Boolean(teaser?.image && !image) ||
         Boolean(teaser?.logo && !logo) ||
         Boolean(teaser?.ownerPhoto && !ownerPhoto) ||
         Boolean(teaser?.beforeAfter && !(before && after)) ||
-        Boolean(signer.signatureUrl && !signatureUrl);
+        Boolean(signer.signatureUrl && !signatureUrl) ||
+        Boolean(letter.senderLogo && !senderLogo);
       return {
         ...letter,
         missingImages,
+        senderLogo,
         signer: { ...signer, signatureUrl },
         teaser: teaser && {
           ...teaser,

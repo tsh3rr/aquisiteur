@@ -225,6 +225,11 @@ describe("letters", () => {
     await setOptions({ ...legacy, teaser: false });
     const [plain] = await asLea((tx) => loadPrintableLetters(tx, wsL, [cafeLetter]));
     expect(plain!.teaser).toBeNull();
+    // Phone and e-mail in the call to action can be left out per letter.
+    await setOptions({ ...legacy, contact: false });
+    const [quiet] = await asLea((tx) => loadPrintableLetters(tx, wsL, [cafeLetter]));
+    expect(quiet!.teaser!.contact).toBeNull();
+    expect(quiet!.senderLogo).toBeNull();
     await setOptions({ ...legacy, teaser: true });
   });
 

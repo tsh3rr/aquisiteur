@@ -186,6 +186,8 @@ export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo" | "
       })
     | null;
   ownerPhoto: string | null;
+  /** Sender's phone and e-mail in the call to action; null when the letter leaves them out. */
+  contact: { phone: string | null; email: string | null } | null;
   /** The same code as `qrModules`, at level H for the dotted style with a logo in the middle. */
   qr: { size: number; bits: string };
 }

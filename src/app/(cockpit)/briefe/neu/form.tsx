@@ -71,6 +71,10 @@ export function NewLettersForm({ ids, kind }: { ids: string[]; kind: "initial" |
               </p>
             </div>
             <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input type="checkbox" name="contact" defaultChecked className={radio} />
+              Telefon und E-Mail auf der Vorschau-Seite
+            </label>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
               <input type="checkbox" name="color" className={radio} />
               Farbdruck
             </label>

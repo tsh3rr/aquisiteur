@@ -607,3 +607,9 @@ ein Band „Alles Weitere auf dieser Seite“ mit Kurzlink, Pfeil zum Code und F
   vermieden, auch für Logo und Unterschrift: React-PDF entpackt PNGs in einem Blob-Worker, den die CSP
   (`worker-src 'self'`) blockiert, und das PDF würde nie fertig. JPEG auf Weiß verliert nichts, das
   Logo steht deshalb auf einem weißen Chip.
+- Briefkopf auf Seite 1: Logo der Agentur (`branding.logoAssetId`) oben links in der Briefkopfzone,
+  ohne Logo der Name in der Headline-Schrift. Links, damit es nie mit der Kreisform oben rechts
+  kollidiert. Der Absenderblock beginnt auf Höhe der ersten Empfängerzeile (62,7 mm).
+- Das Band auf Seite 2 trägt den Kurzlink mit dem Aufkleber „Tipp mich ein!“ statt einer schwachen
+  Hinweiszeile; Telefon und E-Mail des Absenders stehen darunter, pro Brief abschaltbar
+  (`letters.options.contact`, Standard an, fehlt bei älteren Briefen und gilt dann als an).

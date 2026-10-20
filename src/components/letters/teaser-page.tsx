@@ -634,10 +634,13 @@ export function TeaserPage({
   );
 }
 
-/** The way in once more, pointing at link and code. */
+/** The way in once more: headline, the link and the code, each with its own cue. */
 function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: PrintableTeaser }) {
-  const { colors } = teaser;
+  const { colors, contact } = teaser;
   const display = displayStyle(teaser.style);
+  const reach = [contact?.phone ? `Tel. ${contact.phone}` : null, contact?.email ?? null].filter(
+    Boolean,
+  );
   return (
     <View
       wrap={false}
@@ -655,58 +658,63 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
       }}
     >
       <View style={{ flex: 1, color: colors.onAccent }}>
-        <Text style={{ ...display, fontSize: 17 }}>Alles Weitere auf dieser Seite</Text>
-        <Text style={{ fontSize: 9, marginTop: mm(1.5) }}>
+        <Text style={{ ...display, fontSize: 22 }}>Alles Weitere auf dieser Seite</Text>
+        <Text style={{ fontSize: 10, marginTop: mm(2.5) }}>
           Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
         </Text>
         {letter.qr.shortLink ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginTop: mm(2.5),
-              flexWrap: "wrap",
-              rowGap: mm(1),
-            }}
-          >
-            <Text style={{ fontSize: 9, marginRight: mm(2) }}>
-              Handy-Kamera drauf oder eintippen:
-            </Text>
-            <Link
-              src={`https://${letter.qr.shortLink}`}
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: colors.ink,
-                backgroundColor: "#ffffff",
-                paddingVertical: mm(1),
-                paddingHorizontal: mm(2.5),
-                borderRadius: mm(3),
-                textDecoration: "none",
-              }}
-            >
-              {letter.qr.shortLink}
-            </Link>
+          <View style={{ flexDirection: "row", marginTop: mm(8) }}>
+            <View>
+              <Link
+                src={`https://${letter.qr.shortLink}`}
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: colors.ink,
+                  backgroundColor: "#ffffff",
+                  paddingVertical: mm(1.6),
+                  paddingHorizontal: mm(3.5),
+                  borderRadius: mm(3.5),
+                  textDecoration: "none",
+                }}
+              >
+                {letter.qr.shortLink}
+              </Link>
+              <Sticker
+                background={colors.ink}
+                color="#ffffff"
+                style={{ top: -mm(6.5), left: -mm(1) }}
+              >
+                TIPP MICH EIN!
+              </Sticker>
+            </View>
           </View>
         ) : null}
-        {letter.signer.name || teaser.ownerPhoto ? (
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: mm(3) }}>
+        {letter.signer.name || teaser.ownerPhoto || reach.length > 0 ? (
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: mm(4) }}>
             {teaser.ownerPhoto ? (
               // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
               <Image
                 src={teaser.ownerPhoto}
                 style={{
-                  width: mm(9),
-                  height: mm(9),
-                  borderRadius: mm(4.5),
+                  width: mm(10),
+                  height: mm(10),
+                  borderRadius: mm(5),
                   objectFit: "cover",
-                  marginRight: mm(2),
+                  marginRight: mm(2.5),
                 }}
               />
             ) : null}
-            <Text style={{ fontSize: 8.5 }}>
-              {[letter.signer.name, letter.signer.phone].filter(Boolean).join(" · ")}
-            </Text>
+            <View style={{ flexShrink: 1 }}>
+              {letter.signer.name ? (
+                <Text style={{ fontSize: 10, fontWeight: 600 }}>
+                  {reach.length > 0 ? `Lieber direkt? ${letter.signer.name}` : letter.signer.name}
+                </Text>
+              ) : null}
+              {reach.length > 0 ? (
+                <Text style={{ fontSize: 9.5, marginTop: mm(0.5) }}>{reach.join("  ·  ")}</Text>
+              ) : null}
+            </View>
           </View>
         ) : null}
       </View>

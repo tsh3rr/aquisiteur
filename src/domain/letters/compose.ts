@@ -56,13 +56,10 @@ export interface ComposedLetter {
   closing: string;
   /** Agency or owner name for the letterhead. */
   senderName: string;
-  signer: {
-    name: string | null;
-    role: string | null;
-    phone: string | null;
-    signatureUrl: string | null;
-  };
+  signer: { name: string | null; role: string | null; signatureUrl: string | null };
   qr: { url: string; hint: string; shortLink: string | null };
+  /** Phone, e-mail and website, one per line in the info block. */
+  senderContact: string[];
   /** Contact details in the footer. */
   footer: string[];
   /** Placeholders the text used that had no value, e.g. ["ansprechpartner"]. */
@@ -145,6 +142,11 @@ export function composeLetter(input: LetterInput): ComposedLetter {
 
   const senderPlace = [sender.postalCode, sender.city].filter(Boolean).join(" ");
   const returnAddress = [sender.company, sender.street, senderPlace].filter(Boolean).join(" · ");
+  const senderContact = [
+    sender.phone ? `Telefon ${sender.phone}` : null,
+    sender.email,
+    sender.website,
+  ].filter((line): line is string => Boolean(line));
 
   return {
     returnAddress,
@@ -160,18 +162,12 @@ export function composeLetter(input: LetterInput): ComposedLetter {
     body: body.text,
     closing: input.closing,
     senderName: sender.company,
-    signer: {
-      name: sender.name,
-      role: sender.role,
-      phone: sender.phone,
-      signatureUrl: input.signatureUrl,
-    },
+    signer: { name: sender.name, role: sender.role, signatureUrl: input.signatureUrl },
     qr: { url: input.qrUrl, hint: input.qrHint, shortLink: input.shortLink },
+    senderContact,
     footer: [
       [sender.company, sender.street, senderPlace].filter(Boolean).join(", "),
-      [sender.phone ? `Telefon ${sender.phone}` : null, sender.email, sender.website]
-        .filter(Boolean)
-        .join(" · "),
+      senderContact.join(" · "),
     ].filter(Boolean),
     missing: [...new Set([...subject.missing, ...body.missing])],
   };

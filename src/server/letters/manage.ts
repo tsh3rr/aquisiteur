@@ -287,6 +287,7 @@ export interface PrintableLetter extends ComposedLetter {
   companyName: string;
   qrModules: { size: number; path: string };
   problems: string[];
+  senderLogo: string | null;
   duplex: boolean;
   teaser: PrintableTeaser | null;
 }
@@ -398,6 +399,7 @@ export async function loadPrintableLetters(
     )
     .orderBy(desc(contacts.isPrimary), asc(contacts.createdAt));
   const signatureUrl = await brandImageSrc(tx, workspaceId, settings.letter.signatureAssetId);
+  const senderLogo = await brandImageSrc(tx, workspaceId, settings.branding.logoAssetId);
   const documents = await currentDocuments(tx, workspaceId, [
     ...new Set(
       rows
@@ -439,6 +441,7 @@ export async function loadPrintableLetters(
       id: letter.id,
       prospectId: prospect.id,
       companyName: prospect.companyName,
+      senderLogo,
       duplex: letter.options.duplex,
       teaser:
         source && teaser
@@ -448,6 +451,10 @@ export async function loadPrintableLetters(
               logo: teaserImage(source.manifest, teaser.logo),
               beforeAfter: printableBeforeAfter(source.manifest, teaser.beforeAfter),
               ownerPhoto,
+              contact:
+                letter.options.contact !== false && (sender.phone || sender.email)
+                  ? { phone: sender.phone, email: sender.email }
+                  : null,
               qr: qrMatrix(urls.qrUrl, "H"),
             }
           : null,
@@ -460,7 +467,7 @@ export async function loadPrintableLetters(
   });
 }
 
-/** Owner photo or signature as a cockpit URL; the browser converts it for the PDF. */
+/** Owner photo, agency logo or signature as a cockpit URL; the browser converts it for the PDF. */
 async function brandImageSrc(tx: Transaction, workspaceId: string, assetId: string | undefined) {
   if (!assetId) return null;
   const [row] = await tx
