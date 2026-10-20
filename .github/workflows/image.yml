@@ -9,6 +9,8 @@ name: Image
 on:
   push:
     branches: [main]
+    # Docs never reach the image (.dockerignore), so docs-only merges skip the build.
+    paths-ignore: ["docs/**", "**/*.md"]
   pull_request:
     paths: [Dockerfile, .dockerignore, .github/workflows/image.yml]
   workflow_dispatch:
@@ -25,6 +27,7 @@ jobs:
   image:
     name: Build and push the app image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       IMAGE: ghcr.io/${{ github.repository }}
       PUSH: ${{ github.event_name != 'pull_request' }}
@@ -59,6 +62,7 @@ jobs:
     needs: image
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/compose-deploy
