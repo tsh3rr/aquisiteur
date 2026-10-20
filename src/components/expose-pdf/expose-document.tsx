@@ -777,11 +777,7 @@ function ContactSection({
                   size={qrSize}
                   dot={colors.ink}
                   eye={colors.accent}
-                  badge={{
-                    background: colors.accent,
-                    color: colors.onAccent,
-                    font: displayStyle(doc.style),
-                  }}
+                  badge={{ background: colors.accent, logo: null }}
                 />
               </Link>
             </View>

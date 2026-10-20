@@ -13,7 +13,7 @@ import {
 import { Fragment } from "react";
 import { parseRichText, type Inline } from "@/domain/expose/rich-text";
 import { displayStyle } from "./pdf-fonts";
-import { printableImage } from "./pdf-image";
+import { badgeLogo, printableImage } from "./pdf-image";
 import { LetterDecor, TeaserPage, TeaserQrCard } from "./teaser-page";
 import type { PrintableLetterData } from "./types";
 
@@ -271,6 +271,10 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
         convert(teaser?.beforeAfter?.after.src ?? null),
         convert(letter.senderLogo),
       ]);
+      const qrLogo =
+        teaser && letter.senderLogo
+          ? await badgeLogo(letter.senderLogo, teaser.colors.accent, teaser.colors.onAccent)
+          : null;
       const missingImages =
         Boolean(teaser?.image && !image) ||
         Boolean(teaser?.logo && !logo) ||
@@ -296,6 +300,7 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
                 }
               : null,
           ownerPhoto,
+          qrLogo,
         },
       };
     }),

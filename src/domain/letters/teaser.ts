@@ -200,4 +200,9 @@ export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo" | "
   contact: { phone: string | null; email: string | null } | null;
   /** The same code as `qrModules`, at level H for the dotted style with a logo in the middle. */
   qr: { size: number; bits: string };
+  /**
+   * Agency logo for the middle of the code, already tinted onto the accent
+   * (JPEG data URL, made in the browser); null leaves a plain accent dot.
+   */
+  qrLogo: string | null;
 }
