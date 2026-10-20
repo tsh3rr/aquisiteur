@@ -122,6 +122,21 @@ describe("buildLetterTeaser()", () => {
     expect(teaser.image?.src).toBe("assets/nachher.svg");
     expect(teaser.ideas[0]!.title).toBe("Termine nur per Telefon");
   });
+
+  it("puts an arrow in the QR code unless the exposé names a word or none", () => {
+    const document = example("physio-lindenhof");
+    const withBadge = (qrBadge: string | false | undefined) =>
+      buildLetterTeaser(
+        exposeSchema.parse({
+          ...document,
+          letter: { ...document.letter!, teaser: { qrBadge } },
+        }),
+      )!.qrBadge;
+    expect(withBadge(undefined)).toEqual({ kind: "arrow" });
+    expect(withBadge(" Los ")).toEqual({ kind: "text", text: "Los" });
+    expect(withBadge(false)).toBeNull();
+    expect(() => withBadge("Hallo")).toThrow();
+  });
 });
 
 describe("clip()", () => {

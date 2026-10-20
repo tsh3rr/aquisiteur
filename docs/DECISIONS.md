@@ -609,8 +609,10 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden nach dem
   Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
   Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
-- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
-  der Mitte, deshalb Fehlerkorrektur H. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
+- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein Abzeichen in
+  der Mitte, deshalb Fehlerkorrektur H. Im Abzeichen steht ein dicker Pfeil wie auf Seite 1 („hier geht's
+  weiter“); früher ein „Hi!“, das nichts über das Ziel sagte. `letter.teaser.qrBadge` setzt stattdessen
+  ein kurzes Wort (bis 4 Zeichen) oder lässt die Mitte frei. Die codierte URL ändert sich dadurch nicht. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
   QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
 - Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
   mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.

@@ -18,7 +18,7 @@ import type { Styles } from "@react-pdf/renderer";
 type Style = Styles[string];
 import type { ReactNode } from "react";
 import type { ExposeStyle } from "@/domain/expose/schema";
-import type { PrintImage, PrintableTeaser } from "@/domain/letters/teaser";
+import type { PrintImage, PrintableTeaser, QrBadge } from "@/domain/letters/teaser";
 import type { PrintableLetterData } from "./types";
 
 /**
@@ -53,7 +53,8 @@ export const displayStyle = (style: ExposeStyle) => DISPLAY[style];
 
 /**
  * The QR code as dots with rounded finder eyes in the accent colour and a
- * small „Hi!“ badge in the middle (level H keeps it readable with the hole).
+ * small badge in the middle (level H keeps it readable with the hole): by
+ * default an arrow saying „this leads somewhere“, or a short word.
  * Includes one module of quiet zone; the white tile around it adds the rest.
  */
 function DottedQr({
@@ -67,7 +68,7 @@ function DottedQr({
   size: number;
   dot: string;
   eye: string;
-  badge: { background: string; color: string; font: Style } | null;
+  badge: { content: NonNullable<QrBadge>; background: string; color: string; font: Style } | null;
 }) {
   const n = qr.size;
   const isEye = (x: number, y: number) =>
@@ -129,7 +130,19 @@ function DottedQr({
             justifyContent: "center",
           }}
         >
-          <Text style={{ ...badge.font, color: badge.color, fontSize: badgeSize * 0.42 }}>Hi!</Text>
+          {badge.content.kind === "arrow" ? (
+            <StraightArrow width={badgeSize * 0.68} color={badge.color} />
+          ) : (
+            <Text
+              style={{
+                ...badge.font,
+                color: badge.color,
+                fontSize: badgeSize * (badge.content.text.length > 3 ? 0.32 : 0.42),
+              }}
+            >
+              {badge.content.text}
+            </Text>
+          )}
         </View>
       ) : null}
     </View>
@@ -241,11 +254,16 @@ function QrTile({
             size={size}
             dot={colors.ink}
             eye={colors.accent}
-            badge={{
-              background: colors.accent,
-              color: colors.onAccent,
-              font: displayStyle(teaser.style),
-            }}
+            badge={
+              teaser.qrBadge
+                ? {
+                    content: teaser.qrBadge,
+                    background: colors.accent,
+                    color: colors.onAccent,
+                    font: displayStyle(teaser.style),
+                  }
+                : null
+            }
           />
         </Link>
       </View>

@@ -265,6 +265,20 @@
                 ],
                 "additionalProperties": false
               }
+            },
+            "qrBadge": {
+              "description": "Centre of the QR code on the letter: up to 4 characters (e.g. 'Los'), false for none. Defaults to an arrow.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4
+                },
+                {
+                  "type": "boolean",
+                  "const": false
+                }
+              ]
             }
           },
           "additionalProperties": false
