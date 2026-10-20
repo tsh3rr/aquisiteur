@@ -152,6 +152,49 @@ function FatArrow({ width, color, style }: { width: number; color: string; style
   );
 }
 
+/** A fat arrow that bends over and points straight down, as in „turn the page“. */
+function DownArrow({ width, color }: { width: number; color: string }) {
+  return (
+    <Svg width={width} height={width * 1.25} viewBox="0 0 80 100">
+      <Path
+        d="M8 14 C 44 4, 62 30, 58 72"
+        stroke={color}
+        strokeWidth={10}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Polygon points="42,68 74,70 57,97" fill={color} />
+    </Svg>
+  );
+}
+
+/**
+ * Two arrows from one stem: the upper one runs right to the code, the lower
+ * one bends back down to the link (page 2 call to action).
+ */
+function ForkArrow({ width, color }: { width: number; color: string }) {
+  return (
+    <Svg width={width} height={width * 1.7} viewBox="0 0 100 170">
+      <Path
+        d="M6 22 C 34 10, 62 16, 80 40"
+        stroke={color}
+        strokeWidth={8}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Polygon points="66,42 94,34 90,64" fill={color} />
+      <Path
+        d="M20 22 C 54 44, 58 118, 28 138"
+        stroke={color}
+        strokeWidth={8}
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Polygon points="36,124 34,154 6,142" fill={color} />
+    </Svg>
+  );
+}
+
 /** A tilted round sticker, like the ones on a shop window. */
 function Sticker({
   children,
@@ -181,17 +224,19 @@ function Sticker({
   );
 }
 
-/** The white tile with the dotted code and a „Scan mich“ sticker on its corner. */
+/** The white tile with the dotted code and a „Scannen“ sticker on its corner. */
 function QrTile({
   letter,
   teaser,
   size,
   tilt,
+  label = "SCANNEN",
 }: {
   letter: PrintableLetterData;
   teaser: PrintableTeaser;
   size: number;
   tilt: number;
+  label?: string | null;
 }) {
   const { colors } = teaser;
   return (
@@ -219,13 +264,15 @@ function QrTile({
           />
         </Link>
       </View>
-      <Sticker
-        background={colors.accent}
-        color={colors.onAccent}
-        style={{ bottom: -mm(2.5), right: -mm(6) }}
-      >
-        SCAN MICH!
-      </Sticker>
+      {label ? (
+        <Sticker
+          background={colors.accent}
+          color={colors.onAccent}
+          style={{ bottom: -mm(2.5), right: -mm(5) }}
+        >
+          {label}
+        </Sticker>
+      ) : null}
     </View>
   );
 }
@@ -294,10 +341,12 @@ export function TeaserQrCard({
         <QrTile letter={letter} teaser={teaser} size={mm(27)} tilt={-3} />
         <View style={{ flex: 1 }}>
           <Text style={{ ...display, fontSize: 16, color: colors.ink }}>
-            Ihre persönliche Seite
+            Mein Vorschlag für Ihre Website
           </Text>
           <Text style={{ marginTop: mm(1.5), fontSize: 9.5, color: colors.muted }}>
-            {letter.qr.hint}
+            {letter.qr.shortLink
+              ? "Scannen Sie den Code mit der Handykamera oder tippen Sie den Link ein:"
+              : letter.qr.hint}
           </Text>
           {letter.qr.shortLink ? (
             <View
@@ -309,9 +358,6 @@ export function TeaserQrCard({
                 rowGap: mm(1),
               }}
             >
-              <Text style={{ fontSize: 9, color: colors.muted, marginRight: mm(2) }}>
-                oder eintippen:
-              </Text>
               <Link
                 src={`https://${letter.qr.shortLink}`}
                 style={{
@@ -336,7 +382,7 @@ export function TeaserQrCard({
           flexDirection: "row",
           alignItems: "flex-start",
           justifyContent: "flex-end",
-          marginTop: mm(2),
+          marginTop: mm(1),
           paddingRight: mm(2),
         }}
       >
@@ -353,7 +399,7 @@ export function TeaserQrCard({
         >
           {`Bitte umblättern: ${letter.duplex ? "Auf der Rückseite" : "Auf der nächsten Seite"} sehen Sie schon, ${preview}.`}
         </Text>
-        <FatArrow width={mm(20)} color={colors.accent} />
+        <DownArrow width={mm(14)} color={colors.accent} />
       </View>
     </View>
   );
@@ -498,14 +544,14 @@ function BeforeAfterStage({ teaser }: { teaser: PrintableTeaser }) {
           <Pill background={colors.ink} color="#ffffff">
             {stage.beforeLabel}
           </Pill>
-          <Phone image={stage.before} width={mm(40)} desktop={stage.beforeIsDesktop} tilt={-4} />
+          <Phone image={stage.before} width={mm(36)} desktop={stage.beforeIsDesktop} tilt={-4} />
         </View>
         {arrow}
         <View>
           <Pill background={colors.accent} color={colors.onAccent}>
             {stage.afterLabel}
           </Pill>
-          <Phone image={stage.after} width={mm(46)} desktop={false} tilt={3} />
+          <Phone image={stage.after} width={mm(41)} desktop={false} tilt={3} />
         </View>
       </View>
     );
@@ -634,13 +680,18 @@ export function TeaserPage({
   );
 }
 
-/** The way in once more: headline, the link and the code, each with its own cue. */
+/**
+ * The way in once more: the headline points with one arrow to the code and
+ * with a second one down to the typed link; the sender's contact sits on a
+ * light card of its own.
+ */
 function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: PrintableTeaser }) {
   const { colors, contact } = teaser;
   const display = displayStyle(teaser.style);
   const reach = [contact?.phone ? `Tel. ${contact.phone}` : null, contact?.email ?? null].filter(
     Boolean,
   );
+  const showContact = Boolean(letter.signer.name || teaser.ownerPhoto || reach.length > 0);
   return (
     <View
       wrap={false}
@@ -649,81 +700,94 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
         bottom: mm(12),
         left: mm(18),
         right: mm(18),
-        flexDirection: "row",
-        alignItems: "center",
         padding: mm(5),
-        paddingRight: mm(3),
         borderRadius: mm(5),
         backgroundColor: colors.accent,
+        color: colors.onAccent,
       }}
     >
-      <View style={{ flex: 1, color: colors.onAccent }}>
-        <Text style={{ ...display, fontSize: 22 }}>Alles Weitere auf dieser Seite</Text>
-        <Text style={{ fontSize: 10, marginTop: mm(2.5) }}>
-          Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
-        </Text>
-        {letter.qr.shortLink ? (
-          <View style={{ flexDirection: "row", marginTop: mm(8) }}>
-            <View>
-              <Link
-                src={`https://${letter.qr.shortLink}`}
-                style={{
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: colors.ink,
-                  backgroundColor: "#ffffff",
-                  paddingVertical: mm(1.6),
-                  paddingHorizontal: mm(3.5),
-                  borderRadius: mm(3.5),
-                  textDecoration: "none",
-                }}
-              >
-                {letter.qr.shortLink}
-              </Link>
-              <Sticker
-                background={colors.ink}
-                color="#ffffff"
-                style={{ top: -mm(6.5), left: -mm(1) }}
-              >
-                TIPP MICH EIN!
-              </Sticker>
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ ...display, fontSize: 19, textAlign: "right" }}>
+            Alles Weitere auf dieser Seite
+          </Text>
+          <Text style={{ fontSize: 9.5, marginTop: mm(2), textAlign: "right" }}>
+            Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
+          </Text>
+          {letter.qr.shortLink ? (
+            <View style={{ alignItems: "flex-end", marginTop: mm(6) }}>
+              <View>
+                <Link
+                  src={`https://${letter.qr.shortLink}`}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: colors.ink,
+                    backgroundColor: "#ffffff",
+                    paddingVertical: mm(1.6),
+                    paddingHorizontal: mm(3.5),
+                    borderRadius: mm(3.5),
+                    textDecoration: "none",
+                  }}
+                >
+                  {letter.qr.shortLink}
+                </Link>
+                <Sticker
+                  background={colors.ink}
+                  color="#ffffff"
+                  style={{ top: -mm(4.5), left: -mm(3) }}
+                >
+                  EINTIPPEN
+                </Sticker>
+              </View>
             </View>
-          </View>
-        ) : null}
-        {letter.signer.name || teaser.ownerPhoto || reach.length > 0 ? (
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: mm(4) }}>
-            {teaser.ownerPhoto ? (
-              // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-              <Image
-                src={teaser.ownerPhoto}
-                style={{
-                  width: mm(10),
-                  height: mm(10),
-                  borderRadius: mm(5),
-                  objectFit: "cover",
-                  marginRight: mm(2.5),
-                }}
-              />
-            ) : null}
-            <View style={{ flexShrink: 1 }}>
-              {letter.signer.name ? (
-                <Text style={{ fontSize: 10, fontWeight: 600 }}>
-                  {reach.length > 0 ? `Lieber direkt? ${letter.signer.name}` : letter.signer.name}
-                </Text>
-              ) : null}
-              {reach.length > 0 ? (
-                <Text style={{ fontSize: 9.5, marginTop: mm(0.5) }}>{reach.join("  ·  ")}</Text>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
+        <View style={{ marginTop: -mm(1), marginHorizontal: mm(1) }}>
+          <ForkArrow width={mm(20)} color={colors.onAccent} />
+        </View>
+        <QrTile letter={letter} teaser={teaser} size={mm(28)} tilt={3} />
       </View>
-      <FatArrow
-        width={mm(16)}
-        color={colors.onAccent}
-        style={{ transform: "rotate(-30deg)", marginHorizontal: mm(1) }}
-      />
-      <QrTile letter={letter} teaser={teaser} size={mm(28)} tilt={3} />
+      {showContact ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            alignSelf: "flex-start",
+            marginTop: mm(4),
+            paddingVertical: mm(2),
+            paddingLeft: mm(2),
+            paddingRight: mm(4),
+            borderRadius: mm(3),
+            backgroundColor: colors.accentSoft,
+            color: colors.ink,
+          }}
+        >
+          {teaser.ownerPhoto ? (
+            // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
+            <Image
+              src={teaser.ownerPhoto}
+              style={{
+                width: mm(10),
+                height: mm(10),
+                borderRadius: mm(5),
+                objectFit: "cover",
+                marginRight: mm(2.5),
+              }}
+            />
+          ) : null}
+          <View>
+            {letter.signer.name ? (
+              <Text style={{ fontSize: 10, fontWeight: 600 }}>{letter.signer.name}</Text>
+            ) : null}
+            {reach.length > 0 ? (
+              <Text style={{ fontSize: 9.5, marginTop: mm(0.5), color: colors.muted }}>
+                {reach.join("  ·  ")}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }

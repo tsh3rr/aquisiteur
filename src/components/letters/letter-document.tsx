@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
     textDecoration: "underline",
   },
   address: { position: "absolute", top: mm(62.7), left: mm(25), width: mm(85), fontSize: 10.5 },
-  // Starts level with the recipient's first line, so both addresses read as one row.
-  info: { position: "absolute", top: mm(62.7), left: mm(125), width: mm(65), fontSize: 9.5 },
+  // Starts level with the return address line, so both blocks share one top edge.
+  info: { position: "absolute", top: mm(45 + 12.7), left: mm(125), width: mm(65), fontSize: 9.5 },
   // Letterhead zone of Form B (top 45 mm), left so it never meets the decor in the corner.
   letterhead: { position: "absolute", top: mm(14), left: mm(25), height: mm(18), width: mm(80) },
   logo: { height: mm(18), maxWidth: mm(80), objectFit: "contain", objectPositionX: 0 },
@@ -159,6 +159,9 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
         ))}
       </View>
       <View fixed style={styles.info}>
+        {letter.senderName && letter.senderName !== letter.signer.name ? (
+          <Text style={{ fontWeight: 600 }}>{letter.senderName}</Text>
+        ) : null}
         {letter.signer.name ? <Text>{letter.signer.name}</Text> : null}
         {letter.senderContact.map((line, index) => (
           <Text key={index} style={{ color: "#555555" }}>
