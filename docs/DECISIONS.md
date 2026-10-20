@@ -585,10 +585,15 @@ Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mi
 Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“), und
 sieht dabei nach Gestaltung aus, nicht nach Geschäftsbrief. Seite 1 bleibt das DIN-5008-Anschreiben,
 bekommt aber weiche Kreisformen am Rand (außerhalb von Fenster und Infoblock), den Betreff in der
-Headline-Schrift des Exposé-Stils und statt der QR-Box eine Karte mit gepunktetem Code, Kurzlink und
-einem dicken Pfeil „Bitte umblättern“. Seite 2 ist die Vorschau: Headline, Vorher/Nachher als zwei
-Handys (links die heutige Seite ungeschrumpft, rechts der Vorschlag), drei Ideen mit großen Ziffern und
-ein Band „Alles Weitere auf dieser Seite“ mit Kurzlink, Pfeil zum Code und Foto des Owners.
+Headline-Schrift des Exposé-Stils und statt der QR-Box eine Karte „Mein Vorschlag für Ihre Website“
+(Kurzlink links, gepunkteter Code rechts) und einen dicken Pfeil „Bitte umblättern“. Seite 2 ist die
+Vorschau: Headline, Vorher/Nachher als zwei gleich große Handys (links die heutige Seite verkleinert,
+rechts der Vorschlag), drei Ideen mit großen Ziffern und unten dieselbe helle Karte wie auf Seite 1:
+„Alles Weitere auf dieser Seite“, Kurzlink, Code und Kontakt des Owners.
+
+Gestaltungsregeln aus der Abstimmung mit dem Owner: Show, don't tell (Link, Nummer und Mail erklären
+sich selbst, nur der Code bekommt ein kleines „Scannen“); alles aufrecht, nichts gekippt, weil gedrehte
+Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über oder unter ihrem Element.
 
 - Inhalte kommen automatisch aus `hero`, `before_after` und `proposal` (ersatzweise `findings`), reine
   Logik in `src/domain/letters/teaser.ts`. Für die Handys bekommt `before_after` die optionalen Felder
@@ -598,7 +603,7 @@ ein Band „Alles Weitere auf dieser Seite“ mit Kurzlink, Pfeil zum Code und F
   Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
   Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
 - Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
-  der Mitte, deshalb Fehlerkorrektur H. Der Aufkleber „Scan mich!“ sitzt außerhalb der Module. Mit einem
+  der Mitte, deshalb Fehlerkorrektur H. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
   QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
 - Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
   mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.
@@ -609,7 +614,6 @@ ein Band „Alles Weitere auf dieser Seite“ mit Kurzlink, Pfeil zum Code und F
   Logo steht deshalb auf einem weißen Chip.
 - Briefkopf auf Seite 1: Logo der Agentur (`branding.logoAssetId`) oben links in der Briefkopfzone,
   ohne Logo der Name in der Headline-Schrift. Links, damit es nie mit der Kreisform oben rechts
-  kollidiert. Der Absenderblock beginnt auf Höhe der ersten Empfängerzeile (62,7 mm).
-- Das Band auf Seite 2 trägt den Kurzlink mit dem Aufkleber „Tipp mich ein!“ statt einer schwachen
-  Hinweiszeile; Telefon und E-Mail des Absenders stehen darunter, pro Brief abschaltbar
+  kollidiert. Der Absenderblock (Firma, Name, Kontakt, Datum) beginnt bündig mit der Rücksendezeile.
+- Telefon und E-Mail des Absenders in der Karte auf Seite 2, mit kleinen Symbolen, pro Brief abschaltbar
   (`letters.options.contact`, Standard an, fehlt bei älteren Briefen und gilt dann als an).

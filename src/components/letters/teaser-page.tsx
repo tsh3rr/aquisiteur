@@ -136,18 +136,12 @@ function DottedQr({
   );
 }
 
-/** A fat hand-drawn arrow, bending from the left down to the right. */
-function FatArrow({ width, color, style }: { width: number; color: string; style?: Style }) {
+/** A fat level arrow pointing right, from before to after. */
+function StraightArrow({ width, color }: { width: number; color: string }) {
   return (
-    <Svg width={width} height={width * 0.7} viewBox="0 0 120 84" style={style}>
-      <Path
-        d="M10 18 C 44 2, 90 10, 98 52"
-        stroke={color}
-        strokeWidth={11}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <Polygon points="80,46 117,42 101,78" fill={color} />
+    <Svg width={width} height={width * 0.5} viewBox="0 0 120 60">
+      <Path d="M8 30 H 84" stroke={color} strokeWidth={12} strokeLinecap="round" />
+      <Polygon points="78,8 116,30 78,52" fill={color} />
     </Svg>
   );
 }
@@ -209,52 +203,23 @@ function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string })
   );
 }
 
-/** A tilted round sticker, like the ones on a shop window. */
-function Sticker({
-  children,
-  background,
-  color,
-  style,
-}: {
-  children: string;
-  background: string;
-  color: string;
-  style?: Style;
-}) {
-  return (
-    <View
-      style={{
-        position: "absolute",
-        paddingVertical: mm(1.2),
-        paddingHorizontal: mm(2.6),
-        borderRadius: mm(4),
-        backgroundColor: background,
-        transform: "rotate(-8deg)",
-        ...style,
-      }}
-    >
-      <Text style={{ color, fontSize: 8.5, fontWeight: 600, letterSpacing: 0.4 }}>{children}</Text>
-    </View>
-  );
-}
-
-/** The white tile with the dotted code and a „Scannen“ sticker on its corner. */
+/**
+ * The white tile with the dotted code and a small „Scannen“ label centred
+ * below it, clear of the modules. Everything stays upright: rotated raster and fine dots
+ * print blurry.
+ */
 function QrTile({
   letter,
   teaser,
   size,
-  tilt,
-  label = "SCANNEN",
 }: {
   letter: PrintableLetterData;
   teaser: PrintableTeaser;
   size: number;
-  tilt: number;
-  label?: string | null;
 }) {
   const { colors } = teaser;
   return (
-    <View style={{ transform: `rotate(${tilt}deg)`, padding: mm(2) }}>
+    <View style={{ alignItems: "center" }}>
       <View
         style={{
           backgroundColor: "#ffffff",
@@ -278,15 +243,11 @@ function QrTile({
           />
         </Link>
       </View>
-      {label ? (
-        <Sticker
-          background={colors.accent}
-          color={colors.onAccent}
-          style={{ bottom: -mm(2.5), left: -mm(4) }}
-        >
-          {label}
-        </Sticker>
-      ) : null}
+      <View style={{ marginTop: mm(1.5) }}>
+        <Label background={colors.accent} color={colors.onAccent}>
+          Scannen
+        </Label>
+      </View>
     </View>
   );
 }
@@ -389,7 +350,7 @@ export function TeaserQrCard({
             </View>
           ) : null}
         </View>
-        <QrTile letter={letter} teaser={teaser} size={mm(27)} tilt={3} />
+        <QrTile letter={letter} teaser={teaser} size={mm(27)} />
       </View>
       <View
         style={{
@@ -422,17 +383,7 @@ export function TeaserQrCard({
 
 const PHONE_RATIO = 760 / 360;
 
-function Phone({
-  image,
-  width,
-  desktop,
-  tilt,
-}: {
-  image: PrintImage;
-  width: number;
-  desktop: boolean;
-  tilt: number;
-}) {
+function Phone({ image, width, desktop }: { image: PrintImage; width: number; desktop: boolean }) {
   const bezel = width * 0.04;
   const screenWidth = width - bezel * 2;
   const screenHeight = screenWidth * PHONE_RATIO;
@@ -445,7 +396,6 @@ function Phone({
         padding: bezel,
         borderRadius: width * 0.17,
         backgroundColor: "#1d2320",
-        transform: `rotate(${tilt}deg)`,
       }}
     >
       <View
@@ -512,7 +462,8 @@ function BrowserWindow({ image, width }: { image: PrintImage; width: number }) {
   );
 }
 
-function Pill({
+/** A small upright label in capitals; centring is up to the parent. */
+function Label({
   children,
   background,
   color,
@@ -522,68 +473,77 @@ function Pill({
   color: string;
 }) {
   return (
-    <Text
+    <View
       style={{
-        alignSelf: "center",
-        fontSize: 8.5,
-        fontWeight: 600,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-        color,
         backgroundColor: background,
         paddingVertical: mm(1),
         paddingHorizontal: mm(2.8),
         borderRadius: mm(3),
-        marginBottom: mm(3),
       }}
     >
+      <Text
+        style={{
+          fontSize: 8.5,
+          fontWeight: 600,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color,
+        }}
+      >
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+/** A screen with its label centred above it. */
+function Labelled({
+  label,
+  background,
+  color,
+  children,
+}: {
+  label: string;
+  background: string;
+  color: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ marginBottom: mm(3) }}>
+        <Label background={background} color={color}>
+          {label}
+        </Label>
+      </View>
       {children}
-    </Text>
+    </View>
   );
 }
 
 function BeforeAfterStage({ teaser }: { teaser: PrintableTeaser }) {
   const stage = teaser.beforeAfter!;
   const { colors } = teaser;
-  const arrow = (
-    <View style={{ alignItems: "center", width: mm(30), marginTop: mm(18) }}>
-      <FatArrow width={mm(26)} color={colors.accent} style={{ transform: "rotate(-18deg)" }} />
-    </View>
-  );
-  if (stage.kind === "phones") {
-    return (
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start" }}>
-        <View>
-          <Pill background={colors.ink} color="#ffffff">
-            {stage.beforeLabel}
-          </Pill>
-          <Phone image={stage.before} width={mm(36)} desktop={stage.beforeIsDesktop} tilt={-4} />
-        </View>
-        {arrow}
-        <View>
-          <Pill background={colors.accent} color={colors.onAccent}>
-            {stage.afterLabel}
-          </Pill>
-          <Phone image={stage.after} width={mm(41)} desktop={false} tilt={3} />
-        </View>
-      </View>
+  const phones = stage.kind === "phones";
+  const screen = (image: PrintImage, desktop: boolean) =>
+    phones ? (
+      <Phone image={image} width={mm(40)} desktop={desktop} />
+    ) : (
+      <BrowserWindow image={image} width={mm(68)} />
     );
-  }
+  // Both screens share one size and baseline; the arrow sits on their middle.
   return (
-    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "flex-start" }}>
-      <View>
-        <Pill background={colors.ink} color="#ffffff">
-          {stage.beforeLabel}
-        </Pill>
-        <BrowserWindow image={stage.before} width={mm(68)} />
+    <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "stretch" }}>
+      <Labelled label={stage.beforeLabel} background={colors.ink} color="#ffffff">
+        {screen(stage.before, stage.beforeIsDesktop)}
+      </Labelled>
+      <View
+        style={{ width: mm(30), alignItems: "center", justifyContent: "center", paddingTop: mm(8) }}
+      >
+        <StraightArrow width={mm(18)} color={colors.accent} />
       </View>
-      {arrow}
-      <View>
-        <Pill background={colors.accent} color={colors.onAccent}>
-          {stage.afterLabel}
-        </Pill>
-        <BrowserWindow image={stage.after} width={mm(68)} />
-      </View>
+      <Labelled label={stage.afterLabel} background={colors.accent} color={colors.onAccent}>
+        {screen(stage.after, false)}
+      </Labelled>
     </View>
   );
 }
@@ -790,7 +750,7 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
           </View>
         ) : null}
       </View>
-      <QrTile letter={letter} teaser={teaser} size={mm(32)} tilt={3} />
+      <QrTile letter={letter} teaser={teaser} size={mm(32)} />
     </View>
   );
 }
