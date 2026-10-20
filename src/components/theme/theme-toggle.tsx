@@ -1,7 +1,7 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { THEME_COOKIE, type ThemePreference } from "./theme";
 
@@ -15,8 +15,13 @@ const options: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 export function ThemeToggle({ initial }: { initial: ThemePreference }) {
   const [value, setValue] = useState(initial);
 
+  useEffect(() => {
+    const onChange = (event: Event) => setValue((event as CustomEvent<ThemePreference>).detail);
+    window.addEventListener(THEME_EVENT, onChange);
+    return () => window.removeEventListener(THEME_EVENT, onChange);
+  }, []);
+
   function choose(next: ThemePreference) {
-    setValue(next);
     applyTheme(next);
   }
 
@@ -47,9 +52,13 @@ export function ThemeToggle({ initial }: { initial: ThemePreference }) {
   );
 }
 
-function applyTheme(next: ThemePreference) {
+export const THEME_EVENT = "aq:theme";
+
+/** Applies and stores the preference; open toggles follow via THEME_EVENT. */
+export function applyTheme(next: ThemePreference) {
   const root = document.documentElement;
   if (next === "system") delete root.dataset.theme;
   else root.dataset.theme = next;
   document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+  window.dispatchEvent(new CustomEvent<ThemePreference>(THEME_EVENT, { detail: next }));
 }

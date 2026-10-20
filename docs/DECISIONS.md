@@ -723,3 +723,26 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - „Heute“ zeigt Überfälliges und heute Fälliges, `/aufgaben` alles offene über alle Kunden; die
   Tageszusammenfassung nennt die Zahl der heute fälligen Aufgaben. Aufgaben gehören zum
   Prospect-Export und werden mit dem Prospect gelöscht.
+
+## ADR-0061 · Globale Suche, Command Palette und Tastaturkürzel (2026-10-20)
+
+- Eine Palette für Suche und Befehle (§7.8): ⌘K / Strg+K überall, „/“ außerhalb von Textfeldern, auf
+  dem Handy ein Suchknopf im Kopf, am Desktop ein Suchfeld in der Seitenleiste. Radix Dialog sorgt für
+  Fokusfalle, Escape und Fokus-Rückgabe (beim Tippen auf iOS bekommt der Knopf keinen Fokus, daher gibt
+  die Palette ihn ausdrücklich zurück).
+- Muster: ARIA-Combobox mit `aria-activedescendant`, Treffer als `listbox` mit Gruppen (Kunden, Exposés,
+  Kampagnen, Seiten, Aktionen), Trefferzahl über eine `status`-Region.
+- Datensätze sucht `searchWorkspace()` (`src/server/search.ts`) als Tenant, also unter RLS und zusätzlich
+  mit `workspace_id`-Filter: Firma, Ort, Branche, E-Mail, Telefon, Schlüssel und Ansprechpartner,
+  Exposé-Titel und Ref-Code, Kampagnenname. Umlaute werden in SQL gefaltet (ä = ae = a), ohne
+  `unaccent`-Extension, damit es reines Postgres bleibt. Bei Hunderten Kunden je Workspace reicht ein
+  Scan; ein Trigramm-Index folgt erst, wenn es spürbar langsam wird.
+- Befehle und Kürzel stehen zentral in `src/domain/search.ts` (`COMMANDS`). Folgen wie „G K“ statt
+  Einzeltasten mit Modifikator, weil Browser die meisten Strg-Kombinationen belegen.
+- WCAG 2.1.4: Kürzel aus einzelnen Zeichen („/“, „?“, „G K“) lassen sich in der Kürzel-Übersicht („?“)
+  pro Gerät abschalten (localStorage). ⌘K / Strg+K bleibt immer aktiv. In Eingabefeldern und Dialogen
+  greifen Einzeltasten nie.
+- Aufgaben und Wiedervorlagen (ADR-0060) sind eine eigene Treffergruppe; offene zuerst, nach Fälligkeit.
+- Noch offen: Kürzel für Aktionen auf der Kundenseite (Notiz, Status ändern, Anrufen) und in der
+  Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
+  mit einer Erweiterung der Palette um seitenbezogene Befehle.
