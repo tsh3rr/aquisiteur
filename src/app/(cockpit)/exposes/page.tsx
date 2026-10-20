@@ -56,7 +56,7 @@ export default async function ExposesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-x-auto">
+        <Card className="relative overflow-x-auto">
           <table className="w-full min-w-[40rem] text-left text-sm">
             <caption className="sr-only">Alle Exposés</caption>
             <thead className="border-b border-border text-foreground-muted">

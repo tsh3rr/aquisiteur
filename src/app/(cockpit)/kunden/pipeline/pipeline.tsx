@@ -57,7 +57,7 @@ export function Pipeline({ cards, canManage }: { cards: PipelineCard[]; canManag
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
-      <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
+      <div className="relative -mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
         <ol className="flex w-max gap-4">
           {PROSPECT_STATUSES.map((status) => {
             const column = optimistic.filter((card) => card.status === status);

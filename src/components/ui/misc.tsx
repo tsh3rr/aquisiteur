@@ -46,7 +46,7 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold">{title}</h1>
         {description ? <p className="text-foreground-muted">{description}</p> : null}
       </div>
-      {actions ? <div className="flex gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </header>
   );
 }
@@ -67,7 +67,7 @@ export function ScrollRegion({
       aria-label={label}
       tabIndex={0}
       className={cn(
-        "overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
+        "relative overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
         className,
       )}
       {...props}

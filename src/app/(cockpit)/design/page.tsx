@@ -53,7 +53,7 @@ export default async function DesignSystemPage() {
         <h2 id="contrast" className="text-xl font-semibold">
           Kontraste (WCAG 2.2 AA)
         </h2>
-        <div className="overflow-x-auto rounded-md border border-border">
+        <div className="relative overflow-x-auto rounded-md border border-border">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Kontrastverhältnisse aller verwendeten Farbpaare</caption>
             <thead className="bg-surface-sunken">

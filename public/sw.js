@@ -20,8 +20,10 @@ self.addEventListener("push", (event) => {
       body: data.body || "",
       tag: data.tag,
       renotify: Boolean(data.tag && data.renotify),
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      // PNGs: SVG notification icons are not supported everywhere. iOS ignores
+      // both and shows the home-screen icon (apple-touch-icon).
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
       lang: "de",
       data: { url: data.url || "/", urls },
       actions: actions.map((a) => ({ action: a.action, title: a.title })),

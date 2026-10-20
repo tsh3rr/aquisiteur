@@ -168,7 +168,7 @@ export function BrandImageField({
           <ImageUp aria-hidden className="size-6 text-foreground-muted" />
         )}
       </div>
-      <div className="grid min-w-0 flex-1 gap-2">
+      <div className="grid min-w-0 flex-1 basis-52 gap-2">
         <label htmlFor={inputId} className="text-sm font-medium">
           {label}
         </label>

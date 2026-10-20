@@ -203,7 +203,7 @@ export function CustomerTable({
         </div>
       ) : null}
       <Card
-        className="overflow-x-auto"
+        className="relative overflow-x-auto"
         role="region"
         aria-label="Kundentabelle, seitlich scrollbar"
         tabIndex={0}
