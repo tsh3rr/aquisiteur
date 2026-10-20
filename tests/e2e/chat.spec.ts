@@ -142,7 +142,14 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
   await phone.getByRole("button", { name: "Rückruf anfordern", exact: true }).click();
   await expect(phone.getByText("Bitte prüfen Sie die markierten Felder.")).toBeVisible();
   await phone.getByLabel("Ihr Name").fill("Sabine Müller");
-  await phone.getByLabel("Telefonnummer").fill("0341 1234567");
+  // The number from the customer record is offered masked; the page never holds it in full.
+  expect(await phone.content()).not.toContain("9876543");
+  await phone.getByRole("button", { name: "+49 341 ••• 43 verwenden?" }).click();
+  await expect(phone.getByLabel("Telefonnummer")).toHaveValue("+49 341 ••• 43");
+  await expect(phone.getByLabel("Telefonnummer")).toBeFocused();
+  await phone.getByRole("button", { name: "Andere Nummer eingeben" }).click();
+  await expect(phone.getByRole("textbox", { name: "Telefonnummer" })).toBeFocused();
+  await phone.getByRole("button", { name: "+49 341 ••• 43 verwenden?" }).click();
   await phone.getByLabel(/Wann passt es Ihnen/).fill("Dienstag ab 15 Uhr");
   await phone.getByRole("button", { name: "Rückruf anfordern", exact: true }).click();
   await expect(phone.getByText("Danke! Ich rufe Sie zu Ihrer Wunschzeit an.")).toBeVisible();
@@ -151,6 +158,7 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
 
   await owner(page);
   await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr", { exact: true })).toBeVisible();
+  await expect(page.getByText(/\+49 341 9876543/).first()).toBeVisible();
   await expectAccessible(page, "today with a callback");
   await page.getByRole("button", { name: /Erledigt\W+Rückruf für Sabine Müller/ }).click();
   await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr", { exact: true })).toHaveCount(0);

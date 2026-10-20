@@ -643,7 +643,64 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 - Das öffentliche Exposé (`/x/<slug>`) setzt ebenfalls `viewport-fit=cover`. Kontaktleiste, Chat-Knopf,
   Chat-Eingabe und Aufzeichnungs-Knopf rücken um die Safe Areas ein, der Inhalt seitlich im Querformat.
 
-## ADR-0057 · Aufgaben und Wiedervorlagen (2026-10-20)
+## ADR-0057 · Staging bekommt jeden Merge, Produktion nur Freigaben (2026-10-20, ergänzt ADR-0054)
+
+Seit Updates automatisch laufen, geht jeder Merge sofort live. Vor dem Go-live trennen wir deshalb:
+Staging bekommt jeden Merge (`image.yml`, Job „Deploy to staging“, Secrets `DEPLOY_*`), Produktion nur,
+was der Owner freigibt. Jede Umgebung ist ein eigenes Compose-Projekt mit eigener Datenbank, eigenen
+Dateien und eigenen Subdomains. Ob auf einem Server (mit `COMPOSE_PROJECT_NAME` und `APP_PORT`
+nebeneinander, rund 300 MB für beide) oder auf zwei, entscheiden nur die Secrets; getrennte Server
+sind sicherer, weil ungeprüfter Staging-Code dann weder Docker noch Speicher mit Produktion teilt. Die
+Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
+
+- `release.yml` läuft bei einem Tag `v*` oder per Hand auf `main` beziehungsweise einem Tag (auch aus
+  der GitHub-App). Er baut das Image für genau diesen Commit aus dem Cache, gibt ihm die Namen
+  `production`, den Commit-Hash und gegebenenfalls den Tag und deployt per SSH (Secrets
+  `PROD_DEPLOY_*`, eigener Schlüssel, auf den Produktionsordner beschränkt). Ein älterer Tag ist der
+  Rollback.
+- Der Produktionsserver lädt `APP_IMAGE=…:production` statt `latest`; die Freigabe ist also der
+  Wechsel dieses Namens. Neu bauen statt umtaggen, weil der Staging-Build eines Commits abgebrochen
+  sein kann, wenn kurz danach ein neuerer gemergt wurde.
+- Getrennte Secret-Namen statt GitHub Environments: Environments mit Secrets gibt es in privaten Repos
+  nur ab GitHub Pro, und ein gleichnamiges Secret würde bei fehlendem Environment still auf Staging
+  zeigen. Ohne `PROD_DEPLOY_*` wird kein Server angefasst.
+- Beide Deploy-Jobs teilen sich `.github/actions/compose-deploy`. Freigaben laufen nacheinander
+  (`cancel-in-progress: false`), Staging-Builds brechen sich weiter gegenseitig ab.
+
+## ADR-0058 · Rückruf-Formular mit bekannter Nummer (2026-10-20)
+
+- Quellen: Telefonnummer des Kunden (`prospects.phone`), danach die Nummern seiner Ansprechpartner
+  (`contacts.phone`, Hauptkontakt zuerst). Doppelte Nummern (auch +49 und 0 gemischt) erscheinen einmal,
+  höchstens drei. Separate Handy- oder WhatsApp-Felder gibt es in den Stammdaten nicht.
+- Das Exposé bekommt nur die maskierte Form („+49 170 ••• 67“: Ländervorwahl, drei Ziffern, letzte zwei)
+  und einen Verweis (`p` oder die Kontakt-ID). Ein Klick auf „… verwenden?“ setzt den Verweis, das
+  Formular schickt `phoneRef` statt `phone`. Der Server sucht die Nummer erneut, nur beim Kunden dieses
+  Exposés und nur, solange die Einstellung an ist; sonst muss der Besucher die Nummer eintippen.
+- Einstellung: Einstellungen → Kontakt und Chat → „Bekannte Nummer anbieten“
+  (`chat.prefillCallbackPhone`, Standard an). Sie liegt im `chat`-JSON, weil sie im selben Formular
+  gespeichert wird; so braucht es keine Migration.
+
+## ADR-0059 · Exposé als gestaltetes PDF (2026-10-20, ergänzt ADR-0037)
+
+- Wie die Briefe rendert `@react-pdf/renderer` das PDF im Browser (`src/components/expose-pdf/`), erst beim
+  Klick nachgeladen und per Alias aus dem Server-Bundle gehalten. Die Daten baut `printableExpose()`
+  (`src/server/exposes/print.ts`) aus denselben Daten wie die Seite: Blöcke, Bild-URLs, Farben
+  (`printColors`, wie die Teaser-Seite), Kanäle des Owners.
+- Aufbau: Titelseite (Hero, Bild oder Inhaltsübersicht, Owner, Referenz), danach alle Blöcke fließend mit
+  Fußzeile „Seite x von y“, Kontakt mit QR-Code und Link zum Exposé (ohne Kontaktblock wird er angehängt).
+  Titel bleiben mit dem ersten Inhalt zusammen, damit keiner allein unten auf einer Seite steht. Interaktive
+  Teile werden statisch: Preise als Liste mit Summe, Video als Hinweis, CTA als Farbband.
+- Cockpit: Exposé-Seite → „Als PDF herunterladen“ für die angezeigte Version, Link nur, solange das Exposé
+  online ist. Exposé: „Als PDF speichern“ holt `/x/<slug>/pdf` (nur, was die Seite ohnehin zeigt) und nimmt
+  die Preisauswahl des Lesers mit; schlägt etwas fehl, öffnet die Druckansicht wie bisher.
+- Dafür erlaubt die CSP der Exposé-Hosts jetzt `'wasm-unsafe-eval'` und `connect-src data:` wie das
+  Cockpit. Kein JS-`eval`; der Code lädt nur bei Klick, Lighthouse bleibt unberührt.
+- Dateiname in ASCII („Expose Cafe Mueller.pdf“): Chromium verwirft den Namen eines Blob-Downloads mit
+  Umlauten und speichert dann „download“.
+- Die Fußzeile steht per `top` statt `bottom`: mit der Zeilenhöhe der Seite fällt eine an `bottom`
+  verankerte, wiederholte Fußzeile in React-PDF aus der Seite.
+
+## ADR-0060 · Aufgaben und Wiedervorlagen (2026-10-20)
 
 - Tabelle `tasks` je Prospect: Fälligkeit als lokales Kalenderdatum (`due_date`) plus optionale Uhrzeit
   (`due_time`, „14:00“), damit „Freitag anrufen“ ohne Uhrzeit den ganzen Tag fällig bleibt und erst

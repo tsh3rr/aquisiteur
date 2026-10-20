@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { knownPhoneRef } from "./expose/known-phones";
 
 /**
  * Live chat (§7.5): request shapes shared by the exposé widget, the public
@@ -81,30 +82,39 @@ export const returnChannelSchema = z
   });
 export type ReturnChannelInput = z.infer<typeof returnChannelSchema>;
 
-export const callbackRequestSchema = z.object({
-  token: visitToken.optional(),
-  slug: z.string().regex(/^[a-z0-9-]{3,80}$/),
-  name: z.string().trim().min(1, "Bitte Ihren Namen angeben.").max(120),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .regex(/^\+?[0-9 ()/-]{5,}$/, "Bitte eine gültige Telefonnummer angeben."),
-  preferredTime: z
-    .string()
-    .trim()
-    .max(120)
-    .optional()
-    .transform((value) => value || undefined),
-  note: z
-    .string()
-    .trim()
-    .max(500)
-    .optional()
-    .transform((value) => value || undefined),
-  /** Honeypot: humans never see or fill it. */
-  website: z.string().max(0).optional(),
-});
+export const callbackRequestSchema = z
+  .object({
+    token: visitToken.optional(),
+    slug: z.string().regex(/^[a-z0-9-]{3,80}$/),
+    name: z.string().trim().min(1, "Bitte Ihren Namen angeben.").max(120),
+    /** Absent when the visitor picked a known number (`phoneRef`). */
+    phone: z
+      .string()
+      .trim()
+      .max(40)
+      .regex(/^\+?[0-9 ()/-]{5,}$/, "Bitte eine gültige Telefonnummer angeben.")
+      .optional(),
+    /** A masked number from the customer record (§7.4); resolved on the server. */
+    phoneRef: z.string().regex(knownPhoneRef).optional(),
+    preferredTime: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((value) => value || undefined),
+    note: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .transform((value) => value || undefined),
+    /** Honeypot: humans never see or fill it. */
+    website: z.string().max(0).optional(),
+  })
+  .refine((value) => value.phone || value.phoneRef, {
+    path: ["phone"],
+    message: "Bitte eine gültige Telefonnummer angeben.",
+  });
 export type CallbackRequestInput = z.infer<typeof callbackRequestSchema>;
 
 export const ownerMessageSchema = z.object({

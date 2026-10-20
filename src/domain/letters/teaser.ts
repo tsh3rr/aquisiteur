@@ -75,7 +75,7 @@ export function clip(text: string, max: number): string {
 }
 
 /** Strips the Markdown subset of rich text down to plain words. */
-function plain(text: string): string {
+export function plain(text: string): string {
   return text
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, "$1")
@@ -110,14 +110,6 @@ export function buildLetterTeaser(document: ExposeDocument): LetterTeaser | null
   // Stored versions are parsed documents, but older ones may predate `style`.
   const theme = document.theme ?? {};
   const style = theme.style ?? "editorial";
-  const accentFamily = deriveAccent(
-    theme.accent ? hexToOklch(theme.accent) : light.accent,
-    "light",
-    style,
-  );
-  const neutrals = styleScheme(style, "light");
-  const accent = readableOn(oklchToHex(accentFamily.accent), "#ffffff");
-  const accentSoft = oklchToHex(accentFamily.accentSoft);
 
   const beforeAfterBlock = beforeAfter
     ? beforeAfter.afterMobile
@@ -160,15 +152,33 @@ export function buildLetterTeaser(document: ExposeDocument): LetterTeaser | null
       text: clip(plain(idea.text), 170),
       benefit: idea.benefit ? clip(idea.benefit, 90) : null,
     })),
-    colors: {
-      accent,
-      onAccent: readableOn(oklchToHex(accentFamily.accentForeground), accent),
-      accentSoft,
-      onAccentSoft: readableOn(oklchToHex(accentFamily.accentSoftForeground), accentSoft),
-      ink: readableOn(oklchToHex(neutrals.foreground), accentSoft),
-      muted: readableOn(oklchToHex(neutrals.foregroundMuted), accentSoft),
-      paper: oklchToHex(neutrals.surfaceSunken),
-    },
+    colors: printColors(theme.accent, style),
+  };
+}
+
+export type PrintColors = LetterTeaser["colors"];
+
+/**
+ * The exposé's light colours as sRGB hex for printed pages (letter teaser,
+ * exposé PDF), every text colour at least 4.5:1 on its background.
+ */
+export function printColors(accentHex: string | undefined, style: ExposeStyle): PrintColors {
+  const accentFamily = deriveAccent(
+    accentHex ? hexToOklch(accentHex) : light.accent,
+    "light",
+    style,
+  );
+  const neutrals = styleScheme(style, "light");
+  const accent = readableOn(oklchToHex(accentFamily.accent), "#ffffff");
+  const accentSoft = oklchToHex(accentFamily.accentSoft);
+  return {
+    accent,
+    onAccent: readableOn(oklchToHex(accentFamily.accentForeground), accent),
+    accentSoft,
+    onAccentSoft: readableOn(oklchToHex(accentFamily.accentSoftForeground), accentSoft),
+    ink: readableOn(oklchToHex(neutrals.foreground), accentSoft),
+    muted: readableOn(oklchToHex(neutrals.foregroundMuted), accentSoft),
+    paper: oklchToHex(neutrals.surfaceSunken),
   };
 }
 

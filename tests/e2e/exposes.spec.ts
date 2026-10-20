@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { expect, test, type Download, type Page } from "@playwright/test";
 import { E2E } from "../../playwright.config";
 import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
@@ -90,6 +91,46 @@ test("the public exposé renders accessibly with working slider and price calcul
     .locator("script[src]")
     .evaluateAll((elements) => elements.map((element) => element.getAttribute("src") ?? ""));
   expect(scripts.filter((src) => src.includes("(cockpit)"))).toEqual([]);
+});
+
+function pdfPages(file: string) {
+  const pdf = readFileSync(file);
+  expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+  expect(pdf.toString("latin1")).toContain("/Subtype /Image");
+  return pdf.toString("latin1").match(/\/Type \/Page\b/g)?.length ?? 0;
+}
+
+async function savedPdf(download: Promise<Download>, name: string) {
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("Expose Tischlerei Holzmann GmbH.pdf");
+  await file.saveAs(`test-results/${name}`);
+  return pdfPages((await file.path())!);
+}
+
+test("the owner downloads the designed exposé PDF", async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.goto("/exposes");
+  await page.getByRole("link", { name: /^Tischlerei Holzmann GmbH/ }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Als PDF herunterladen" }).click();
+  // Cover plus the blocks on following pages.
+  expect(await savedPdf(download, "expose-cockpit.pdf")).toBeGreaterThan(2);
+  await expect(page.getByText("PDF erstellt.", { exact: true })).toBeVisible();
+});
+
+test("the reader saves the exposé as a designed PDF", async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto(publicUrl);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Als PDF speichern" }).click();
+  expect(await savedPdf(download, "expose-public.pdf")).toBeGreaterThan(2);
+  await expect(page.getByText("PDF gespeichert")).toBeAttached();
+  expect(errors.filter((text) => /Content Security Policy|wasm/i.test(text))).toEqual([]);
 });
 
 test("the prospect can opt out, and the opt-out is recorded once", async ({ page }) => {

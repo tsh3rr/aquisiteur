@@ -1,8 +1,9 @@
 import "server-only";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { Database, Transaction } from "@/db";
 import {
   assets,
+  contacts,
   exposes,
   exposeVersions,
   prospects,
@@ -11,6 +12,7 @@ import {
   type AssetManifest,
   type ManifestEntry,
 } from "@/db/schema";
+import { knownPhones, type KnownPhone } from "@/domain/expose/known-phones";
 import type { ExposeDocument } from "@/domain/expose/schema";
 import { workspaceSettingsSchema, type WorkspaceSettings } from "@/domain/workspace-settings";
 
@@ -24,6 +26,8 @@ export interface ExposeViewData {
   workspace: { id: string; name: string };
   settings: WorkspaceSettings;
   ownerPhoto: ManifestEntry | null;
+  /** Masked numbers the callback form may offer (§7.4); never the full number. */
+  knownPhones: KnownPhone[];
 }
 
 type Reader = Database | Transaction;
@@ -55,6 +59,25 @@ async function settingsAndPhoto(db: Reader, workspaceId: string) {
   return { settings, ownerPhoto };
 }
 
+/** The prospect's own number first, then its contacts', primary contact first. */
+async function phonesOf(
+  db: Reader,
+  workspaceId: string,
+  prospect: { id: string; phone: string | null },
+  settings: WorkspaceSettings,
+): Promise<KnownPhone[]> {
+  if (!settings.chat.prefillCallbackPhone) return [];
+  const people = await db
+    .select({ id: contacts.id, phone: contacts.phone })
+    .from(contacts)
+    .where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.prospectId, prospect.id)))
+    .orderBy(desc(contacts.isPrimary), asc(contacts.createdAt));
+  return knownPhones([
+    { ref: "p", phone: prospect.phone },
+    ...people.map((person) => ({ ref: person.id, phone: person.phone })),
+  ]);
+}
+
 /**
  * Public exposé by host-resolved workspace and slug. Runs on the system
  * connection (visitors have no tenant context) and is therefore scoped
@@ -77,7 +100,7 @@ export async function loadPublicExpose(
         document: exposeVersions.document,
         manifest: exposeVersions.assetManifest,
       },
-      prospect: { companyName: prospects.companyName },
+      prospect: { id: prospects.id, companyName: prospects.companyName, phone: prospects.phone },
       workspace: { id: workspaces.id, name: workspaces.name },
     })
     .from(exposes)
@@ -106,10 +129,11 @@ export async function loadPublicExpose(
     version: { id: row.version.id, number: row.version.number, createdAt: row.version.createdAt },
     document: row.version.document as ExposeDocument,
     manifest: row.version.manifest,
-    prospect: row.prospect,
+    prospect: { companyName: row.prospect.companyName },
     workspace: row.workspace,
     settings,
     ownerPhoto,
+    knownPhones: await phonesOf(db, workspaceId, row.prospect, settings),
   };
 }
 
@@ -124,7 +148,7 @@ export async function loadExposeVersionForPreview(
     .select({
       expose: { id: exposes.id, slug: exposes.slug, refCode: exposes.refCode },
       currentVersionId: exposes.currentVersionId,
-      prospect: { companyName: prospects.companyName },
+      prospect: { id: prospects.id, companyName: prospects.companyName, phone: prospects.phone },
       workspace: { id: workspaces.id, name: workspaces.name },
     })
     .from(exposes)
@@ -150,9 +174,10 @@ export async function loadExposeVersionForPreview(
     version: { id: version.id, number: version.version, createdAt: version.createdAt },
     document: version.document as ExposeDocument,
     manifest: version.assetManifest,
-    prospect: row.prospect,
+    prospect: { companyName: row.prospect.companyName },
     workspace: row.workspace,
     settings,
     ownerPhoto,
+    knownPhones: await phonesOf(tx, workspaceId, row.prospect, settings),
   };
 }
