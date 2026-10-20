@@ -102,7 +102,11 @@
         "alt": "Entwurf: großes, helles Foto der Kuchentheke, Öffnungszeiten und Reservierungs-Button direkt sichtbar."
       },
       "beforeLabel": "Heute",
-      "afterLabel": "Vorschlag"
+      "afterLabel": "Vorschlag",
+      "afterMobile": {
+        "src": "assets/nachher-handy.svg",
+        "alt": "Vorschlag auf dem Handy: Entwurf der neuen Startseite von Café Müller mit großem Foto der Kuchentheke und einem Button „Tisch reservieren“."
+      }
     },
     {
       "id": "probleme",

@@ -13,9 +13,8 @@ import {
 } from "@react-pdf/renderer";
 import { Fragment } from "react";
 import { parseRichText, type Inline } from "@/domain/expose/rich-text";
+import { displayStyle, LetterDecor, TeaserPage, TeaserQrCard } from "./teaser-page";
 import type { PrintableLetterData } from "./types";
-
-type Teaser = NonNullable<PrintableLetterData["teaser"]>;
 
 /**
  * Print-ready letters (§7.9): A4, DIN 5008 Form B for a DL window envelope,
@@ -80,31 +79,6 @@ const styles = StyleSheet.create({
   qrText: { marginLeft: mm(5), flexGrow: 1, flexShrink: 1 },
   link: { fontSize: 13, fontWeight: 600, color: "#111111", textDecoration: "none" },
   signature: { height: mm(16), objectFit: "contain", objectPositionX: 0, marginTop: mm(2) },
-  letterhead: {
-    position: "absolute",
-    top: mm(10),
-    left: mm(25),
-    right: mm(20),
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-  },
-  strip: {
-    position: "absolute",
-    top: mm(17),
-    left: mm(25),
-    right: mm(20),
-    height: mm(24),
-    objectFit: "cover",
-    borderRadius: mm(2),
-  },
-  stripBar: {
-    position: "absolute",
-    top: mm(17),
-    left: mm(25),
-    right: mm(20),
-    height: mm(1.2),
-  },
   footer: {
     position: "absolute",
     bottom: mm(10),
@@ -115,69 +89,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: "#bbbbbb",
     paddingTop: mm(2),
-  },
-});
-
-const teaserStyles = StyleSheet.create({
-  page: {
-    fontFamily: "Geist",
-    fontSize: 10.5,
-    lineHeight: 1.45,
-    paddingTop: mm(14),
-    paddingBottom: mm(14),
-    paddingHorizontal: mm(18),
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: mm(11),
-    marginBottom: mm(4),
-  },
-  eyebrow: { fontSize: 9, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" },
-  logo: { height: mm(11), maxWidth: mm(48), objectFit: "contain" },
-  image: { width: "100%", height: mm(76), objectFit: "cover", borderRadius: mm(3) },
-  headline: { fontSize: 22, fontWeight: 600, lineHeight: 1.18, marginTop: mm(7) },
-  lead: { fontSize: 10.5, marginTop: mm(3) },
-  label: {
-    fontSize: 9,
-    fontWeight: 600,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginTop: mm(8),
-    marginBottom: mm(3),
-  },
-  ideas: { flexDirection: "row", gap: mm(4) },
-  idea: { flex: 1, padding: mm(4), borderRadius: mm(2.5) },
-  number: {
-    width: mm(7),
-    height: mm(7),
-    borderRadius: mm(3.5),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ideaTitle: { fontSize: 10.5, fontWeight: 600, lineHeight: 1.25, marginTop: mm(3) },
-  ideaText: { fontSize: 8.8, lineHeight: 1.4, marginTop: mm(1.5) },
-  benefit: { fontSize: 8.8, fontWeight: 600, lineHeight: 1.35, marginTop: mm(2) },
-  cta: {
-    position: "absolute",
-    bottom: mm(14),
-    left: mm(18),
-    right: mm(18),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: mm(5),
-    padding: mm(5),
-    borderRadius: mm(3),
-  },
-  ctaQr: { backgroundColor: "#ffffff", padding: mm(2), borderRadius: mm(1.5) },
-  owner: { width: mm(34), alignItems: "center", textAlign: "center" },
-  photo: {
-    width: mm(16),
-    height: mm(16),
-    borderRadius: mm(8),
-    objectFit: "cover",
-    marginBottom: mm(1.5),
   },
 });
 
@@ -210,32 +121,12 @@ function InlineText({ nodes }: { nodes: Inline[] }) {
   );
 }
 
-/** Letterhead of a letter with teaser: agency name, „persönlich für“ and a strip of the exposé image. */
-function Letterhead({ letter, teaser }: { letter: PrintableLetterData; teaser: Teaser }) {
-  return (
-    <>
-      <View style={styles.letterhead}>
-        <Text style={{ fontWeight: 600, fontSize: 11 }}>{letter.senderName}</Text>
-        <Text style={{ fontSize: 8.5, color: teaser.colors.accent, fontWeight: 600 }}>
-          Persönlich für {letter.companyName}
-        </Text>
-      </View>
-      {teaser.image ? (
-        // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-        <Image src={teaser.image.src} style={styles.strip} />
-      ) : (
-        <View style={[styles.stripBar, { backgroundColor: teaser.colors.accent }]} />
-      )}
-    </>
-  );
-}
-
 function LetterPage({ letter }: { letter: PrintableLetterData }) {
   const size = letter.qrModules.size;
   const teaser = letter.teaser;
   return (
     <Page size="A4" style={styles.page}>
-      {teaser ? <Letterhead letter={letter} teaser={teaser} /> : null}
+      {teaser ? <LetterDecor teaser={teaser} /> : null}
       {/* Folding marks (Form B) and hole mark. */}
       <View fixed style={[styles.mark, { top: mm(105) }]} />
       <View fixed style={[styles.mark, { top: mm(148.5), width: mm(7) }]} />
@@ -254,7 +145,19 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
         <Text style={{ marginTop: mm(4) }}>{letter.date}</Text>
       </View>
 
-      <Text style={styles.subject}>{letter.subject}</Text>
+      <Text
+        style={
+          teaser
+            ? [
+                styles.subject,
+                displayStyle(teaser.style),
+                { fontSize: 15, color: teaser.colors.ink },
+              ]
+            : styles.subject
+        }
+      >
+        {letter.subject}
+      </Text>
       {letter.salutation ? <Text style={styles.paragraph}>{letter.salutation}</Text> : null}
       {parseRichText(letter.body).map((block, index) =>
         block.kind === "paragraph" ? (
@@ -275,32 +178,28 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
         ),
       )}
 
-      <View
-        style={
-          teaser
-            ? [styles.qr, { borderWidth: 0, backgroundColor: teaser.colors.accentSoft }]
-            : styles.qr
-        }
-        wrap={false}
-      >
-        <Svg width={mm(28)} height={mm(28)} viewBox={`0 0 ${size} ${size}`}>
-          <Path d={letter.qrModules.path} fill="#000000" />
-        </Svg>
-        <View style={styles.qrText}>
-          <Text>{letter.qr.hint}</Text>
-          {letter.qr.shortLink ? (
-            <>
-              <Text style={{ marginTop: mm(2), color: "#555555" }}>Oder im Browser eingeben:</Text>
-              <Link
-                src={`https://${letter.qr.shortLink}`}
-                style={teaser ? [styles.link, { color: teaser.colors.onAccentSoft }] : styles.link}
-              >
-                {letter.qr.shortLink}
-              </Link>
-            </>
-          ) : null}
+      {teaser ? (
+        <TeaserQrCard letter={letter} teaser={teaser} />
+      ) : (
+        <View style={styles.qr} wrap={false}>
+          <Svg width={mm(28)} height={mm(28)} viewBox={`0 0 ${size} ${size}`}>
+            <Path d={letter.qrModules.path} fill="#000000" />
+          </Svg>
+          <View style={styles.qrText}>
+            <Text>{letter.qr.hint}</Text>
+            {letter.qr.shortLink ? (
+              <>
+                <Text style={{ marginTop: mm(2), color: "#555555" }}>
+                  Oder im Browser eingeben:
+                </Text>
+                <Link src={`https://${letter.qr.shortLink}`} style={styles.link}>
+                  {letter.qr.shortLink}
+                </Link>
+              </>
+            ) : null}
+          </View>
         </View>
-      </View>
+      )}
 
       <View wrap={false}>
         <Text>{letter.closing}</Text>
@@ -318,101 +217,6 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
         {letter.footer.map((line, index) => (
           <Text key={index}>{line}</Text>
         ))}
-      </View>
-    </Page>
-  );
-}
-
-/**
- * The teaser page (§7.9 „Exposé-Vorschau im Brief“): image, headline and up
- * to three ideas of the exposé in its colours, and the way in once more.
- */
-function TeaserPage({ letter, teaser }: { letter: PrintableLetterData; teaser: Teaser }) {
-  const { colors } = teaser;
-  const size = letter.qrModules.size;
-  return (
-    <Page size="A4" style={[teaserStyles.page, { color: colors.ink }]}>
-      <View style={teaserStyles.header}>
-        <Text style={[teaserStyles.eyebrow, { color: colors.accent }]}>
-          {teaser.eyebrow ?? `Für ${letter.companyName}`}
-        </Text>
-        {teaser.logo ? (
-          // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-          <Image src={teaser.logo.src} style={teaserStyles.logo} />
-        ) : null}
-      </View>
-      {teaser.image ? (
-        // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-        <Image src={teaser.image.src} style={teaserStyles.image} />
-      ) : null}
-      <Text style={teaserStyles.headline}>{teaser.headline}</Text>
-      {teaser.lead ? (
-        <Text style={[teaserStyles.lead, { color: colors.muted }]}>{teaser.lead}</Text>
-      ) : null}
-
-      {teaser.ideas.length > 0 ? (
-        <>
-          <Text style={[teaserStyles.label, { color: colors.accent }]}>{teaser.ideasTitle}</Text>
-          <View style={teaserStyles.ideas}>
-            {teaser.ideas.map((idea, index) => (
-              <View
-                key={index}
-                style={[teaserStyles.idea, { backgroundColor: colors.accentSoft }]}
-                wrap={false}
-              >
-                <View style={[teaserStyles.number, { backgroundColor: colors.accent }]}>
-                  <Text style={{ color: colors.onAccent, fontWeight: 600, fontSize: 10 }}>
-                    {index + 1}
-                  </Text>
-                </View>
-                <Text style={teaserStyles.ideaTitle}>{idea.title}</Text>
-                <Text style={[teaserStyles.ideaText, { color: colors.muted }]}>{idea.text}</Text>
-                {idea.benefit ? (
-                  <Text style={[teaserStyles.benefit, { color: colors.onAccentSoft }]}>
-                    {idea.benefit}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <View style={[teaserStyles.cta, { backgroundColor: colors.accent }]} wrap={false}>
-        <View style={teaserStyles.ctaQr}>
-          <Svg width={mm(26)} height={mm(26)} viewBox={`0 0 ${size} ${size}`}>
-            <Path d={letter.qrModules.path} fill="#000000" />
-          </Svg>
-        </View>
-        <View style={{ flex: 1, color: colors.onAccent }}>
-          <Text style={{ fontSize: 14, fontWeight: 600 }}>Alles Weitere auf Ihrer Seite</Text>
-          <Text style={{ fontSize: 9.5, marginTop: mm(1.5), lineHeight: 1.4 }}>
-            Mit Entwürfen, Beispielen und Preisrahmen. Scannen Sie den Code mit der Handy-Kamera
-            {letter.qr.shortLink ? " oder geben Sie den Link ein:" : "."}
-          </Text>
-          {letter.qr.shortLink ? (
-            <Link
-              src={`https://${letter.qr.shortLink}`}
-              style={[styles.link, { color: colors.onAccent, marginTop: mm(1.5) }]}
-            >
-              {letter.qr.shortLink}
-            </Link>
-          ) : null}
-        </View>
-        {letter.signer.name || teaser.ownerPhoto ? (
-          <View style={[teaserStyles.owner, { color: colors.onAccent }]}>
-            {teaser.ownerPhoto ? (
-              // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-              <Image src={teaser.ownerPhoto} style={teaserStyles.photo} />
-            ) : null}
-            {letter.signer.name ? (
-              <Text style={{ fontWeight: 600, fontSize: 9.5 }}>{letter.signer.name}</Text>
-            ) : null}
-            {letter.signer.phone ? (
-              <Text style={{ fontSize: 8, marginTop: mm(0.5) }}>{letter.signer.phone}</Text>
-            ) : null}
-          </View>
-        ) : null}
       </View>
     </Page>
   );
@@ -469,16 +273,19 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
   return Promise.all(
     letters.map(async (letter) => {
       const { teaser, signer } = letter;
-      const [image, logo, ownerPhoto, signatureUrl] = await Promise.all([
+      const [image, logo, ownerPhoto, signatureUrl, before, after] = await Promise.all([
         convert(teaser?.image?.src ?? null),
         convert(teaser?.logo?.src ?? null),
         convert(teaser?.ownerPhoto ?? null),
         convert(signer.signatureUrl),
+        convert(teaser?.beforeAfter?.before.src ?? null),
+        convert(teaser?.beforeAfter?.after.src ?? null),
       ]);
       const missingImages =
         Boolean(teaser?.image && !image) ||
         Boolean(teaser?.logo && !logo) ||
         Boolean(teaser?.ownerPhoto && !ownerPhoto) ||
+        Boolean(teaser?.beforeAfter && !(before && after)) ||
         Boolean(signer.signatureUrl && !signatureUrl);
       return {
         ...letter,
@@ -488,6 +295,14 @@ async function withPrintableImages(letters: PrintableLetterData[]) {
           ...teaser,
           image: image && teaser.image ? { ...teaser.image, src: image } : null,
           logo: logo && teaser.logo ? { ...teaser.logo, src: logo } : null,
+          beforeAfter:
+            teaser.beforeAfter && before && after
+              ? {
+                  ...teaser.beforeAfter,
+                  before: { ...teaser.beforeAfter.before, src: before },
+                  after: { ...teaser.beforeAfter.after, src: after },
+                }
+              : null,
           ownerPhoto,
         },
       };

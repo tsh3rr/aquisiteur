@@ -27,9 +27,13 @@ import {
   type LetterStatus,
   type PrintOptions,
 } from "@/domain/letters/lifecycle";
-import { buildLetterTeaser, type LetterTeaser } from "@/domain/letters/teaser";
+import {
+  buildLetterTeaser,
+  type LetterTeaser,
+  type PrintableTeaser,
+} from "@/domain/letters/teaser";
 import type { ExposeDocument, ExposeImage } from "@/domain/expose/schema";
-import { modulesPath } from "@/domain/tracking/qr";
+import { modulesPath, qrMatrix } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import type { AssetManifest } from "@/db/schema";
 import { resolveEntry, type ResolvedImage } from "@/components/expose/render-context";
@@ -277,19 +281,13 @@ export async function listLetters(
   return rows.map((row) => ({ ...row, openedAt: row.openedAt ? new Date(row.openedAt) : null }));
 }
 
-/** The teaser page with every image as a cockpit URL (still WebP; the browser converts). */
-export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo"> {
-  image: { src: string; alt: string; width: number; height: number } | null;
-  logo: { src: string; alt: string; width: number; height: number } | null;
-  ownerPhoto: string | null;
-}
-
 export interface PrintableLetter extends ComposedLetter {
   id: string;
   prospectId: string;
   companyName: string;
   qrModules: { size: number; path: string };
   problems: string[];
+  duplex: boolean;
   teaser: PrintableTeaser | null;
 }
 
@@ -315,6 +313,16 @@ function teaserImage(manifest: AssetManifest, image: ExposeImage | null) {
     width: resolved.width,
     height: resolved.height,
   };
+}
+
+function printableBeforeAfter(
+  manifest: AssetManifest,
+  beforeAfter: LetterTeaser["beforeAfter"],
+): PrintableTeaser["beforeAfter"] {
+  if (!beforeAfter) return null;
+  const before = teaserImage(manifest, beforeAfter.before);
+  const after = teaserImage(manifest, beforeAfter.after);
+  return before && after ? { ...beforeAfter, before, after } : null;
 }
 
 /** Current published version of each exposé, keyed by exposé id. */
@@ -431,13 +439,16 @@ export async function loadPrintableLetters(
       id: letter.id,
       prospectId: prospect.id,
       companyName: prospect.companyName,
+      duplex: letter.options.duplex,
       teaser:
         source && teaser
           ? {
               ...teaser,
               image: teaserImage(source.manifest, teaser.image),
               logo: teaserImage(source.manifest, teaser.logo),
+              beforeAfter: printableBeforeAfter(source.manifest, teaser.beforeAfter),
               ownerPhoto,
+              qr: qrMatrix(urls.qrUrl, "H"),
             }
           : null,
       qrModules: modulesPath(urls.qrUrl),

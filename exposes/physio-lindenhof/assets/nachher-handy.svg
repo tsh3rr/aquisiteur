@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="420 70 360 760" width="360" height="760">
+  <rect width="1200" height="900" fill="#f4efe3"/>
+  <circle cx="980" cy="160" r="260" fill="#dcebe2"/>
+  <circle cx="180" cy="760" r="220" fill="#f6dccb"/>
+  <g transform="translate(420 70)">
+    <rect x="-10" y="-10" width="380" height="780" rx="64" fill="#24453b"/>
+    <rect x="0" y="0" width="360" height="760" rx="56" fill="#fdfbf6"/>
+    
+    <g font-family="'Nunito', 'Trebuchet MS', sans-serif">
+      <circle cx="44" cy="86" r="16" fill="#3f8f7a"/>
+      <text x="70" y="93" font-size="21" font-weight="800" fill="#24453b">Lindenhof</text>
+      <rect x="20" y="126" width="320" height="230" rx="36" fill="#dcebe2"/>
+      <circle cx="180" cy="222" r="56" fill="#f6dccb"/>
+      <path d="M100 356c10-60 50-84 80-84s70 24 80 84z" fill="#3f8f7a"/>
+      <rect x="20" y="376" width="200" height="36" rx="18" fill="#dcebe2"/>
+      <circle cx="42" cy="394" r="6" fill="#2f6f5e"/>
+      <text x="56" y="400" font-size="15" font-weight="700" fill="#24453b">Termine ab morgen</text>
+      <text x="20" y="458" font-size="30" font-weight="800" fill="#24453b">Wieder schmerzfrei</text>
+      <text x="20" y="494" font-size="30" font-weight="800" fill="#24453b">bewegen.</text>
+      <text x="20" y="528" font-size="16" fill="#4d6b61">Physiotherapie, Manuelle Therapie, Rücken.</text>
+      <rect x="20" y="560" width="320" height="58" rx="29" fill="#2f6f5e"/>
+      <text x="180" y="596" font-size="18" font-weight="800" fill="#fff" text-anchor="middle">Termin online buchen</text>
+      <rect x="20" y="632" width="320" height="58" rx="29" fill="#f4efe3"/>
+      <text x="180" y="668" font-size="18" font-weight="800" fill="#24453b" text-anchor="middle">Rückruf anfordern</text>
+      <text x="180" y="728" font-size="14" fill="#4d6b61" text-anchor="middle">Alle Kassen · Parkplätze am Haus</text>
+    </g>
+  </g>
+</svg>

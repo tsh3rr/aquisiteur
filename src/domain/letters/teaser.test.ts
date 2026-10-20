@@ -26,6 +26,30 @@ describe("buildLetterTeaser()", () => {
       "Gut gefunden werden",
     ]);
     expect(teaser.ideas[0]!.benefit).toBe("Weniger Anrufe während der Behandlung.");
+    expect(teaser.style).toBe("soft");
+  });
+
+  it("shows before and after in phones when the exposé has a phone screen", () => {
+    const document = example("physio-lindenhof");
+    expect(buildLetterTeaser(document)!.beforeAfter).toMatchObject({
+      kind: "phones",
+      before: { src: "assets/vorher.svg" },
+      beforeIsDesktop: true,
+      after: { src: "assets/nachher-handy.svg" },
+      beforeLabel: "Heute",
+      afterLabel: "Vorschlag",
+    });
+    const desktopOnly = {
+      ...document,
+      blocks: document.blocks.map((block) =>
+        block.type === "before_after" ? { ...block, afterMobile: undefined } : block,
+      ),
+    };
+    expect(buildLetterTeaser(desktopOnly)!.beforeAfter).toMatchObject({
+      kind: "screens",
+      after: { src: "assets/nachher.svg" },
+    });
+    expect(collectAssetPaths(document)).toContain("assets/nachher-handy.svg");
   });
 
   it("keeps every text colour at 4.5:1 on the paper it is printed on, for any accent", () => {

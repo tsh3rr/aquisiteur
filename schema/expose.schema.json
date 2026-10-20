@@ -582,6 +582,56 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 40
+              },
+              "afterMobile": {
+                "description": "Phone screen of the proposal, portrait (360×760 works well), without device frame. The printed letter shows it in a phone next to the current site.",
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
+              },
+              "beforeMobile": {
+                "description": "Phone screen of today's site, portrait, without frame. Defaults to the desktop image shrunk to phone width, which is how most old sites look on a phone.",
+                "type": "object",
+                "properties": {
+                  "src": {
+                    "type": "string",
+                    "pattern": "^assets\\/(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*\\.(png|jpe?g|webp|avif|svg|mp4|webm|vtt)$",
+                    "description": "Relative path, e.g. assets/vorher.png"
+                  },
+                  "alt": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "What the image shows. Empty string only for purely decorative images."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "src",
+                  "alt"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [

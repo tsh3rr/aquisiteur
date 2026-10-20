@@ -133,6 +133,16 @@ const beforeAfterBlock = z
     after: imageSchema,
     beforeLabel: text(40).default("Heute"),
     afterLabel: text(40).default("Vorschlag"),
+    afterMobile: imageSchema
+      .optional()
+      .describe(
+        "Phone screen of the proposal, portrait (360×760 works well), without device frame. The printed letter shows it in a phone next to the current site.",
+      ),
+    beforeMobile: imageSchema
+      .optional()
+      .describe(
+        "Phone screen of today's site, portrait, without frame. Defaults to the desktop image shrunk to phone width, which is how most old sites look on a phone.",
+      ),
   })
   .strict();
 
@@ -593,6 +603,8 @@ export function collectAssetPaths(document: ExposeDocument): string[] {
       case "before_after":
         image(block.before);
         image(block.after);
+        image(block.beforeMobile);
+        image(block.afterMobile);
         break;
       case "mockup_gallery":
         block.images.forEach(image);

@@ -1,5 +1,5 @@
 import { light } from "@/design/tokens";
-import type { ExposeDocument, ExposeImage } from "@/domain/expose/schema";
+import type { ExposeDocument, ExposeImage, ExposeStyle } from "@/domain/expose/schema";
 import { deriveAccent, styleScheme } from "@/domain/expose/theme";
 import { clampChroma, contrastRatio, ensureContrast, hexToOklch, oklchToHex } from "@/lib/color";
 
@@ -18,6 +18,22 @@ export interface LetterTeaser {
   logo: ExposeImage | null;
   ideasTitle: string;
   ideas: { title: string; text: string; benefit: string | null }[];
+  /**
+   * Before and after: two phones when the exposé has a phone screen of the
+   * proposal (today's site then shrinks into the phone unless it has its
+   * own), otherwise the two desktop screenshots.
+   */
+  beforeAfter: {
+    kind: "phones" | "screens";
+    before: ExposeImage;
+    /** True when `before` is a desktop screenshot shown inside a phone. */
+    beforeIsDesktop: boolean;
+    after: ExposeImage;
+    beforeLabel: string;
+    afterLabel: string;
+  } | null;
+  /** Headline face follows the exposé style. */
+  style: ExposeStyle;
   /** sRGB hex for the PDF renderer, each text colour at least 4.5:1 on its background. */
   colors: {
     accent: string;
@@ -26,6 +42,8 @@ export interface LetterTeaser {
     onAccentSoft: string;
     ink: string;
     muted: string;
+    /** Warm or neutral second tint for background shapes, no text on it. */
+    paper: string;
   };
 }
 
@@ -101,12 +119,37 @@ export function buildLetterTeaser(document: ExposeDocument): LetterTeaser | null
   const accent = readableOn(oklchToHex(accentFamily.accent), "#ffffff");
   const accentSoft = oklchToHex(accentFamily.accentSoft);
 
+  const beforeAfterBlock = beforeAfter
+    ? beforeAfter.afterMobile
+      ? {
+          kind: "phones" as const,
+          before: beforeAfter.beforeMobile ?? beforeAfter.before,
+          beforeIsDesktop: !beforeAfter.beforeMobile,
+          after: beforeAfter.afterMobile,
+        }
+      : {
+          kind: "screens" as const,
+          before: beforeAfter.before,
+          beforeIsDesktop: true,
+          after: beforeAfter.after,
+        }
+    : null;
+
   const lead = override?.lead ?? hero?.lead ?? document.meta.description ?? null;
   return {
     eyebrow: hero?.eyebrow ?? null,
     headline: clip(override?.headline ?? hero?.headline ?? document.meta.title, 120),
     lead: lead ? clip(plain(lead), 260) : null,
     image: override?.image ?? hero?.image ?? beforeAfter?.after ?? gallery?.images[0] ?? null,
+    beforeAfter:
+      beforeAfter && beforeAfterBlock
+        ? {
+            ...beforeAfterBlock,
+            beforeLabel: clip(beforeAfter.beforeLabel, 24),
+            afterLabel: clip(beforeAfter.afterLabel, 24),
+          }
+        : null,
+    style,
     logo: theme.logo ?? null,
     ideasTitle: clip(
       override?.ideas ? "Meine Ideen für Sie" : (proposal?.title ?? "Meine Ideen für Sie"),
@@ -124,6 +167,25 @@ export function buildLetterTeaser(document: ExposeDocument): LetterTeaser | null
       onAccentSoft: readableOn(oklchToHex(accentFamily.accentSoftForeground), accentSoft),
       ink: readableOn(oklchToHex(neutrals.foreground), accentSoft),
       muted: readableOn(oklchToHex(neutrals.foregroundMuted), accentSoft),
+      paper: oklchToHex(neutrals.surfaceSunken),
     },
   };
+}
+
+/** An image as the letter renderer gets it: a URL (later a data URL) and its size. */
+export type PrintImage = { src: string; alt: string; width: number; height: number };
+
+/** The teaser page with every image as a cockpit URL (still WebP; the browser converts). */
+export interface PrintableTeaser extends Omit<LetterTeaser, "image" | "logo" | "beforeAfter"> {
+  image: PrintImage | null;
+  logo: PrintImage | null;
+  beforeAfter:
+    | (Omit<NonNullable<LetterTeaser["beforeAfter"]>, "before" | "after"> & {
+        before: PrintImage;
+        after: PrintImage;
+      })
+    | null;
+  ownerPhoto: string | null;
+  /** The same code as `qrModules`, at level H for the dotted style with a logo in the middle. */
+  qr: { size: number; bits: string };
 }

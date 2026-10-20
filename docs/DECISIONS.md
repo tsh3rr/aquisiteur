@@ -582,22 +582,28 @@ Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mi
 
 ## ADR-0055 · Brief mit Exposé-Vorschau als zweite Seite (2026-10-20, ergänzt ADR-0037)
 
-Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“).
-Seite 1 bleibt das DIN-5008-Anschreiben, bekommt aber einen Briefkopf mit Absender, „Persönlich für …“
-und einem Bildstreifen aus dem Exposé oberhalb der Fensterzone; die QR-Box nimmt die Akzentfarbe an.
-Seite 2 ist eine gestaltete Teaser-Seite: großes Bild, Headline, Lead, bis zu drei Ideen als Karten
-und unten ein Band mit QR-Code, Kurzlink und Foto des Owners. Mehr Seiten bringen nichts, was das
-Exposé nicht besser kann; der Brief soll neugierig machen, nicht ersetzen.
+Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“), und
+sieht dabei nach Gestaltung aus, nicht nach Geschäftsbrief. Seite 1 bleibt das DIN-5008-Anschreiben,
+bekommt aber weiche Kreisformen am Rand (außerhalb von Fenster und Infoblock), den Betreff in der
+Headline-Schrift des Exposé-Stils und statt der QR-Box eine Karte mit gepunktetem Code, Kurzlink und
+einem dicken Pfeil „Bitte umblättern“. Seite 2 ist die Vorschau: Headline, Vorher/Nachher als zwei
+Handys (links die heutige Seite ungeschrumpft, rechts der Vorschlag), drei Ideen mit großen Ziffern und
+ein Band „Alles Weitere auf dieser Seite“ mit Kurzlink, Pfeil zum Code und Foto des Owners.
 
-- Inhalte kommen automatisch aus `hero` und `proposal` (ersatzweise `findings`, Nachher-Bild,
-  erstes Mockup), reine Logik in `src/domain/letters/teaser.ts`. Optionale Überschreibungen stehen im
-  Exposé unter `letter.teaser` (additiv, Schema-Version bleibt 1).
-- Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden als Hex an
-  React-PDF gegeben; jede Textfarbe hat mindestens 4,5:1 auf ihrem Untergrund.
+- Inhalte kommen automatisch aus `hero`, `before_after` und `proposal` (ersatzweise `findings`), reine
+  Logik in `src/domain/letters/teaser.ts`. Für die Handys bekommt `before_after` die optionalen Felder
+  `afterMobile` und `beforeMobile`; `letter.teaser` überschreibt einzelne Felder. Beides additiv,
+  Schema-Version bleibt 1.
+- Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden nach dem
+  Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
+  Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
+- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
+  der Mitte, deshalb Fehlerkorrektur H. Der Aufkleber „Scan mich!“ sitzt außerhalb der Module. Mit einem
+  QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
 - Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
-  mit Teaser-Seite. Die Seite zeigt immer die aktuelle Exposé-Version.
+  mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.
 - Bilder: Exposé-Bilder liegen nur als WebP/AVIF vor, React-PDF bettet nur PNG und JPEG ein. Der
   Browser, der das PDF ohnehin rendert, wandelt sie per Canvas in JPEG (bis 1600 px). PNG wird bewusst
   vermieden, auch für Logo und Unterschrift: React-PDF entpackt PNGs in einem Blob-Worker, den die CSP
-  (`worker-src 'self'`) blockiert, und das PDF würde nie fertig. Alle Bilder liegen auf weißem Papier,
-  JPEG auf Weiß verliert also nichts.
+  (`worker-src 'self'`) blockiert, und das PDF würde nie fertig. JPEG auf Weiß verliert nichts, das
+  Logo steht deshalb auf einem weißen Chip.

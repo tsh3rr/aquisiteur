@@ -204,6 +204,8 @@ describe("letters", () => {
     expect(printable!.qrModules.path).toMatch(/^M\d/);
     // Teaser page from the current exposé version (ADR-0055), on unless the letter says otherwise.
     expect(printable!.teaser).toMatchObject({ headline: "Hallo Café Müller", ideas: [] });
+    // The dotted code encodes the same link as the classic one.
+    expect(printable!.teaser!.qr.bits).toHaveLength(printable!.teaser!.qr.size ** 2);
 
     const legacy: StoredPrintOptions = {
       color: false,
