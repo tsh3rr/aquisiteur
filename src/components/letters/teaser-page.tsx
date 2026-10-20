@@ -152,45 +152,59 @@ function FatArrow({ width, color, style }: { width: number; color: string; style
   );
 }
 
-/** A fat arrow that bends over and points straight down, as in „turn the page“. */
+/**
+ * A fat arrow that leaves to the right and bends straight down, as in „turn
+ * the page“. It starts at the vertical middle of its box, so centring the box
+ * on a text block starts the arrow at the text's middle.
+ */
 function DownArrow({ width, color }: { width: number; color: string }) {
   return (
-    <Svg width={width} height={width * 1.25} viewBox="0 0 80 100">
+    <Svg width={width} height={width * 1.5} viewBox="0 0 80 120">
       <Path
-        d="M8 14 C 44 4, 62 30, 58 72"
+        d="M6 60 C 40 54, 60 70, 58 96"
         stroke={color}
         strokeWidth={10}
         strokeLinecap="round"
         fill="none"
       />
-      <Polygon points="42,68 74,70 57,97" fill={color} />
+      <Polygon points="43,92 73,93 58,118" fill={color} />
     </Svg>
   );
 }
 
-/**
- * Two arrows from one stem: the upper one runs right to the code, the lower
- * one bends back down to the link (page 2 call to action).
- */
-function ForkArrow({ width, color }: { width: number; color: string }) {
+/** Small line icons for the contact card; the text next to them carries the meaning. */
+function ContactIcon({ kind, color }: { kind: "phone" | "mail"; color: string }) {
   return (
-    <Svg width={width} height={width * 1.7} viewBox="0 0 100 170">
-      <Path
-        d="M6 22 C 34 10, 62 16, 80 40"
-        stroke={color}
-        strokeWidth={8}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <Polygon points="66,42 94,34 90,64" fill={color} />
-      <Path
-        d="M20 22 C 54 44, 58 118, 28 138"
-        stroke={color}
-        strokeWidth={8}
-        strokeLinecap="round"
-        fill="none"
-      />
-      <Polygon points="36,124 34,154 6,142" fill={color} />
+    <Svg width={mm(3.4)} height={mm(3.4)} viewBox="0 0 24 24" style={{ marginRight: mm(1.5) }}>
+      {kind === "phone" ? (
+        <Path
+          d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"
+          stroke={color}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          fill="none"
+        />
+      ) : (
+        <G>
+          <Rect
+            x={3}
+            y={5}
+            width={18}
+            height={14}
+            rx={2}
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+          />
+          <Path
+            d="M3 7l9 6 9-6"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </G>
+      )}
     </Svg>
   );
 }
@@ -268,7 +282,7 @@ function QrTile({
         <Sticker
           background={colors.accent}
           color={colors.onAccent}
-          style={{ bottom: -mm(2.5), right: -mm(5) }}
+          style={{ bottom: -mm(2.5), left: -mm(4) }}
         >
           {label}
         </Sticker>
@@ -333,12 +347,11 @@ export function TeaserQrCard({
           alignItems: "center",
           gap: mm(5),
           padding: mm(4),
-          paddingRight: mm(6),
+          paddingLeft: mm(6),
           borderRadius: mm(4),
           backgroundColor: colors.accentSoft,
         }}
       >
-        <QrTile letter={letter} teaser={teaser} size={mm(27)} tilt={-3} />
         <View style={{ flex: 1 }}>
           <Text style={{ ...display, fontSize: 16, color: colors.ink }}>
             Mein Vorschlag für Ihre Website
@@ -376,11 +389,12 @@ export function TeaserQrCard({
             </View>
           ) : null}
         </View>
+        <QrTile letter={letter} teaser={teaser} size={mm(27)} tilt={3} />
       </View>
       <View
         style={{
           flexDirection: "row",
-          alignItems: "flex-start",
+          alignItems: "center",
           justifyContent: "flex-end",
           marginTop: mm(1),
           paddingRight: mm(2),
@@ -393,7 +407,6 @@ export function TeaserQrCard({
             color: colors.accent,
             textAlign: "right",
             maxWidth: mm(95),
-            marginTop: mm(3),
             marginRight: mm(2),
           }}
         >
@@ -681,17 +694,16 @@ export function TeaserPage({
 }
 
 /**
- * The way in once more: the headline points with one arrow to the code and
- * with a second one down to the typed link; the sender's contact sits on a
- * light card of its own.
+ * The way in once more, built like the card on page 1 so both pages read as
+ * one piece: what waits there, the link, the code, and how to reach the
+ * sender. Show, don't tell: link, number and address explain themselves,
+ * only the code gets a small „Scannen“.
  */
 function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: PrintableTeaser }) {
   const { colors, contact } = teaser;
   const display = displayStyle(teaser.style);
-  const reach = [contact?.phone ? `Tel. ${contact.phone}` : null, contact?.email ?? null].filter(
-    Boolean,
-  );
-  const showContact = Boolean(letter.signer.name || teaser.ownerPhoto || reach.length > 0);
+  const name = letter.signer.name;
+  const showContact = Boolean(name || teaser.ownerPhoto || contact?.phone || contact?.email);
   return (
     <View
       wrap={false}
@@ -700,94 +712,85 @@ function CtaBand({ letter, teaser }: { letter: PrintableLetterData; teaser: Prin
         bottom: mm(12),
         left: mm(18),
         right: mm(18),
+        flexDirection: "row",
+        alignItems: "center",
+        gap: mm(6),
         padding: mm(5),
+        paddingLeft: mm(7),
         borderRadius: mm(5),
-        backgroundColor: colors.accent,
-        color: colors.onAccent,
+        backgroundColor: colors.accentSoft,
+        color: colors.ink,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...display, fontSize: 19, textAlign: "right" }}>
-            Alles Weitere auf dieser Seite
-          </Text>
-          <Text style={{ fontSize: 9.5, marginTop: mm(2), textAlign: "right" }}>
-            Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
-          </Text>
-          {letter.qr.shortLink ? (
-            <View style={{ alignItems: "flex-end", marginTop: mm(6) }}>
-              <View>
-                <Link
-                  src={`https://${letter.qr.shortLink}`}
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: colors.ink,
-                    backgroundColor: "#ffffff",
-                    paddingVertical: mm(1.6),
-                    paddingHorizontal: mm(3.5),
-                    borderRadius: mm(3.5),
-                    textDecoration: "none",
-                  }}
-                >
-                  {letter.qr.shortLink}
-                </Link>
-                <Sticker
-                  background={colors.ink}
-                  color="#ffffff"
-                  style={{ top: -mm(4.5), left: -mm(3) }}
-                >
-                  EINTIPPEN
-                </Sticker>
+      <View style={{ flex: 1 }}>
+        <Text style={{ ...display, fontSize: 20 }}>Alles Weitere auf dieser Seite</Text>
+        <Text style={{ fontSize: 10, marginTop: mm(1.5), color: colors.muted }}>
+          Alle Entwürfe, Beispiele und ein Preisrahmen, ganz in Ruhe zum Durchsehen.
+        </Text>
+        {letter.qr.shortLink ? (
+          <View style={{ flexDirection: "row", marginTop: mm(3) }}>
+            <Link
+              src={`https://${letter.qr.shortLink}`}
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: colors.onAccent,
+                backgroundColor: colors.accent,
+                paddingVertical: mm(1.4),
+                paddingHorizontal: mm(3.5),
+                borderRadius: mm(3.5),
+                textDecoration: "none",
+              }}
+            >
+              {letter.qr.shortLink}
+            </Link>
+          </View>
+        ) : null}
+        {showContact ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: mm(4),
+              paddingTop: mm(3.5),
+              borderTopWidth: 0.75,
+              borderTopColor: colors.muted,
+            }}
+          >
+            {teaser.ownerPhoto ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
+              <Image
+                src={teaser.ownerPhoto}
+                style={{
+                  width: mm(11),
+                  height: mm(11),
+                  borderRadius: mm(5.5),
+                  objectFit: "cover",
+                  marginRight: mm(3),
+                }}
+              />
+            ) : null}
+            <View style={{ flexShrink: 1 }}>
+              {name ? <Text style={{ fontSize: 10.5, fontWeight: 600 }}>{name}</Text> : null}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: mm(0.8) }}>
+                {contact?.phone ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginRight: mm(5) }}>
+                    <ContactIcon kind="phone" color={colors.accent} />
+                    <Text style={{ fontSize: 10 }}>{contact.phone}</Text>
+                  </View>
+                ) : null}
+                {contact?.email ? (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <ContactIcon kind="mail" color={colors.accent} />
+                    <Text style={{ fontSize: 10 }}>{contact.email}</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
-          ) : null}
-        </View>
-        <View style={{ marginTop: -mm(1), marginHorizontal: mm(1) }}>
-          <ForkArrow width={mm(20)} color={colors.onAccent} />
-        </View>
-        <QrTile letter={letter} teaser={teaser} size={mm(28)} tilt={3} />
-      </View>
-      {showContact ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            alignSelf: "flex-start",
-            marginTop: mm(4),
-            paddingVertical: mm(2),
-            paddingLeft: mm(2),
-            paddingRight: mm(4),
-            borderRadius: mm(3),
-            backgroundColor: colors.accentSoft,
-            color: colors.ink,
-          }}
-        >
-          {teaser.ownerPhoto ? (
-            // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
-            <Image
-              src={teaser.ownerPhoto}
-              style={{
-                width: mm(10),
-                height: mm(10),
-                borderRadius: mm(5),
-                objectFit: "cover",
-                marginRight: mm(2.5),
-              }}
-            />
-          ) : null}
-          <View>
-            {letter.signer.name ? (
-              <Text style={{ fontSize: 10, fontWeight: 600 }}>{letter.signer.name}</Text>
-            ) : null}
-            {reach.length > 0 ? (
-              <Text style={{ fontSize: 9.5, marginTop: mm(0.5), color: colors.muted }}>
-                {reach.join("  ·  ")}
-              </Text>
-            ) : null}
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
+      <QrTile letter={letter} teaser={teaser} size={mm(32)} tilt={3} />
     </View>
   );
 }
