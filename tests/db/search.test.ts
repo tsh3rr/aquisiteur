@@ -31,8 +31,8 @@ const asTom = <T>(fn: (tx: Transaction) => Promise<T>) =>
 
 beforeAll(async () => {
   await db.insert(schema.users).values([sue, tom]);
-  const s = await createWorkspace(db, { userId: sue.id, name: "Agentur S", slug: "agentur-s" });
-  const t = await createWorkspace(db, { userId: tom.id, name: "Agentur T", slug: "agentur-t" });
+  const s = await createWorkspace(db, { userId: sue.id, name: "Agentur S", slug: "suche-s" });
+  const t = await createWorkspace(db, { userId: tom.id, name: "Agentur T", slug: "suche-t" });
   if (!s.ok || !t.ok) throw new Error("workspace setup failed");
   wsS = s.workspace.id;
   wsT = t.workspace.id;
