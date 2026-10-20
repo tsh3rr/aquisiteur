@@ -647,9 +647,11 @@ Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über o
 
 Seit Updates automatisch laufen, geht jeder Merge sofort live. Vor dem Go-live trennen wir deshalb:
 Staging bekommt jeden Merge (`image.yml`, Job „Deploy to staging“, Secrets `DEPLOY_*`), Produktion nur,
-was der Owner freigibt. Beide laufen auf demselben Server (geplant: Mikrus 3.5, rund 300 MB für beide
-zusammen) als zwei Compose-Projekte mit eigenem Ordner, eigener Datenbank, eigenem Port und eigenen
-Subdomains (`COMPOSE_PROJECT_NAME`, `APP_PORT`). Bis dahin ist der Mikrus mit 1 GB der Testserver.
+was der Owner freigibt. Jede Umgebung ist ein eigenes Compose-Projekt mit eigener Datenbank, eigenen
+Dateien und eigenen Subdomains. Ob auf einem Server (mit `COMPOSE_PROJECT_NAME` und `APP_PORT`
+nebeneinander, rund 300 MB für beide) oder auf zwei, entscheiden nur die Secrets; getrennte Server
+sind sicherer, weil ungeprüfter Staging-Code dann weder Docker noch Speicher mit Produktion teilt. Die
+Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 
 - `release.yml` läuft bei einem Tag `v*` oder per Hand auf `main` beziehungsweise einem Tag (auch aus
   der GitHub-App). Er baut das Image für genau diesen Commit aus dem Cache, gibt ihm die Namen

@@ -169,34 +169,38 @@ GitHub-App). Ohne die Secrets überspringt der Workflow das Deployment.
 
 ### Produktion: nur freigegebene Versionen
 
-Staging bekommt jeden Merge, Produktion nur, was du freigibst (ADR-0057). Beide laufen auf demselben
-Server (etwa einem Mikrus 3.5), aber als zwei getrennte Installationen mit eigener Datenbank, eigenen
-Dateien und eigenen Subdomains: Produktion in `/opt/aquisiteur`, Staging in `/opt/aquisiteur-staging`.
+Staging bekommt jeden Merge, Produktion nur, was du freigibst (ADR-0057). Beide sind immer getrennte
+Installationen mit eigener Datenbank, eigenen Dateien und eigenen Subdomains. Ob sie auf einem Server
+liegen oder auf zwei, entscheiden nur die Secrets; ein Umzug von Staging auf einen eigenen Server
+später heißt: dort Schritt 4 bis 7 und die `DEPLOY_*`-Secrets ändern.
 
-1. Staging einrichten wie in Schritt 4 bis 7, nur im Ordner `/opt/aquisiteur-staging` und mit diesen
-   Zeilen in seiner `.env`:
+**Für beide Varianten:**
 
-   ```bash
-   COMPOSE_PROJECT_NAME=aquisiteur-staging   # sonst teilen sich beide Container und Datenbank
-   APP_PORT=8080                             # Produktion belegt Port 80
-   APP_URL=https://aquisiteur-staging.mikrus.dev
-   ```
-
-   Bei Mikrus dafür eigene Subdomains auf Port 8080 anlegen, etwa `aquisiteur-staging.mikrus.dev`
-   und für den Workspace `coalform-staging.mikrus.dev` (Slug `coalform-staging` beim ersten Login).
-
-2. In der `.env` der Produktion zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
+1. In der `.env` der Produktion zusätzlich `APP_IMAGE=ghcr.io/tsh3rr/aquisiteur:production`
    eintragen. Ohne diese Zeile lädt sie `latest` und damit jeden Merge wie Staging.
-3. Zwei Deploy-Schlüssel wie oben, jeder auf seinen Ordner beschränkt: `github-deploy` mit
-   `cd /opt/aquisiteur-staging && …` für Staging, `github-deploy-prod` mit `cd /opt/aquisiteur && …`
-   für Produktion.
-4. Secrets: Die `DEPLOY_*` gehören zu Staging, dazu `DEPLOY_DIR` = `/opt/aquisiteur-staging`. Für
-   Produktion dieselben Werte noch einmal als `PROD_DEPLOY_SSH_KEY` (der zweite Schlüssel),
-   `PROD_DEPLOY_HOST` und `PROD_DEPLOY_PORT`, optional `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`,
-   `PROD_DEPLOY_DIR`.
+2. Für Produktion einen eigenen Deploy-Schlüssel wie oben anlegen (`github-deploy-prod`, beschränkt
+   auf `cd /opt/aquisiteur && …`) und als Secrets `PROD_DEPLOY_SSH_KEY`, `PROD_DEPLOY_HOST`,
+   `PROD_DEPLOY_PORT` eintragen, optional `PROD_DEPLOY_KNOWN_HOSTS`, `PROD_DEPLOY_USER`,
+   `PROD_DEPLOY_DIR`. Die `DEPLOY_*`-Secrets gehören zu Staging.
+3. Der stündliche Job und das Backup aus Schritt 9 laufen für Produktion; für Staging reicht der Job.
 
-Der stündliche Job und das Backup aus Schritt 9 laufen nur für Produktion; für Staging reicht der Job
-ohne Backup, mit `cd /opt/aquisiteur-staging`.
+**Getrennte Server** (sicherer, empfohlen): Staging bleibt, wie es ist, etwa auf dem kleinen
+Mikrus, Produktion bekommt einen eigenen Server mit Schritt 1 bis 9 in `/opt/aquisiteur`. Ein Fehler
+im ungeprüften Staging-Stand trifft so nie Produktion.
+
+**Ein gemeinsamer Server** (spart einen Server): Produktion in `/opt/aquisiteur`, Staging daneben in
+`/opt/aquisiteur-staging` (Schritt 4 bis 7 in diesem Ordner). Die Staging-`.env` bekommt:
+
+```bash
+COMPOSE_PROJECT_NAME=aquisiteur-staging   # sonst teilen sich beide Container und Datenbank
+APP_PORT=8080                             # Produktion belegt Port 80
+APP_URL=https://aquisiteur-staging.mikrus.dev
+```
+
+Bei Mikrus dafür eigene Subdomains auf Port 8080 anlegen, etwa `aquisiteur-staging.mikrus.dev` und
+`coalform-staging.mikrus.dev` (Slug `coalform-staging` beim ersten Login). Der Staging-Schlüssel ist
+auf `cd /opt/aquisiteur-staging && …` beschränkt, und `DEPLOY_DIR` ist `/opt/aquisiteur-staging`.
+Beide teilen sich Docker und Arbeitsspeicher; Staging sollte deshalb keine echten Kundendaten haben.
 
 Freigeben, auf eine von zwei Arten:
 
