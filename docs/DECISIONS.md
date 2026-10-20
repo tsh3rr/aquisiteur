@@ -580,6 +580,13 @@ Job und ein tägliches `pg_dump` laufen per Cron auf dem Server, Updates per `do
 Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mit Cloudflare und R2
 (ADR-0052) der Weg, weil es Backups nach R2, Logs und Deployments per Oberfläche mitbringt.
 
+Nachtrag: Updates laufen automatisch. Nach einem gebauten Image meldet sich der Workflow „Image“ per SSH
+auf dem Server an und führt `docker compose pull` und `up -d` aus (Secrets `DEPLOY_SSH_KEY`,
+`DEPLOY_HOST`, `DEPLOY_PORT`, optional `DEPLOY_KNOWN_HOSTS`). Der Schlüssel ist in `authorized_keys` auf
+genau diesen Befehl beschränkt. Die Concurrency-Gruppe bricht einen laufenden Durchgang ab, sobald ein
+neuerer Commit auf `main` landet, sodass mehrere Merges kurz hintereinander nur ein Image und ein
+Deployment ergeben. Nur Standard-SSH, kein Dienst eines Anbieters.
+
 ## ADR-0055 · Brief mit Exposé-Vorschau als zweite Seite (2026-10-20, ergänzt ADR-0037)
 
 Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“), und
