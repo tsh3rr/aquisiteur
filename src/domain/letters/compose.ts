@@ -54,8 +54,12 @@ export interface ComposedLetter {
   salutation: string | null;
   body: string;
   closing: string;
+  /** Agency or owner name for the letterhead. */
+  senderName: string;
   signer: { name: string | null; role: string | null; signatureUrl: string | null };
   qr: { url: string; hint: string; shortLink: string | null };
+  /** Phone, e-mail and website, one per line in the info block. */
+  senderContact: string[];
   /** Contact details in the footer. */
   footer: string[];
   /** Placeholders the text used that had no value, e.g. ["ansprechpartner"]. */
@@ -91,7 +95,7 @@ export function salutationFor(contact: LetterRecipient["contact"]): string {
   return "Sehr geehrte Damen und Herren,";
 }
 
-const OWN_SALUTATION = /^(sehr geehrte|liebe|lieber|hallo|guten tag|moin|servus|grüß gott)\b/i;
+const OWN_SALUTATION = /^(sehr geehrte[rs]?|liebe[rs]?|hallo|guten tag|moin|servus|grüß gott)\b/i;
 
 /** Replaces {{name}} placeholders; unknown names stay visible so they get noticed. */
 export function fillPlaceholders(
@@ -138,6 +142,11 @@ export function composeLetter(input: LetterInput): ComposedLetter {
 
   const senderPlace = [sender.postalCode, sender.city].filter(Boolean).join(" ");
   const returnAddress = [sender.company, sender.street, senderPlace].filter(Boolean).join(" · ");
+  const senderContact = [
+    sender.phone ? `Telefon ${sender.phone}` : null,
+    sender.email,
+    sender.website,
+  ].filter((line): line is string => Boolean(line));
 
   return {
     returnAddress,
@@ -152,13 +161,13 @@ export function composeLetter(input: LetterInput): ComposedLetter {
     salutation: OWN_SALUTATION.test(body.text) ? null : salutationFor(recipient.contact),
     body: body.text,
     closing: input.closing,
+    senderName: sender.company,
     signer: { name: sender.name, role: sender.role, signatureUrl: input.signatureUrl },
     qr: { url: input.qrUrl, hint: input.qrHint, shortLink: input.shortLink },
+    senderContact,
     footer: [
       [sender.company, sender.street, senderPlace].filter(Boolean).join(", "),
-      [sender.phone ? `Telefon ${sender.phone}` : null, sender.email, sender.website]
-        .filter(Boolean)
-        .join(" · "),
+      senderContact.join(" · "),
     ].filter(Boolean),
     missing: [...new Set([...subject.missing, ...body.missing])],
   };

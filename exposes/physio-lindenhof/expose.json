@@ -103,7 +103,11 @@
         "alt": "Vorschlag: warme, helle Farben, große Überschrift „Wieder schmerzfrei bewegen“, Buttons für Online-Termin und Rückruf, darunter drei Karten mit Leistungen und Google-Bewertung."
       },
       "beforeLabel": "Heute",
-      "afterLabel": "Vorschlag"
+      "afterLabel": "Vorschlag",
+      "afterMobile": {
+        "src": "assets/nachher-handy.svg",
+        "alt": "Vorschlag auf dem Handy: „Wieder schmerzfrei bewegen“, darunter große Buttons „Termin online buchen“ und „Rückruf anfordern“."
+      }
     },
     {
       "id": "ideen",

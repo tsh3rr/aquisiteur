@@ -579,3 +579,41 @@ solche Server gibt es `deploy/compose.yml`: Postgres 16 und das App-Image von Gi
 Job und ein tägliches `pg_dump` laufen per Cron auf dem Server, Updates per `docker compose pull`.
 Anleitung in `docs/DEPLOY_COMPOSE.md`. Für den echten Betrieb bleibt Coolify mit Cloudflare und R2
 (ADR-0052) der Weg, weil es Backups nach R2, Logs und Deployments per Oberfläche mitbringt.
+
+## ADR-0055 · Brief mit Exposé-Vorschau als zweite Seite (2026-10-20, ergänzt ADR-0037)
+
+Der Brief zeigt schon auf Papier, was hinter dem QR-Code wartet (§7.9 „Exposé-Vorschau im Brief“), und
+sieht dabei nach Gestaltung aus, nicht nach Geschäftsbrief. Seite 1 bleibt das DIN-5008-Anschreiben,
+bekommt aber weiche Kreisformen am Rand (außerhalb von Fenster und Infoblock), den Betreff in der
+Headline-Schrift des Exposé-Stils und statt der QR-Box eine Karte „Mein Vorschlag für Ihre Website“
+(Kurzlink links, gepunkteter Code rechts) und einen dicken Pfeil „Bitte umblättern“. Seite 2 ist die
+Vorschau: Headline, Vorher/Nachher als zwei gleich große Handys (links die heutige Seite verkleinert,
+rechts der Vorschlag), drei Ideen mit großen Ziffern und unten dieselbe helle Karte wie auf Seite 1:
+„Alles Weitere auf dieser Seite“, Kurzlink, Code und Kontakt des Owners.
+
+Gestaltungsregeln aus der Abstimmung mit dem Owner: Show, don't tell (Link, Nummer und Mail erklären
+sich selbst, nur der Code bekommt ein kleines „Scannen“); alles aufrecht, nichts gekippt, weil gedrehte
+Raster und feine Punkte im Druck unscharf werden; Labels immer zentriert über oder unter ihrem Element.
+
+- Inhalte kommen automatisch aus `hero`, `before_after` und `proposal` (ersatzweise `findings`), reine
+  Logik in `src/domain/letters/teaser.ts`. Für die Handys bekommt `before_after` die optionalen Felder
+  `afterMobile` und `beforeMobile`; `letter.teaser` überschreibt einzelne Felder. Beides additiv,
+  Schema-Version bleibt 1.
+- Farben leiten sich wie im Exposé aus der Akzentfarbe ab (`deriveAccent`, hell) und werden nach dem
+  Runden auf Hex noch einmal auf 4,5:1 geprüft. Headline-Schriften wie im Exposé (Instrument Serif,
+  Anton, Nunito), für React-PDF als WOFF unter `public/fonts/letter/`.
+- Der Code auf dem Brief: Punkte statt Quadrate, runde Ecken-Augen in der Akzentfarbe und ein „Hi!“ in
+  der Mitte, deshalb Fehlerkorrektur H. Das Label „Scannen“ steht unter dem Code, außerhalb der Module. Mit einem
+  QR-Decoder bei 100 dpi geprüft, für alle drei Stile.
+- Pro Brief abschaltbar (`letters.options.teaser`, Standard an). Ältere Briefe ohne das Feld drucken
+  mit Vorschau. Die Seite zeigt immer die aktuelle Exposé-Version.
+- Bilder: Exposé-Bilder liegen nur als WebP/AVIF vor, React-PDF bettet nur PNG und JPEG ein. Der
+  Browser, der das PDF ohnehin rendert, wandelt sie per Canvas in JPEG (bis 1600 px). PNG wird bewusst
+  vermieden, auch für Logo und Unterschrift: React-PDF entpackt PNGs in einem Blob-Worker, den die CSP
+  (`worker-src 'self'`) blockiert, und das PDF würde nie fertig. JPEG auf Weiß verliert nichts, das
+  Logo steht deshalb auf einem weißen Chip.
+- Briefkopf auf Seite 1: Logo der Agentur (`branding.logoAssetId`) oben links in der Briefkopfzone,
+  ohne Logo der Name in der Headline-Schrift. Links, damit es nie mit der Kreisform oben rechts
+  kollidiert. Der Absenderblock (Firma, Name, Kontakt, Datum) beginnt bündig mit der Rücksendezeile.
+- Telefon und E-Mail des Absenders in der Karte auf Seite 2, mit kleinen Symbolen, pro Brief abschaltbar
+  (`letters.options.contact`, Standard an, fehlt bei älteren Briefen und gilt dann als an).

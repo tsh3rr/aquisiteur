@@ -27,6 +27,21 @@ export function modulesPath(url: string): { size: number; path: string } {
   return { size: size + QUIET_ZONE * 2, path };
 }
 
+/**
+ * The modules as a row-major string of "1"/"0", without quiet zone, for
+ * renderers that draw their own module shapes (the letter's dotted code).
+ * Level H leaves room for a small logo in the middle.
+ */
+export function qrMatrix(url: string, level: "M" | "H" = "M"): { size: number; bits: string } {
+  const qr = QRCode.create(url, { errorCorrectionLevel: level });
+  const size = qr.modules.size;
+  let bits = "";
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) bits += qr.modules.get(x, y) ? "1" : "0";
+  }
+  return { size, bits };
+}
+
 export interface QrOptions {
   url: string;
   /** Frame with call to action and the typed link below. */

@@ -100,7 +100,11 @@ test("letters are created, printed as PDF and marked as posted", async ({ page }
     .getByRole("button", { name: "PDF herunterladen" })
     .click();
   const file = await (await download).path();
-  expect(readFileSync(file).subarray(0, 5).toString()).toBe("%PDF-");
+  const pdf = readFileSync(file);
+  expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+  // Letter plus the exposé teaser page (ADR-0055), images included.
+  expect(pdf.toString("latin1").match(/\/Type \/Page\b/g)).toHaveLength(2);
+  expect(pdf.toString("latin1")).toContain("/Subtype /Image");
   // No sender address in this workspace yet, so the letter carries a hint.
   await expect(page.getByText(/^PDF erstellt\. 1 Brief hat Hinweise/)).toBeVisible();
   await (await download).saveAs("test-results/letter.pdf");

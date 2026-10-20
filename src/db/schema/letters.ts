@@ -9,7 +9,11 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { LETTER_KINDS, LETTER_STATUSES, type PrintOptions } from "../../domain/letters/lifecycle";
+import {
+  LETTER_KINDS,
+  LETTER_STATUSES,
+  type StoredPrintOptions,
+} from "../../domain/letters/lifecycle";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
 import { campaigns, prospects } from "./prospects";
@@ -38,7 +42,7 @@ export const letters = pgTable(
     status: letterStatus("status").notNull().default("draft"),
     provider: text("provider").notNull().default("manual"),
     providerRef: text("provider_ref"),
-    options: jsonb("options").$type<PrintOptions>().notNull(),
+    options: jsonb("options").$type<StoredPrintOptions>().notNull(),
     subject: text("subject").notNull(),
     body: text("body").notNull(),
     costCents: integer("cost_cents"),

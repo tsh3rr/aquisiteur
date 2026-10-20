@@ -88,7 +88,8 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
 - [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; automatische Follow-ups
-- [ ] Exposé-Vorschau im Brief (Sneak Peek aus dem Exposé oder separat), optional gestaltete PDF-Fassung des ganzen Exposés (ZIELPROMPT §7.9)
+- [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
+- [ ] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9)
 - [ ] Rückruf-Formular mit bekannter Nummer aus den Stammdaten vorausfüllen, maskiert (ZIELPROMPT §7.4)
 - [ ] Messenger, SMS, Telegram, A/B-Varianten, KI-Assistent für Exposé-Entwürfe
 - [ ] SaaS-Launch: Registrierung, Teams, Stripe, Plattform-Admin, Landingpage

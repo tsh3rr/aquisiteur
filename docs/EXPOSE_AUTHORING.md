@@ -69,9 +69,17 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
     "style": "editorial", // editorial (Magazin, Serifen) | bold (kantig, schwer, harte Schatten) | soft (rund, warm, freundlich)
   },
   "letter": {
-    // optional, für den Brief (Phase 3)
+    // optional, für den Brief
     "subject": "Drei Ideen für Ihre Website",
     "body": "Sehr geehrte Frau Korn, …",
+    "teaser": {
+      // optional, zweite Seite des Briefs; ohne Angabe aus hero und proposal gebaut
+      "headline": "Frische Brötchen, schon online bestellt", // sonst hero.headline
+      "lead": "…", // sonst hero.lead
+      "image": { "src": "assets/teaser.png", "alt": "…" }, // sonst hero.image, Nachher-Bild oder erstes Mockup
+      "ideas": [{ "title": "Vorbestellen", "text": "…" }], // 1–3, sonst die ersten drei des proposal-Blocks
+      // "enabled": false druckt den Brief ohne zweite Seite
+    },
   },
   "blocks": [/* 1 bis 40 Bausteine, siehe unten */],
 }
@@ -79,6 +87,25 @@ keine Skripte aus Fremddateien ausgeliefert werden. Lade Bilder also in guter Qu
 
 Pflicht sind `schemaVersion`, `prospect` (mit `key` und `company`), `meta.title` und `blocks`.
 `prospect.key` besteht aus 3–60 Kleinbuchstaben, Ziffern und Bindestrichen.
+
+### Brief mit Exposé-Vorschau
+
+Der gedruckte Brief hat eine zweite Seite, die das Exposé anteasert: Headline und Lead in der
+Schrift des Stils, Vorher/Nachher und bis zu drei Ideen in der Akzentfarbe, unten noch einmal
+QR-Code und Kurzlink. Sie entsteht automatisch aus `hero`, `before_after` und `proposal`
+(ersatzweise `findings`).
+
+Damit sie gut wirkt:
+
+- **`before_after.afterMobile`**: der Vorschlag als Handy-Bildschirm im Hochformat (360 × 760, ohne
+  Gerätrahmen; den zeichnet der Brief). Dann zeigt der Brief zwei Handys: links die heutige Seite,
+  wie sie ungeschrumpft auf dem Handy aussieht, rechts den Vorschlag. Eine eigene Handy-Ansicht der
+  heutigen Seite geht über `beforeMobile`. Ohne `afterMobile` stehen die Desktop-Bilder in zwei
+  Browserfenstern, ohne `before_after` das `hero`-Bild.
+- Ideen mit kurzen Titeln (unter 30 Zeichen) und Beschreibungen unter 170 Zeichen; Längeres wird am
+  Wortende gekürzt.
+
+Mit `letter.teaser` lassen sich Headline, Lead, Bild und Ideen für den Brief überschreiben.
 
 ### Texte
 
@@ -107,7 +134,7 @@ Jeder Baustein hat eine `id` (Kleinbuchstaben und Bindestriche, eindeutig im Exp
 | `hero`           | `greeting*`, `headline*`, `eyebrow`, `lead`, `image`, `showOwnerPhoto`                                                                                              | Persönlicher Einstieg. Höchstens einer pro Exposé.                   |
 | `personal_note`  | `body*`, `title`, `showSignature`, `video` (`src*`, `captions*`, `title*`, `poster`)                                                                                | Warum Sie schreiben, mit Unterschrift und optional Video.            |
 | `audit`          | `title*`, `scores*` (`label*`, `value*` 0–100, `source*`, `detail`), `intro`                                                                                        | Messwerte zur heutigen Website. Jede Zahl braucht eine Quelle.       |
-| `before_after`   | `title*`, `before*`, `after*`, `beforeLabel`, `afterLabel`, `intro`                                                                                                 | Schieberegler, per Tastatur bedienbar. Beide Bilder gleiches Format. |
+| `before_after`   | `title*`, `before*`, `after*`, `beforeLabel`, `afterLabel`, `intro`, `afterMobile`, `beforeMobile` (Handy-Bildschirme für den Brief)                                | Schieberegler, per Tastatur bedienbar. Beide Bilder gleiches Format. |
 | `findings`       | `title*`, `items*` (`title*`, `impact*`, `solution*`, `severity`: high/medium/low), `intro`                                                                         | Probleme mit Folgen und Lösung.                                      |
 | `proposal`       | `title*`, `items*` (`title*`, `description*`, `benefit*`, `icon`), `intro`                                                                                          | Ihre Vorschläge.                                                     |
 | `mockup_gallery` | `title*`, `images*`, `intro`                                                                                                                                        | Entwürfe, mit Großansicht.                                           |

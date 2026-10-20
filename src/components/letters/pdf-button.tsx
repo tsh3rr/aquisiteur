@@ -29,9 +29,9 @@ export function LetterPdfButton({
     startTransition(async () => {
       setMessage("PDF wird erstellt …");
       try {
-        const letters = await load(ids);
         const { renderLettersPdf } = await import("./letter-document");
-        const blob = await renderLettersPdf(letters);
+        const letters = await load(ids);
+        const { blob, missingImages } = await renderLettersPdf(letters);
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -39,10 +39,14 @@ export function LetterPdfButton({
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
         const problems = letters.filter((letter) => letter.problems.length > 0).length;
-        setMessage(
+        const summary =
           problems > 0
             ? `PDF erstellt. ${problems} ${problems === 1 ? "Brief hat" : "Briefe haben"} Hinweise, siehe Liste.`
-            : `PDF mit ${letters.length} ${letters.length === 1 ? "Brief" : "Briefen"} erstellt.`,
+            : `PDF mit ${letters.length} ${letters.length === 1 ? "Brief" : "Briefen"} erstellt.`;
+        setMessage(
+          missingImages > 0
+            ? `${summary} In ${missingImages} ${missingImages === 1 ? "Brief fehlen" : "Briefen fehlen"} Bilder, die nicht geladen werden konnten. Bitte erneut herunterladen.`
+            : summary,
         );
       } catch (error) {
         console.error(error);

@@ -50,11 +50,16 @@ describe("composeLetter", () => {
     expect(letter.body).toBe("ich war bei Café Müller in Leipzig. Link: pixelwerk.de/k7m2");
     expect(letter.date).toBe("16. Oktober 2026");
     expect(letter.missing).toEqual([]);
+    expect(letter.senderContact).toEqual(["Telefon +49 341 1234567", "hallo@pixelwerk.example"]);
+    expect(letter.footer.at(-1)).toBe("Telefon +49 341 1234567 · hallo@pixelwerk.example");
   });
 
   it("keeps a salutation the text brings itself", () => {
     const letter = composeLetter({ ...input, body: "Sehr geehrte Frau Müller,\n\nText" });
     expect(letter.salutation).toBeNull();
+    for (const body of ["Sehr geehrter Herr Brandt,\n\nText", "Lieber Marco,\n\nText"]) {
+      expect(composeLetter({ ...input, body }).salutation).toBeNull();
+    }
   });
 
   it("adds the country abroad and reports empty placeholders", () => {

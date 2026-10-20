@@ -106,7 +106,11 @@
         "alt": "Entwurf: schwarze Kopfzeile, riesige Schlagzeile „Stärker in 6 Wochen“, gelber Button „Gratis Probetraining“, darunter freie Plätze, Google-Bewertung und Preis ab 79 Euro."
       },
       "beforeLabel": "Heute",
-      "afterLabel": "Entwurf"
+      "afterLabel": "Entwurf",
+      "afterMobile": {
+        "src": "assets/nachher-handy.svg",
+        "alt": "Vorschlag auf dem Handy: „Stärker in 6 Wochen“, Button „Probetraining buchen“ und der Kursplan von heute mit freien Plätzen."
+      }
     },
     {
       "id": "probleme",
