@@ -2,6 +2,7 @@ import { serverEnv } from "@/config/env";
 import { getDb } from "@/db";
 import { timingSafeEqual } from "@/domain/tracking/signed-token";
 import { geocodePending } from "@/server/geocoding";
+import { runAutoFollowUps } from "@/server/letters/follow-up";
 import { runDigests } from "@/server/notifications/digest";
 import { runRetention } from "@/server/retention";
 import { runTaskReminders } from "@/server/tasks";
@@ -10,7 +11,7 @@ import { purgeExpiredReplays } from "@/server/tracking/replay";
 export const dynamic = "force-dynamic";
 
 /**
- * Hourly jobs: task reminders (§7.8), daily digest (§7.7), retention of events, opt-outs and replays (§9), map
+ * Hourly jobs: follow-up letters (§7.9), task reminders (§7.8), daily digest (§7.7), retention of events, opt-outs and replays (§9), map
  * positions (§7.8). Called by the Cloudflare cron trigger
  * (worker.mjs) or any scheduler with `Authorization: Bearer $CRON_SECRET`.
  * Idempotent: running it twice in an hour sends nothing twice.
@@ -22,10 +23,12 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
   const db = getDb();
+  // Before the reminders, so a prepared follow-up's task reminds in the same run.
+  const followUps = await runAutoFollowUps(db);
   const reminders = await runTaskReminders(db);
   const digests = await runDigests(db);
   const replaysPurged = await purgeExpiredReplays(db);
   const retention = await runRetention(db);
   const geocoding = await geocodePending(db);
-  return Response.json({ reminders, digests, replaysPurged, retention, geocoding });
+  return Response.json({ followUps, reminders, digests, replaysPurged, retention, geocoding });
 }

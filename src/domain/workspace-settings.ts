@@ -116,6 +116,23 @@ export const retentionSchema = z.object({
 });
 
 /**
+ * Follow-up letters (§7.9): their text, and the rule that prepares one when a
+ * first letter brought no visit after `afterDays` (src/domain/letters/follow-up.ts).
+ */
+export const followUpSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  afterDays: z.number().int().min(3).max(90).default(14),
+  subject: z.string().trim().max(160).default("Noch einmal kurz: Ideen für {{firma}}"),
+  body: z
+    .string()
+    .trim()
+    .max(4000)
+    .default(
+      "vor ein paar Tagen habe ich Ihnen einige Ideen für den Auftritt von {{firma}} geschickt. Vielleicht ist der Brief im Alltag untergegangen, deshalb melde ich mich noch einmal.\n\nAuf Ihrer persönlichen Seite finden Sie alles in Ruhe zum Nachlesen, mit Beispielen und einem Preisrahmen. Der QR-Code oder der Link unten führt direkt dorthin.\n\nWenn das gerade kein Thema für Sie ist, ist das völlig in Ordnung. Ein kurzer Klick auf „Kein Interesse“ auf der Seite genügt, dann schreibe ich Ihnen nicht mehr.",
+    ),
+});
+
+/**
  * The printed letter (§7.9). Subject and body are used when the exposé has
  * no `letter` of its own; both may contain placeholders (see
  * src/domain/letters/compose.ts).
@@ -135,6 +152,7 @@ export const letterSettingsSchema = z.object({
   qrHint: z.string().trim().max(80).default("Scannen Sie den Code mit der Handy-Kamera."),
   /** Print and postage per letter for the `manual` provider, for the dashboards. */
   costCents: z.number().int().min(0).max(10_000).default(110),
+  followUp: followUpSettingsSchema.prefault({}),
 });
 
 /**
@@ -184,4 +202,5 @@ export type ChatSettings = z.infer<typeof chatSettingsSchema>;
 export type NudgeSettings = z.infer<typeof nudgeSettingsSchema>;
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 export type LetterSettings = z.infer<typeof letterSettingsSchema>;
+export type FollowUpSettings = z.infer<typeof followUpSettingsSchema>;
 export type ReplaySettings = z.infer<typeof replaySettingsSchema>;

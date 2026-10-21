@@ -66,3 +66,27 @@ test("a follow-up goes from the customer page to „Heute“ and the task list",
     "true",
   );
 });
+
+test("the follow-up rule is set under Einstellungen → Briefe", async ({ page }) => {
+  await signInWithWorkspace(page, {
+    email: "folgebrief@e2e.test",
+    name: "Fritz Folgebrief",
+    workspace: "E2E Folgebrief",
+    slug: "e2e-folgebrief",
+  });
+  await page.goto("/settings#briefe");
+  const letters = page.locator("#briefe");
+  const toggle = letters.getByLabel("Folgebrief automatisch vorbereiten");
+  await expect(toggle).toBeChecked();
+  const days = letters.getByLabel("Tage nach dem ersten Brief");
+  await expect(days).toHaveValue("14");
+  await days.fill("10");
+  await toggle.uncheck();
+  await letters.getByRole("button", { name: "Speichern" }).click();
+  await expect(letters.getByText("Gespeichert.")).toBeVisible();
+  await expectAccessible(page, "letter settings with follow-ups");
+
+  await page.reload();
+  await expect(letters.getByLabel("Tage nach dem ersten Brief")).toHaveValue("10");
+  await expect(letters.getByLabel("Folgebrief automatisch vorbereiten")).not.toBeChecked();
+});

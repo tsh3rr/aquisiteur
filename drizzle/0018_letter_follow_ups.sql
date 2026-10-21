@@ -1,0 +1,2 @@
+ALTER TABLE "letters" ADD COLUMN "follow_up_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "letters_follow_up_idx" ON "letters" USING btree ("posted_at") WHERE "letters"."kind" = 'initial' and "letters"."status" = 'posted' and "letters"."follow_up_at" is null;
