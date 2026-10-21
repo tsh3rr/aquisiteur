@@ -773,3 +773,32 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - Folgebriefe haben jetzt eine eigene Vorlage (`letter.followUp.subject/body`), die auch für Folgebriefe
   von Hand gilt; vorher nutzten sie die Vorlage des ersten Briefs. Standardmäßig an, abschaltbar unter
   Einstellungen → Briefe → Folgebrief.
+
+## ADR-0063 · Pingen als erster echter Druckdienst (2026-10-21)
+
+- Adapter `src/infra/pingen/letters.ts` hinter `LetterDispatchProvider`. Endpunkte nach Pingens offiziellem
+  SDK (pingencom/pingen2-sdk-php), weil die API-Doku selbst nicht maschinell lesbar ist: Token per
+  Client Credentials (`identity[-staging].pingen.com/auth/access-tokens`, 12 h, gecacht), `GET /file-upload`
+  für eine vorsignierte Upload-Adresse, `POST /organisations/{id}/deliveries/letters/` mit
+  `auto_send: true`, `address_position: left` (DIN-5008-Fenster) und Idempotency-Key = Brief-ID, Status per
+  `GET …/letters/{id}`, Storno per `PATCH …/cancel`, Preis per `…/price-calculator`. Standardbrief =
+  `cheap`, Priorität = `fast`. Gegen echte Server ist das noch nicht gelaufen; die Unit-Tests prüfen
+  die Anfragen gegen nachgebaute Antworten.
+- Zugangsdaten pro Workspace in `integrations` (`kind = letters.pingen`): IDs im Klartext in `config`,
+  Client-Secret und Webhook-Schlüssel AES-GCM-verschlüsselt mit `INTEGRATIONS_ENCRYPTION_KEY`, gebunden an
+  `<workspace_id>:letters.pingen`. Secrets werden nie wieder angezeigt; ein leeres Feld behält sie.
+  `getInfra().letters(provider, config)` baut den Adapter pro Anfrage aus den entschlüsselten Daten.
+- Das PDF entsteht weiter im Browser (React-PDF, ADR-0037): „Per Pingen versenden“ rendert jeden
+  Entwurf einzeln, legt ihn unter `<workspace_id>/letters/<id>.pdf` ab (nur Entwürfe, nur echte PDFs,
+  höchstens 8 MB) und übergibt dann. Ein Server-Rendering hätte react-pdf in den Worker gezogen.
+  Folge: Automatische Folgebriefe (ADR-0062) bleiben auch mit Pingen Entwurf plus Aufgabe; der Owner
+  schickt sie mit einem Klick ab.
+- Ablehnung durch Pingen lässt den Brief als Entwurf mit Grund (`failure_reason`) stehen. Rückmeldungen
+  kommen per Webhook (`/api/webhooks/pingen/<workspace_id>`, HMAC-SHA256 über den Rohtext im Header
+  `Signature`, sonst 401) und als Sicherheitsnetz stündlich per Statusabfrage für Briefe, die seit über
+  einer Stunde unterwegs sind. Beides läuft über `recordProviderUpdates`: Zustände dazwischen werden
+  durchlaufen, „versendet“ setzt den Prospect auf „Brief versendet“, Pingens Preis ersetzt die
+  Pauschale, doppelte Meldungen ändern nichts. `issues` gilt als „fehlgeschlagen“ mit Pingens Grund.
+- Die Testumgebung von Pingen ist Standard, bis der Owner sie abschaltet; die Bestätigung vor dem
+  Versand nennt Testumgebung oder Kosten. Die generierte Datenschutzerklärung nennt Pingen, sobald es
+  eingeschaltet ist.

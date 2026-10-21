@@ -21,6 +21,7 @@ import {
   printableLettersAction,
   type BulkState,
 } from "./actions";
+import { DispatchButton } from "./dispatch-button";
 
 export interface LetterRow {
   id: string;
@@ -29,6 +30,8 @@ export interface LetterRow {
   campaignId: string | null;
   kind: LetterKind;
   status: LetterStatus;
+  provider: string;
+  failureReason: string | null;
   shortCode: string | null;
   postedAt: string | null;
   openedAt: string | null;
@@ -47,11 +50,14 @@ function today() {
 export function LetterTable({
   rows,
   canManage,
+  printService,
   preselected,
   campaigns,
 }: {
   rows: LetterRow[];
   canManage: boolean;
+  /** Set when the workspace sends through Pingen. */
+  printService: { staging: boolean } | null;
   preselected: string[];
   campaigns: Record<string, string>;
 }) {
@@ -61,6 +67,9 @@ export function LetterTable({
   const [pending, startTransition] = useTransition();
   const ids = useMemo(() => rows.map((row) => row.id), [rows]);
   const chosen = ids.filter((id) => selected.has(id));
+  const chosenDrafts = rows
+    .filter((row) => selected.has(row.id) && row.status === "draft")
+    .map((row) => row.id);
   const allSelected = chosen.length === ids.length && ids.length > 0;
 
   const run = (action: () => Promise<BulkState>) =>
@@ -93,6 +102,16 @@ export function LetterTable({
               filename={chosen.length === 1 ? "brief.pdf" : `briefe-${chosen.length}.pdf`}
               variant="primary"
             />
+            {printService ? (
+              <DispatchButton
+                ids={chosenDrafts}
+                staging={printService.staging}
+                onDone={(result) => {
+                  setMessage(result.message);
+                  if (result.ok) setSelected(new Set());
+                }}
+              />
+            ) : null}
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label htmlFor="letters-posted-on" className="grid gap-1 text-sm">
@@ -200,6 +219,12 @@ export function LetterTable({
                   <Badge tone={LETTER_STATUS_TONES[row.status]}>
                     {LETTER_STATUS_LABELS[row.status]}
                   </Badge>
+                  {row.provider === "pingen" ? (
+                    <span className="block text-xs text-foreground-muted">über Pingen</span>
+                  ) : null}
+                  {row.failureReason && ["draft", "failed"].includes(row.status) ? (
+                    <span className="block max-w-56 text-xs text-danger">{row.failureReason}</span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2">
                   {row.kind === "initial" ? "Erster Brief" : "Folgebrief"}

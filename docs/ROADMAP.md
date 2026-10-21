@@ -89,7 +89,9 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
 - [x] Automatische Folgebriefe: Entwurf und Aufgabe, wenn der erste Brief keinen Besuch bringt (ZIELPROMPT §7.9, ADR-0062)
-- [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; Folgebriefe dann direkt einreihen
+- [x] Pingen-Adapter: Zugangsdaten verschlüsselt pro Workspace, Versand aus der Briefliste, Webhook und stündlicher Status-Abgleich (ZIELPROMPT §7.9, ADR-0063)
+- [ ] Pingen mit echtem Konto prüfen: erst Testumgebung, dann ein echter Brief an die eigene Adresse; AV-Vertrag abschließen
+- [ ] Weitere Druckdienste: LetterXpress, Handschrift-Dienst
 - [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
 - [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)

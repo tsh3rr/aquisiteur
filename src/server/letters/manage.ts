@@ -1,6 +1,5 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import type { Transaction } from "@/db";
 import {
   assets,
   auditLog,
@@ -37,8 +36,10 @@ import { modulesPath, qrMatrix } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import type { AssetManifest } from "@/db/schema";
 import { printSource, resolveEntry } from "@/components/expose/render-context";
-import { getInfra } from "@/infra";
+import type { Database, Transaction } from "@/db";
+import { getInfra, type LetterDispatchProvider, type LetterProviderUpdate } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { letterProvider } from "@/server/letters/providers";
 import { advanceStatus } from "@/server/prospects/auto-status";
 import {
   createTouchpoint,
@@ -219,6 +220,9 @@ export interface LetterListItem {
   campaignId: string | null;
   kind: LetterKind;
   status: LetterStatus;
+  provider: string;
+  /** Why a print API refused or failed the letter. */
+  failureReason: string | null;
   subject: string;
   shortCode: string | null;
   costCents: number | null;
@@ -251,6 +255,8 @@ export async function listLetters(
       campaignId: letters.campaignId,
       kind: letters.kind,
       status: letters.status,
+      provider: letters.provider,
+      failureReason: letters.failureReason,
       subject: letters.subject,
       shortCode: touchpoints.shortCode,
       costCents: letters.costCents,
@@ -511,7 +517,7 @@ export async function advanceLetters(
   let refused = ids.length - rows.length;
   for (const letter of rows) {
     const path = pathTo(letter.status, to);
-    const provider = getInfra().letters(letter.provider);
+    const provider = await letterProvider(tx, actor.workspaceId, letter.provider);
     if (!path || path.length === 0 || !provider) {
       if (path?.length !== 0) refused += 1;
       continue;
@@ -585,6 +591,10 @@ export async function deleteDraftLetters(tx: Transaction, actor: Actor, ids: str
       ),
     )
     .returning({ id: letters.id, touchpointId: letters.touchpointId, kind: letters.kind });
+  await deleteLetterPdfs(
+    actor.workspaceId,
+    deleted.map((row) => row.id),
+  );
   // A follow-up's own code goes with it; the initial letter's code belongs to the exposé.
   const followUps = deleted.filter((row) => row.kind === "follow_up");
   if (followUps.length > 0) {
@@ -603,4 +613,182 @@ export async function deleteDraftLetters(tx: Transaction, actor: Actor, ids: str
       );
   }
   return deleted.length;
+}
+
+/** Where a letter's print-ready PDF is kept for a print API (§7.9). */
+export const letterPdfKey = (workspaceId: string, letterId: string) =>
+  `${workspaceId}/letters/${letterId}.pdf`;
+
+export const MAX_LETTER_PDF_BYTES = 8 * 1024 * 1024;
+
+/** The PDF is only needed until the print API has its own copy. */
+export async function deleteLetterPdfs(workspaceId: string, letterIds: string[]) {
+  const storage = getInfra().storage;
+  for (const id of letterIds) {
+    await storage.delete(letterPdfKey(workspaceId, id)).catch(() => undefined);
+  }
+}
+
+/**
+ * Stores the PDF the browser rendered for a draft letter, so a print API can
+ * pick it up. Only drafts: what was printed must not change afterwards.
+ */
+export async function storeLetterPdf(
+  tx: Transaction,
+  actor: Actor,
+  letterId: string,
+  pdf: Uint8Array,
+): Promise<boolean> {
+  const isPdf = pdf.byteLength > 4 && new TextDecoder().decode(pdf.subarray(0, 5)) === "%PDF-";
+  if (!isPdf || pdf.byteLength > MAX_LETTER_PDF_BYTES) return false;
+  const [letter] = await tx
+    .select({ id: letters.id })
+    .from(letters)
+    .where(
+      and(
+        eq(letters.workspaceId, actor.workspaceId),
+        eq(letters.id, letterId),
+        eq(letters.status, "draft"),
+      ),
+    );
+  if (!letter) return false;
+  await getInfra().storage.put(letterPdfKey(actor.workspaceId, letterId), pdf, {
+    contentType: "application/pdf",
+  });
+  return true;
+}
+
+/**
+ * Hands draft letters to the workspace's print API (§7.9): each needs its PDF
+ * stored first. A letter the provider refuses stays a draft, with the reason.
+ */
+export async function dispatchLetters(
+  tx: Transaction,
+  actor: Actor,
+  ids: string[],
+  provider: LetterDispatchProvider,
+  at = new Date(),
+): Promise<{ sent: number; failed: { letterId: string; message: string }[] }> {
+  if (ids.length === 0) return { sent: 0, failed: [] };
+  const rows = await tx
+    .select()
+    .from(letters)
+    .where(
+      and(
+        eq(letters.workspaceId, actor.workspaceId),
+        inArray(letters.id, ids),
+        eq(letters.status, "draft"),
+      ),
+    )
+    .for("update");
+  let sent = 0;
+  const failed: { letterId: string; message: string }[] = [];
+  for (const letter of rows) {
+    try {
+      const { providerRef } = await provider.send({
+        letterId: letter.id,
+        workspaceId: letter.workspaceId,
+        pdfKey: letterPdfKey(actor.workspaceId, letter.id),
+        options: letter.options,
+        idempotencyKey: letter.id,
+      });
+      await tx
+        .update(letters)
+        .set({
+          status: "submitted",
+          provider: provider.id,
+          providerRef,
+          queuedAt: at,
+          submittedAt: at,
+          failureReason: null,
+        })
+        .where(and(eq(letters.workspaceId, actor.workspaceId), eq(letters.id, letter.id)));
+      await tx.insert(auditLog).values({
+        workspaceId: actor.workspaceId,
+        actorUserId: actor.userId,
+        action: "letter.submitted",
+        targetType: "letter",
+        targetId: letter.id,
+        meta: { provider: provider.id, prospectId: letter.prospectId, kind: letter.kind },
+      });
+      await deleteLetterPdfs(actor.workspaceId, [letter.id]);
+      sent += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler.";
+      await tx
+        .update(letters)
+        .set({ failureReason: message })
+        .where(and(eq(letters.workspaceId, actor.workspaceId), eq(letters.id, letter.id)));
+      failed.push({ letterId: letter.id, message });
+    }
+  }
+  return { sent, failed };
+}
+
+/**
+ * Applies what a print API reports (webhook or status query) on the system
+ * connection, scoped to the workspace. Walks every state in between, sets the
+ * prospect to „Brief versendet“ on posting and keeps the provider's price.
+ * Repeated or late reports change nothing.
+ */
+export async function recordProviderUpdates(
+  db: Database,
+  workspaceId: string,
+  provider: string,
+  updates: LetterProviderUpdate[],
+): Promise<number> {
+  let changed = 0;
+  for (const update of updates) {
+    changed += await db.transaction(async (tx) => {
+      const [letter] = await tx
+        .select()
+        .from(letters)
+        .where(
+          and(
+            eq(letters.workspaceId, workspaceId),
+            eq(letters.provider, provider),
+            eq(letters.providerRef, update.providerRef),
+          ),
+        )
+        .for("update");
+      if (!letter) return 0;
+      const path = pathTo(letter.status, update.status);
+      if (!path || path.length === 0) return 0;
+      const set: Partial<typeof letters.$inferInsert> = { status: update.status };
+      for (const status of path) {
+        const column = STATUS_TIMESTAMP[status];
+        if (column) (set as Record<string, unknown>)[column] = update.at;
+      }
+      if (update.costCents !== null) set.costCents = update.costCents;
+      if (update.status === "failed") set.failureReason = update.reason;
+      await tx
+        .update(letters)
+        .set(set)
+        .where(and(eq(letters.workspaceId, workspaceId), eq(letters.id, letter.id)));
+      if (path.includes("posted")) {
+        await advanceStatus(tx, {
+          workspaceId,
+          prospectId: letter.prospectId,
+          to: "letter_sent",
+          via: "letter",
+          meta: { letterId: letter.id },
+        });
+        await tx.insert(usageEvents).values({
+          workspaceId,
+          kind: "letter",
+          meta: { letterId: letter.id, provider },
+        });
+      }
+      await tx.insert(auditLog).values({
+        workspaceId,
+        actorUserId: null,
+        action: `letter.${update.status}`,
+        targetType: "letter",
+        targetId: letter.id,
+        meta: { from: letter.status, prospectId: letter.prospectId, provider },
+      });
+      return 1;
+    });
+  }
+  return changed;
 }

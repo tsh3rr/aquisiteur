@@ -119,14 +119,14 @@ Neu in Phase 6:
 | Cloudflare          | Proxy und DNS für alle Aufrufe (sieht IP-Adressen); R2 für Dateien und Backups | R2 in EU; Proxy weltweit (EU-US Data Privacy Framework) | DPA ist Teil der Self-Serve-Bedingungen |
 | Resend              | E-Mail-Versand (Anmeldelinks, Benachrichtigungen)                              | EU (Irland)                                             | DPA im Dashboard                        |
 | Sentry              | Fehler-Monitoring (ohne personenbezogene Daten)                                | EU (Frankfurt)                                          | DPA in den Organisationseinstellungen   |
-| Pingen (später)     | Briefdruck und Versand                                                         | Schweiz / Österreich                                    | AV-Vertrag vor Produktivbetrieb         |
+| Pingen (optional)   | Briefdruck und Versand, erhält PDF mit Anschrift                               | Schweiz / Österreich                                    | AV-Vertrag vor Produktivbetrieb         |
 | OpenStreetMap       | Ortssuche (Nominatim) und Kartenkacheln                                        | EU (UK-Stiftung)                                        | Keine AVV; nur Firmenanschriften        |
 | Push-Dienste        | Web Push an Geräte der Mitglieder                                              | Google, Apple, Mozilla                                  | Inhalte Ende-zu-Ende verschlüsselt      |
 | Supabase (Variante) | Nur bei der Cloudflare-Variante: Datenbank, Realtime                           | EU (Frankfurt)                                          | DPA im Dashboard                        |
 
 ## Vor dem Livegang
 
-1. AV-Verträge mit Mikrus, Cloudflare, Resend und Sentry abschließen.
+1. AV-Verträge mit Mikrus, Cloudflare, Resend und Sentry abschließen, mit Pingen, sobald Briefe darüber gehen.
 2. Impressum und Datenschutzerklärung in den Einstellungen prüfen lassen oder durch eigene Texte ersetzen.
 3. Fristen unter Einstellungen → Daten und Aufbewahrung festlegen.
 4. Verzeichnis von Verarbeitungstätigkeiten um „Akquise per Brief mit Exposé“ ergänzen.

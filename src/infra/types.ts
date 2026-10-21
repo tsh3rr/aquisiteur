@@ -159,6 +159,18 @@ export interface LetterDispatchRequest {
   idempotencyKey: string;
 }
 
+/** A status change a provider reports (webhook or status query). */
+export interface LetterProviderUpdate {
+  providerRef: string;
+  status: LetterStatus;
+  /** When it happened at the provider. */
+  at: Date;
+  /** What the provider charges for the letter, once known. */
+  costCents: number | null;
+  /** Why it failed, in the provider's words. */
+  reason: string | null;
+}
+
 export interface LetterDispatchProvider {
   readonly id: string;
   /**
@@ -167,12 +179,30 @@ export interface LetterDispatchProvider {
    */
   readonly tracksDelivery: boolean;
   send(letter: LetterDispatchRequest): Promise<{ providerRef: string }>;
-  getStatus(providerRef: string): Promise<LetterStatus | null>;
+  /** Null when the provider does not know or the state does not map. */
+  getStatus(
+    providerRef: string,
+  ): Promise<{ status: LetterStatus; costCents: number | null } | null>;
   cancel(providerRef: string): Promise<void>;
   /** Null when the provider has no price list (the workspace setting applies). */
-  estimateCost(letter: Pick<LetterDispatchRequest, "options">): Promise<{ cents: number } | null>;
-  handleWebhook?(request: Request): Promise<{ providerRef: string; status: LetterStatus }[]>;
+  estimateCost(
+    letter: Pick<LetterDispatchRequest, "options"> & { country?: string; pages?: number },
+  ): Promise<{ cents: number } | null>;
+  /** Verifies the credentials; throws with a message for the owner when they do not work. */
+  checkConnection?(): Promise<{ name: string }>;
+  /** Verifies and parses a status webhook; throws on a bad signature. */
+  handleWebhook?(request: Request): Promise<LetterProviderUpdate[]>;
 }
+
+/** Credentials of a workspace's print provider (§7.9), decrypted by the app. */
+export type LetterProviderConfig = {
+  provider: "pingen";
+  organisationId: string;
+  clientId: string;
+  clientSecret: string;
+  webhookSecret: string | null;
+  staging: boolean;
+};
 
 /** Everything the app can ask the hosting environment for. */
 /** A postal address to place on the map (§7.8 „Karte“). */
@@ -226,8 +256,11 @@ export interface Infra {
   readonly storage: StoragePort;
   readonly realtime: RealtimePort;
   readonly push: PushPort;
-  /** Letter dispatch providers by id; `manual` always exists. */
-  letters(provider: string): LetterDispatchProvider | null;
+  /**
+   * Letter dispatch providers by id; `manual` always exists. Print APIs
+   * need the workspace's credentials and are null without them.
+   */
+  letters(provider: string, config?: LetterProviderConfig | null): LetterDispatchProvider | null;
   /** Null when geocoding is switched off (GEOCODER_PROVIDER=none). */
   geocoder: GeocoderPort | null;
   monitor: MonitorPort;

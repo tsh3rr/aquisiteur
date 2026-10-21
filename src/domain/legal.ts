@@ -33,6 +33,8 @@ export function privacyMarkdown(
   settings: WorkspaceSettings,
   workspaceName: string,
   hosting: HostingProfile = "node",
+  /** The workspace sends its letters through Pingen (§7.9). */
+  printService: "pingen" | null = null,
 ): string {
   if (settings.legal.privacyMarkdown) return settings.legal.privacyMarkdown;
   const controller = settings.senderAddress.company ?? workspaceName;
@@ -53,7 +55,7 @@ export function privacyMarkdown(
         " Tagen."
       : null,
     `**Speicherdauer.** Einzelne Messwerte löschen wir nach ${settings.retention.eventsDays} Tagen automatisch. Wenn Sie „Kein Interesse“ wählen, löschen wir alle Besuchsdaten nach ${settings.retention.optOutTrackingDays} Tagen und behalten nur den Vermerk, Sie nicht mehr zu kontaktieren. Nachrichten bewahren wir auf, solange es für die Korrespondenz nötig ist.`,
-    `**Dienstleister.** ${PROCESSORS[hosting]}, Fehlerberichte ohne personenbezogene Daten über Sentry (EU). Mit allen bestehen Verträge zur Auftragsverarbeitung.`,
+    `**Dienstleister.** ${PROCESSORS[hosting]}, Fehlerberichte ohne personenbezogene Daten über Sentry (EU)${printService === "pingen" ? ", Druck und Versand unserer Briefe über Pingen (Schweiz und EU), dafür erhält Pingen Ihre Anschrift" : ""}. Mit allen bestehen Verträge zur Auftragsverarbeitung.`,
     "**Ihre Rechte.** Sie können Auskunft (auch als Datei), Berichtigung, Löschung und Einschränkung verlangen und der Verarbeitung widersprechen. Über den Link „Kein Interesse“ am Ende des Exposés widersprechen Sie mit einem Klick; wir kontaktieren Sie dann nicht mehr. Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren.",
   ]
     .filter(Boolean)
