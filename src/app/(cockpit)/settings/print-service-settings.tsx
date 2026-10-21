@@ -166,7 +166,7 @@ export function PrintServiceForm({
       </div>
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={disabled}>
-          {pending ? "Speichert …" : "Speichern"}
+          {pending ? "Speichert …" : "Druckdienst speichern"}
         </Button>
         {provider === "pingen" ? (
           <Button

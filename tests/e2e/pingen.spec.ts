@@ -26,7 +26,7 @@ test("Pingen is set up in the settings and offered for draft letters", async ({ 
   await expect(card.getByLabel("Testumgebung von Pingen verwenden")).toBeChecked();
   await expect(card.getByText(/\/api\/webhooks\/pingen\//)).toBeVisible();
   await expectAccessible(page, "print service settings");
-  await card.getByRole("button", { name: "Speichern" }).last().click();
+  await card.getByRole("button", { name: "Druckdienst speichern" }).click();
   await expect(
     card.getByText("Gespeichert. Briefe lassen sich jetzt per Pingen versenden."),
   ).toBeVisible();
