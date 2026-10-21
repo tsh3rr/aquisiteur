@@ -37,7 +37,7 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] Client-Adresse an einer Stelle: Die Middleware setzt `x-aquisiteur-client-ip` und überschreibt
       einen mitgeschickten Wert. Cloudflare-Header (`cf-*`) gelten nur mit `ORIGIN_SECRET` oder auf
       Workers, sonst zählt der letzte Eintrag in `x-forwarded-for` (vom Proxy davor) und `cf-*` wird
-      verworfen (`src/lib/client-ip.ts`, ADR-0063).
+      verworfen (`src/lib/client-ip.ts`, ADR-0064).
 - [x] Origin-Schutz für den Betrieb hinter eigenem Cloudflare: Mit `ORIGIN_SECRET` antwortet die App
       nur auf Anfragen mit dem Header, den Cloudflare per Transform Rule setzt.
 - [x] Grenzen unabhängig von der Adresse: höchstens 6 Anmeldelinks pro E-Mail-Adresse und Stunde,
@@ -46,7 +46,8 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] CSRF: Cockpit-Änderungen nur über Server Actions (Origin-Prüfung von Next.js). Öffentliche
       POST-Routen lehnen fremde `Origin` ab (`isCrossSite`).
 - [x] Größenlimits gelesen am Datenstrom, nicht nur am `Content-Length`-Header (`src/lib/body.ts`):
-      Tracking 32 KB, Replay-Stück 256 KB, Exposé-JSON 2 MB, Upload 40 MB.
+      Tracking 32 KB, Replay-Stück 256 KB, Pingen-Webhook 256 KB, Exposé-JSON 2 MB, Brief-PDF 8 MB,
+      Upload 40 MB.
 - [x] Schema-Validierung (Zod) jeder Eingabe von außen.
 
 ## Öffentliche Exposés und Kurzlinks
@@ -55,7 +56,7 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] Kurzlinks sind bewusst kurz (aus dem Brief abtippbar). Schutz gegen Durchprobieren: nach 20
       unbekannten Codes in 10 Minuten bekommt ein Client weder Vorschläge noch Weiterleitungen, bis das
       Fenster endet (`src/server/tracking/short-link-guard.ts`). Der Client ist ein Hash aus Secret und
-      IP-Adresse, bei IPv6 das /64-Netz (ADR-0063); die Adresse selbst wird nicht gespeichert. Zusätzlich höchstens 300 Vorschlagslisten
+      IP-Adresse, bei IPv6 das /64-Netz (ADR-0064); die Adresse selbst wird nicht gespeichert. Zusätzlich höchstens 300 Vorschlagslisten
       pro Workspace in 10 Minuten. Geprüft in `tests/db/short-link-guard.test.ts`.
 - [x] Rate Limits pro Besuch und Exposé für Tracking, Chat, Rückruf, Teilen, Einwilligung und Replay.
 - [x] Chat und Rückruf: Honeypot, Rate Limit, Ausgabe nur als Text (React), nie als HTML.
@@ -72,6 +73,12 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] API-Tokens nur als SHA-256-Hash, einmal angezeigt, ablaufend und widerrufbar. Kein eigenes Rate
       Limit für falsche Tokens: bei rund 190 Bit Zufall ist Raten aussichtslos.
 - [x] Cron-Secret für `/api/jobs/hourly` in konstanter Zeit verglichen.
+- [x] Webhooks (`/api/webhooks/pingen/<workspace_id>`): ohne Cockpit-Anmeldung erreichbar
+      (`src/middleware.ts`), dafür HMAC-SHA256 über den Rohtext mit dem Signaturschlüssel des Workspaces,
+      in konstanter Zeit verglichen; ohne hinterlegten Schlüssel 401. Body vor der Prüfung höchstens
+      256 KB. Doppelte Meldungen ändern nichts (ADR-0063).
+- [x] Pingen-Tokens im Speicher nach Umgebung, Client-ID und Secret getrennt, nie über Workspaces
+      hinweg geteilt.
 - [x] Exporte enthalten keine Token-Hashes und keine verschlüsselten Zugangsdaten.
 
 ## Betrieb
@@ -105,7 +112,7 @@ Workflows) und Datenschutz. Schweregrade: kritisch, hoch, mittel, niedrig.
 
 | Nr. | Befund                                                                                                                                                                                                                                                                                                                                                                                                       | Stand                                                                                                                                                                                                                                                                                                                                          |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H1  | Die App glaubte `cf-connecting-ip`, auch ohne dass Cloudflare garantiert davorsteht. Im heutigen Betrieb (Mikrus-Proxy, kein eigenes Cloudflare) und beim direkten Aufruf des Servers über IPv6 kann jeder Besucher diesen Header selbst schicken: Kurzlink-Sperre und Rate Limit der Anmeldelinks greifen dann nicht (Kurzlinks durchprobieren, Mailflut an die eigene Adresse), Ort der Besuche fälschbar. | Behoben: Cloudflare-Header nur noch mit `ORIGIN_SECRET` oder auf Workers, sonst der Eintrag des Proxys davor; zusätzlich Grenzen pro E-Mail-Adresse und pro Workspace, die keine Adresse brauchen (ADR-0063). Rest-Risiko: Wer den Server direkt anspricht, kann seine Adresse weiter wählen, kommt aber nicht über die festen Grenzen hinaus. |
+| H1  | Die App glaubte `cf-connecting-ip`, auch ohne dass Cloudflare garantiert davorsteht. Im heutigen Betrieb (Mikrus-Proxy, kein eigenes Cloudflare) und beim direkten Aufruf des Servers über IPv6 kann jeder Besucher diesen Header selbst schicken: Kurzlink-Sperre und Rate Limit der Anmeldelinks greifen dann nicht (Kurzlinks durchprobieren, Mailflut an die eigene Adresse), Ort der Besuche fälschbar. | Behoben: Cloudflare-Header nur noch mit `ORIGIN_SECRET` oder auf Workers, sonst der Eintrag des Proxys davor; zusätzlich Grenzen pro E-Mail-Adresse und pro Workspace, die keine Adresse brauchen (ADR-0064). Rest-Risiko: Wer den Server direkt anspricht, kann seine Adresse weiter wählen, kommt aber nicht über die festen Grenzen hinaus. |
 | H2  | Kurzlink-Sperre zählte jede IPv6-Adresse einzeln. Ein Anschluss hat meist ein ganzes /64-Netz und kann für jede Anfrage eine neue Adresse nehmen, die Sperre lief damit ins Leere.                                                                                                                                                                                                                           | Behoben: Zählung pro /64 (`src/lib/client-ip.ts`), mit Tests.                                                                                                                                                                                                                                                                                  |
 
 ### Mittel
@@ -114,7 +121,7 @@ Workflows) und Datenschutz. Schweregrade: kritisch, hoch, mittel, niedrig.
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M1  | Offene Weiterleitung nach der Anmeldung: `/login?next=/\fremde-seite.de` führte nach dem Login auf eine fremde Seite (Browser lesen `/\` wie `//`). Nutzbar für Phishing mit echtem Anmeldelink.                                                                                                                       | Behoben (`src/domain/redirect.ts`, mit Tests).                                                                                                                                             |
 | M2  | Wer die Adresse eines Exposés kennt, kann pro Exposé 60 Besuchsstarts in 10 Minuten verbrauchen. Der echte Empfänger bekommt dann keinen Besuchs-Token und damit keinen Chat. Zugleich sind bis zu 60 × 30 Chat-Nachrichten in 10 Minuten pro Exposé möglich. Voraussetzung: die zufällige Exposé-Adresse ist bekannt. | Offen, bis zum SaaS-Start: Grenze zusätzlich pro Client (/64) statt nur pro Exposé, Obergrenze für Chat-Nachrichten pro Exposé.                                                            |
-| M3  | Entwurfserkennung maß die Länge ungesendeter Chat-Eingaben ohne Einwilligung; mit `chat.storeDraftContent` sogar den Text. Rechtlich nicht eindeutig (§ 25 TDDDG, Art. 6 DSGVO).                                                                                                                                       | Behoben (ADR-0064): nur noch ja/nein, kein Text, keine Länge, Option entfernt, alte Daten bereinigt; in der Datenschutzerklärung genannt. Live-Feed zeigt nur noch „ist gerade im Exposé“. |
+| M3  | Entwurfserkennung maß die Länge ungesendeter Chat-Eingaben ohne Einwilligung; mit `chat.storeDraftContent` sogar den Text. Rechtlich nicht eindeutig (§ 25 TDDDG, Art. 6 DSGVO).                                                                                                                                       | Behoben (ADR-0065): nur noch ja/nein, kein Text, keine Länge, Option entfernt, alte Daten bereinigt; in der Datenschutzerklärung genannt. Live-Feed zeigt nur noch „ist gerade im Exposé“. |
 | M4  | `deploy/env.example` setzt `ALLOW_LOG_EMAIL=1` (für den Testserver ohne Mail). Bleibt das in Produktion stehen, stehen Anmeldelinks im Log, und wer die Logs lesen kann, kann sich anmelden.                                                                                                                           | Go-live-Checkliste unten.                                                                                                                                                                  |
 
 ### Niedrig

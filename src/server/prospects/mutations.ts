@@ -5,6 +5,7 @@ import {
   auditLog,
   contacts,
   exposes,
+  letters,
   prospects,
   savedViews,
   sessionReplays,
@@ -15,6 +16,7 @@ import { randomCode } from "@/domain/codes";
 import type { ProspectForm } from "@/domain/prospects/schema";
 import type { ProspectStatus } from "@/domain/prospects/status";
 import { slugify } from "@/domain/slug";
+import { deleteLetterPdfs } from "../letters/manage";
 import { deleteReplayFiles } from "../retention";
 import { createTouchpoint } from "../tracking/touchpoints";
 
@@ -155,6 +157,16 @@ export async function deleteProspect(tx: Transaction, actor: Actor, id: string) 
     .where(
       and(eq(sessionReplays.workspaceId, actor.workspaceId), eq(sessionReplays.prospectId, id)),
     );
+  const draftLetters = await tx
+    .select({ id: letters.id })
+    .from(letters)
+    .where(
+      and(
+        eq(letters.workspaceId, actor.workspaceId),
+        eq(letters.prospectId, id),
+        eq(letters.status, "draft"),
+      ),
+    );
   const deleted = await tx
     .delete(prospects)
     .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
@@ -167,10 +179,14 @@ export async function deleteProspect(tx: Transaction, actor: Actor, id: string) 
     targetType: "prospect",
     targetId: id,
   });
-  // Recording chunks live in storage, outside the cascade.
+  // Recording chunks and letter PDFs for a print API live in storage, outside the cascade.
   await deleteReplayFiles(
     actor.workspaceId,
     replays.map((r) => r.id),
+  );
+  await deleteLetterPdfs(
+    actor.workspaceId,
+    draftLetters.map((letter) => letter.id),
   );
   return true;
 }

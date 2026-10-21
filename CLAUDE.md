@@ -97,7 +97,7 @@ only (portable via `pg_dump`). Migrations must keep the previous app version wor
 
 - As of 2026-10-21 the owner runs Docker Compose on Mikrus behind Mikrus' own HTTPS proxy, **without
   Coolify and without an own Cloudflare** (`docs/DEPLOY_COMPOSE.md`, ADR-0054). Client IPs come only
-  from `x-aquisiteur-client-ip`, set by the middleware (ADR-0063); never read `cf-*` or
+  from `x-aquisiteur-client-ip`, set by the middleware (ADR-0064); never read `cf-*` or
   `x-forwarded-for` elsewhere.
 - The planned production setup is a Mikrus 3.5 with Coolify behind Cloudflare (`HOSTING_PROFILE=node`, ADR-0047,
   ADR-0052): IPv6 only, so Cloudflare proxies every domain; files and DB backups live in R2

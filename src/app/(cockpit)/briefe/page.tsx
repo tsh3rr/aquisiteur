@@ -11,6 +11,7 @@ import { can } from "@/domain/authz";
 import type { LetterStatus } from "@/domain/letters/lifecycle";
 import { listCampaigns } from "@/server/campaigns";
 import { listLetters } from "@/server/letters/manage";
+import { loadPingenSettings } from "@/server/letters/providers";
 import { requireCockpit } from "@/server/session";
 import { LetterTable } from "./table";
 
@@ -37,13 +38,16 @@ export default async function LettersPage({
   const filter = FILTERS[params.status ?? ""] ? params.status! : "alle";
   const campaign = /^[0-9a-f-]{36}$/.test(params.kampagne ?? "") ? params.kampagne : undefined;
   const fresh = (params.neu ?? "").split(",").filter((id) => /^[0-9a-f-]{36}$/.test(id));
-  const { rows, campaigns } = await tenant(async (tx) => ({
+  const { rows, campaigns, pingen } = await tenant(async (tx) => ({
     rows: await listLetters(tx, workspace.id, {
       statuses: FILTERS[filter]!.statuses,
       campaignId: campaign,
     }),
     campaigns: await listCampaigns(tx, workspace.id, { includeArchived: true }),
+    pingen: await loadPingenSettings(tx, workspace.id),
   }));
+  const printService =
+    pingen.enabled && pingen.hasClientSecret ? { staging: pingen.staging } : null;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const skipped = Number(params.uebersprungen ?? 0);
 
@@ -51,7 +55,11 @@ export default async function LettersPage({
     <div className="grid gap-6">
       <PageHeader
         title="Briefe"
-        description="Drucken Sie die Briefe aus dem PDF und markieren Sie sie als versendet. Ab dem Versanddatum misst Aquisiteur die Zeit bis zur Öffnung."
+        description={
+          printService
+            ? "Senden Sie die Briefe über Pingen oder drucken Sie sie selbst aus dem PDF. Ab dem Versanddatum misst Aquisiteur die Zeit bis zur Öffnung."
+            : "Drucken Sie die Briefe aus dem PDF und markieren Sie sie als versendet. Ab dem Versanddatum misst Aquisiteur die Zeit bis zur Öffnung."
+        }
       />
       {fresh.length > 0 ? (
         <Alert tone="success">
@@ -108,6 +116,7 @@ export default async function LettersPage({
       ) : (
         <LetterTable
           canManage={canManage}
+          printService={printService}
           preselected={fresh}
           campaigns={Object.fromEntries(campaigns.map((option) => [option.id, option.name]))}
           rows={rows.map((row) => ({

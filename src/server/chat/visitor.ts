@@ -293,7 +293,7 @@ export async function recordVisitorTyping(
     .select({ maxLength: chatDrafts.maxLength })
     .from(chatDrafts)
     .where(and(eq(chatDrafts.workspaceId, input.workspaceId), eq(chatDrafts.visitId, visit.id)));
-  // `length` and `max_length` hold only 0 or 1 since ADR-0064; `content` stays empty.
+  // `length` and `max_length` hold only 0 or 1 since ADR-0065; `content` stays empty.
   await db
     .insert(chatDrafts)
     .values({

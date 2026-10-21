@@ -19,11 +19,13 @@ import { getDb } from "@/db";
 import { getInfra } from "@/infra";
 import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
+import { loadPingenSettings } from "@/server/letters/providers";
 import { ApiTokens } from "./api-tokens";
 import { ContactSettingsForm } from "./contact-settings";
 import { RetentionForm, WorkspaceDataActions } from "./data-settings";
 import { LegalSettingsForm } from "./legal-settings";
 import { LetterSettingsForm } from "./letter-settings";
+import { PrintServiceForm } from "./print-service-settings";
 import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
 import { PushDevices } from "./push-device";
@@ -52,6 +54,8 @@ export default async function SettingsPage() {
   const canEditSettings = can(actor, "settings.update", { workspaceId: workspace.id });
   const settings = await tenant((tx) => loadWorkspaceSettings(tx, workspace.id));
   const brandImages = await tenant((tx) => loadBrandImages(tx, workspace.id, settings));
+  const pingen = await tenant((tx) => loadPingenSettings(tx, workspace.id));
+  const canManageIntegrations = can(actor, "integrations.manage", { workspaceId: workspace.id });
   const [rules, devices] = await tenant((tx) =>
     Promise.all([listRules(tx, workspace.id), listPushDevices(tx, workspace.id, user.id)]),
   );
@@ -174,7 +178,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Briefe</CardTitle>
           <CardDescription>
-            Absender, Standardtexte, Folgebriefe und Unterschrift für die gedruckten Briefe.
+            Absender, Standardtexte, Folgebriefe, Unterschrift und wer die Briefe druckt.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-8">
@@ -189,6 +193,11 @@ export default async function SettingsPage() {
             hint="Ein Foto oder Scan Ihrer Unterschrift, am besten auf weißem Papier. Wird als PNG gespeichert."
             current={brandImages.signature}
             canEdit={canEditSettings}
+          />
+          <PrintServiceForm
+            pingen={pingen}
+            webhookUrl={`${serverEnv().APP_URL.replace(/\/$/, "")}/api/webhooks/pingen/${workspace.id}`}
+            canEdit={canManageIntegrations}
           />
         </CardContent>
       </Card>
@@ -295,6 +304,7 @@ export default async function SettingsPage() {
                 { ...settings, legal: { ...settings.legal, privacyMarkdown: undefined } },
                 workspace.name,
                 serverEnv().HOSTING_PROFILE,
+                pingen.enabled ? "pingen" : null,
               ),
             }}
             publicOrigin={publicOrigin}

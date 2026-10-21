@@ -55,7 +55,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Kontaktblock mit allen v1-Kanälen (Chat, WhatsApp, Telefon, Rückruf, E-Mail, Termin, Messenger, SMS)
 - [x] Live-Chat Handy ↔ Cockpit über den Realtime-Port (ADR-0020), Tippanzeige, Rückkanal, WhatsApp-Übergabe
 - [x] Rückrufwunsch, Abwesenheitsnotiz (ADR-0022), Verfügbarkeit (ADR-0026)
-- [x] Entwurfserkennung (ADR-0023, seit ADR-0064 nur ja/nein), Nudges (max. einer pro Seitenaufruf), Sticky-Kontaktleiste mobil
+- [x] Entwurfserkennung (ADR-0023, seit ADR-0065 nur ja/nein), Nudges (max. einer pro Seitenaufruf), Sticky-Kontaktleiste mobil
 - [x] Status „Kontakt“ automatisch (ADR-0024), Chats und Rückrufe in „Heute“ und auf der Kundenseite
 
 ## Phase 4 · Intent & Benachrichtigung
@@ -63,7 +63,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Score-Engine (Noisy-OR), Erklärung + Empfehlung mit Ein-Klick-Aktionen (ADR-0028), gewichtbar in den Einstellungen
 - [x] Regel-Engine mit Bündelung, Ruhezeit, nur werktags (ADR-0029), Push (ADR-0030, ADR-0034) + E-Mail
 - [x] Tageszusammenfassung über stündlichen Job (ADR-0032), Benachrichtigungsliste mit Live-Zähler
-- [x] „Heute“: wer jetzt eine Reaktion braucht, Live-Feed „Jetzt gerade“ (seit ADR-0064 nur „ist gerade da“); Score auf Kundenseite und in der Liste
+- [x] „Heute“: wer jetzt eine Reaktion braucht, Live-Feed „Jetzt gerade“ (seit ADR-0065 nur „ist gerade da“); Score auf Kundenseite und in der Liste
 - [x] E2E-Kernpfad: QR öffnen → lesen → Chat tippen → Owner sieht Score und Benachrichtigung
 - [ ] Push auf dem echten Handy nach dem Deploy prüfen (Einstellungen → Benachrichtigungen → „Test senden“)
 
@@ -89,7 +89,9 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
 - [x] Automatische Folgebriefe: Entwurf und Aufgabe, wenn der erste Brief keinen Besuch bringt (ZIELPROMPT §7.9, ADR-0062)
-- [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; Folgebriefe dann direkt einreihen
+- [x] Pingen-Adapter: Zugangsdaten verschlüsselt pro Workspace, Versand aus der Briefliste, Webhook und stündlicher Status-Abgleich (ZIELPROMPT §7.9, ADR-0063)
+- [ ] Pingen mit echtem Konto prüfen: erst Testumgebung, dann ein echter Brief an die eigene Adresse; AV-Vertrag abschließen
+- [ ] Weitere Druckdienste: LetterXpress, Handschrift-Dienst
 - [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
 - [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)

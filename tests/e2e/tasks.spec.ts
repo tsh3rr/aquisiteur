@@ -82,8 +82,8 @@ test("the follow-up rule is set under Einstellungen → Briefe", async ({ page }
   await expect(days).toHaveValue("14");
   await days.fill("10");
   await toggle.uncheck();
-  await letters.getByRole("button", { name: "Speichern" }).click();
-  await expect(letters.getByText("Gespeichert.")).toBeVisible();
+  await letters.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(letters.getByText("Gespeichert.", { exact: true })).toBeVisible();
   await expectAccessible(page, "letter settings with follow-ups");
 
   await page.reload();

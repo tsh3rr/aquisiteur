@@ -17,7 +17,7 @@ const TYPING_THROTTLE_MS = 2500;
 /**
  * The owner's live chat (§7.5): messages appear as the visitor sends them.
  * Whether the visitor started a message without sending it shows as a quiet
- * note, never live and never with its length or text (ADR-0064).
+ * note, never live and never with its length or text (ADR-0065).
  */
 export function ThreadView({
   threadId,

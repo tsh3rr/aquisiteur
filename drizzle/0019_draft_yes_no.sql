@@ -1,4 +1,4 @@
--- Draft detection keeps only yes/no (ADR-0063): no text, no length.
+-- Draft detection keeps only yes/no (ADR-0065): no text, no length.
 -- The columns stay so the previous app version keeps working; it may write a
 -- length again until it is replaced, which the new version reads as yes.
 UPDATE chat_drafts

@@ -69,6 +69,8 @@ export function privacyMarkdown(
   settings: WorkspaceSettings,
   workspaceName: string,
   hosting: HostingProfile = "node",
+  /** The workspace sends its letters through Pingen (§7.9). */
+  printService: "pingen" | null = null,
 ): string {
   if (settings.legal.privacyMarkdown) return settings.legal.privacyMarkdown;
   const address = settings.senderAddress;
@@ -121,7 +123,7 @@ export function privacyMarkdown(
     heading("Speicherung auf Ihrem Endgerät"),
     "Cookies werden auf dieser Seite nicht gesetzt. Im Local Storage Ihres Browsers wird unter „aq-consent“ ausschließlich Ihre Datenschutz-Auswahl mit Datum und Version des Hinweises gespeichert, ohne Kennung. Dies ist erforderlich, um Ihre Auswahl bei weiteren Aufrufen zu beachten; nach 180 Tagen wird die Auswahl erneut abgefragt. Bei Nutzung des Chats wird im Session Storage unter „aq-chat:…“ der Zugangsschlüssel zu Ihrem Gespräch gespeichert, bis Sie den Tab schließen.",
     heading("Empfänger und Auftragsverarbeiter"),
-    `Wir setzen Auftragsverarbeiter ein, mit denen Verträge nach Art. 28 DSGVO bestehen: ${PROCESSOR_LIST[hosting]}. Cloudflare hat seinen Sitz in den USA; eine Übermittlung erfolgt auf Grundlage des Angemessenheitsbeschlusses der Europäischen Kommission zum EU-US Data Privacy Framework (Art. 45 DSGVO). Eine Weitergabe oder ein Verkauf Ihrer Daten an Dritte findet nicht statt.`,
+    `Wir setzen Auftragsverarbeiter ein, mit denen Verträge nach Art. 28 DSGVO bestehen: ${PROCESSOR_LIST[hosting]}${printService === "pingen" ? ", Pingen (Druck und Versand unserer Schreiben, Schweiz und EU; erhält hierfür Ihre Anschrift)" : ""}. Cloudflare hat seinen Sitz in den USA; eine Übermittlung erfolgt auf Grundlage des Angemessenheitsbeschlusses der Europäischen Kommission zum EU-US Data Privacy Framework (Art. 45 DSGVO). ${printService === "pingen" ? "Für die Schweiz besteht ein Angemessenheitsbeschluss der Europäischen Kommission (Art. 45 DSGVO). " : ""}Eine Weitergabe oder ein Verkauf Ihrer Daten an Dritte findet nicht statt.`,
     heading("Speicherdauer"),
     `Einzelne Messwerte der Lesestatistik werden nach ${eventsDays} Tagen gelöscht.${settings.replay.enabled ? ` Sitzungsaufzeichnungen werden nach ${replaysDays} Tagen gelöscht.` : ""} Die ohne Einwilligung gespeicherten Daten zu Aufrufen löschen wir, sobald wir Ihr Unternehmen aus unserer Akquise entfernen. Nachrichten und Rückrufwünsche bewahren wir auf, solange dies für die Korrespondenz erforderlich ist, im Fall eines Auftrags für die Dauer der gesetzlichen Aufbewahrungsfristen. Nach einem Widerspruch löschen wir sämtliche Daten zu Aufrufen nach ${optOutTrackingDays} Tagen und bewahren lediglich einen Sperrvermerk auf, um Sie nicht erneut anzuschreiben.`,
     heading("Ihre Rechte"),

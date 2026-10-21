@@ -18,6 +18,8 @@ describe("generated legal texts", () => {
     expect(text).toContain("Mikrus (Server und Datenbank, Finnland)");
     expect(privacyMarkdown(settings, "X", "cloudflare")).toContain("Supabase");
     expect(text).not.toContain("Sitzungsaufzeichnung (nur mit Einwilligung)");
+    expect(text).not.toContain("Pingen");
+    expect(privacyMarkdown(settings, "X", "node", "pingen")).toContain("Pingen (Druck und Versand");
   });
 
   it("separates the basis from the reading statistics, which need consent (ADR-0065)", () => {

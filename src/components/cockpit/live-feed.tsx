@@ -19,7 +19,7 @@ const timeFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "
 
 /**
  * „Jetzt gerade“ on Heute: who is in their exposé right now, one line per
- * prospect with the last sign of life; never what they read (ADR-0064).
+ * prospect with the last sign of life; never what they read (ADR-0065).
  */
 export function LiveFeed() {
   const [items, setItems] = useState<Item[]>([]);
