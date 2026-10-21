@@ -83,12 +83,13 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Einstellungen → System mit Limits (ADR-0045)
 - [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
 - [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0060)
-- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
+- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen und Folgebriefe) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
 
 ## Später
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)
-- [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; automatische Follow-ups
+- [x] Automatische Folgebriefe: Entwurf und Aufgabe, wenn der erste Brief keinen Besuch bringt (ZIELPROMPT §7.9, ADR-0062)
+- [ ] Pingen-Adapter (erster echter Druck-Provider), danach ggf. LetterXpress, Handschrift-Dienst; Folgebriefe dann direkt einreihen
 - [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
 - [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)

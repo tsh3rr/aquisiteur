@@ -746,3 +746,30 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - Noch offen: Kürzel für Aktionen auf der Kundenseite (Notiz, Status ändern, Anrufen) und in der
   Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
   mit einer Erweiterung der Palette um seitenbezogene Befehle.
+
+## ADR-0062 · Automatische Folgebriefe beim Selbstdruck (2026-10-21)
+
+- §7.9 sah den automatischen Follow-up-Versand erst mit einem echten Druck-Provider vor. Er ist jetzt
+  schon mit `manual` aktiv, weil die App dabei nichts verschickt: Sie legt einen Folgebrief als Entwurf
+  an (eigener Touchpoint und QR-Code wie beim Folgebrief von Hand) und eine Aufgabe „Folgebrief drucken
+  und versenden“, die sofort erinnert (`remind_at` = jetzt, im selben stündlichen Lauf vor den
+  Aufgaben-Erinnerungen). Mit einem echten Provider wird daraus später „einreihen“ statt „Entwurf“.
+- Regel rein in `src/domain/letters/follow-up.ts`: fällig, wenn ein erster Brief seit `afterDays`
+  (Standard 14, einstellbar 3 bis 90) versendet ist und es seitdem keinen echten Besuch des Prospects
+  gab (bestätigt, kein Bot, nicht intern, wie „Zeit bis zur Öffnung“). Briefe, die länger als `afterDays` + 14 Tage zurückliegen,
+  bleiben unberührt, damit Einschalten oder ein ausgefallener Cron keine Flut alter Folgebriefe erzeugt.
+- Ausschlüsse stehen in der SQL-Abfrage, nicht erst im Code: Der Prospect muss noch im Status
+  „Brief versendet“ stehen (wer geöffnet, gesprochen, „Kein Interesse“ gesagt, gewonnen oder verloren
+  hat, bekommt keinen „Vielleicht ist der Brief untergegangen“-Brief), dazu kein Besuch, kein
+  Sperrvermerk, kein Folgebrief und die Regel im Workspace an. So verdrängen dauerhaft ausgeschlossene
+  Briefe die fälligen nie aus dem Stapel von 200. Briefe jenseits des Fensters bekommen ebenfalls
+  `follow_up_at` und fallen damit heraus.
+- Pro erstem Brief höchstens einmal: `letters.follow_up_at` wird beansprucht, bevor der Entwurf
+  entsteht. Ein gelöschter Entwurf kommt deshalb nicht wieder, und zwei überlappende Läufe erzeugen nie
+  zwei Folgebriefe. Teilindex `letters_follow_up_idx` für die Suche über alle Workspaces.
+- Kandidaten liest der Job auf der Systemverbindung; Entwurf und Aufgabe schreibt er per `withTenant`
+  als ältester Owner des Workspaces, damit RLS, Audit-Log (`meta.auto`) und Realtime wie bei einer
+  Aktion im Cockpit laufen.
+- Folgebriefe haben jetzt eine eigene Vorlage (`letter.followUp.subject/body`), die auch für Folgebriefe
+  von Hand gilt; vorher nutzten sie die Vorlage des ersten Briefs. Standardmäßig an, abschaltbar unter
+  Einstellungen → Briefe → Folgebrief.
