@@ -53,3 +53,33 @@ describe("middleware origin guard", () => {
     expect(response.headers.get("x-middleware-request-cf-connecting-ip")).toBeNull();
   });
 });
+
+/** §6.1, ADR-0066: nothing is indexed, and an exposé's address never leaves as a referrer. */
+describe("middleware search and referrer headers", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const at = (host: string, path: string) =>
+    middleware(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+
+  it("marks cockpit and exposé hosts noindex", () => {
+    vi.stubEnv("APP_URL", "https://app.example.test");
+    vi.stubEnv("PLATFORM_DOMAIN", "example.test");
+    vi.stubEnv("ORIGIN_SECRET", "");
+    expect(at("app.example.test", "/login").headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(at("agentur.example.test", "/x/cafe-k7m2abcdef").headers.get("x-robots-tag")).toBe(
+      "noindex, nofollow",
+    );
+  });
+
+  it("sends no referrer from exposé hosts", () => {
+    vi.stubEnv("APP_URL", "https://app.example.test");
+    vi.stubEnv("PLATFORM_DOMAIN", "example.test");
+    vi.stubEnv("ORIGIN_SECRET", "");
+    expect(at("agentur.example.test", "/x/cafe-k7m2abcdef").headers.get("referrer-policy")).toBe(
+      "no-referrer",
+    );
+    expect(at("app.example.test", "/login").headers.get("referrer-policy")).toBeNull();
+  });
+});

@@ -1,5 +1,6 @@
 import { getDb } from "@/db";
 import { RESERVED_CODES } from "@/domain/tracking/short-links";
+import { robotsTxt } from "@/lib/robots";
 import { workspaceForHostParam } from "@/server/sites";
 import { ownerDeviceFor } from "@/server/tracking/http";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
@@ -33,7 +34,7 @@ export async function GET(
     code = "";
   }
   if (code === "robots.txt") {
-    return new Response("User-agent: *\nDisallow: /\n", {
+    return new Response(robotsTxt(), {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
   }
