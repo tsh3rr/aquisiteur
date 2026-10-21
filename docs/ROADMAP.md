@@ -96,5 +96,6 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)
 - [x] Rückruf-Formular mit bekannter Nummer aus den Stammdaten vorausfüllen, maskiert (ZIELPROMPT §7.4, ADR-0058)
-- [ ] Messenger, SMS, Telegram, A/B-Varianten, KI-Assistent für Exposé-Entwürfe
+- [ ] Messenger, SMS, Telegram, KI-Assistent für Exposé-Entwürfe
 - [ ] SaaS-Launch: Registrierung, Teams, Stripe, Plattform-Admin, Landingpage
+- [ ] Ganz zuletzt: A/B-Varianten von Exposés. Lohnt sich nur bei standardisiert verschickten Briefen; der Owner setzt auf individuelle Briefe pro Kunde (Entscheidung vom 21.10.2026)
