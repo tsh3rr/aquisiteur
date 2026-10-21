@@ -37,7 +37,8 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] CSRF: Cockpit-Änderungen nur über Server Actions (Origin-Prüfung von Next.js). Öffentliche
       POST-Routen lehnen fremde `Origin` ab (`isCrossSite`).
 - [x] Größenlimits gelesen am Datenstrom, nicht nur am `Content-Length`-Header (`src/lib/body.ts`):
-      Tracking 32 KB, Replay-Stück 256 KB, Exposé-JSON 2 MB, Upload 40 MB.
+      Tracking 32 KB, Replay-Stück 256 KB, Pingen-Webhook 256 KB, Exposé-JSON 2 MB, Brief-PDF 8 MB,
+      Upload 40 MB.
 - [x] Schema-Validierung (Zod) jeder Eingabe von außen.
 
 ## Öffentliche Exposés und Kurzlinks
@@ -63,6 +64,12 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
 - [x] API-Tokens nur als SHA-256-Hash, einmal angezeigt, ablaufend und widerrufbar. Kein eigenes Rate
       Limit für falsche Tokens: bei rund 190 Bit Zufall ist Raten aussichtslos.
 - [x] Cron-Secret für `/api/jobs/hourly` in konstanter Zeit verglichen.
+- [x] Webhooks (`/api/webhooks/pingen/<workspace_id>`): ohne Cockpit-Anmeldung erreichbar
+      (`src/middleware.ts`), dafür HMAC-SHA256 über den Rohtext mit dem Signaturschlüssel des Workspaces,
+      in konstanter Zeit verglichen; ohne hinterlegten Schlüssel 401. Body vor der Prüfung höchstens
+      256 KB. Doppelte Meldungen ändern nichts (ADR-0063).
+- [x] Pingen-Tokens im Speicher nach Umgebung, Client-ID und Secret getrennt, nie über Workspaces
+      hinweg geteilt.
 - [x] Exporte enthalten keine Token-Hashes und keine verschlüsselten Zugangsdaten.
 
 ## Betrieb

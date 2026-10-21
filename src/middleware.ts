@@ -19,12 +19,14 @@ import {
  * Also sets a per-request CSP nonce.
  */
 
-// /api/v1 authenticates with workspace API tokens, /api/jobs with CRON_SECRET.
+// /api/v1 authenticates with workspace API tokens, /api/jobs with CRON_SECRET,
+// /api/webhooks with the provider's signature.
 const PUBLIC_COCKPIT_PATHS = [
   "/login",
   "/api/auth",
   "/api/v1",
   "/api/jobs",
+  "/api/webhooks",
   "/sw.js",
   "/manifest.webmanifest",
   "/robots.txt",

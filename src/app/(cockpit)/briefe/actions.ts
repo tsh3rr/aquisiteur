@@ -10,10 +10,13 @@ import {
   advanceLetters,
   createLetters,
   deleteDraftLetters,
+  dispatchLetters,
   loadPrintableLetters,
   MAX_LETTERS_PER_BATCH,
   SKIP_LABELS,
+  storeLetterPdf,
 } from "@/server/letters/manage";
+import { activePrintProvider } from "@/server/letters/providers";
 import { requireCockpit } from "@/server/session";
 
 async function manager() {
@@ -118,6 +121,38 @@ export async function cancelLettersAction(ids: string[]): Promise<BulkState> {
   });
   revalidateLetters();
   return summary(result, "verworfen");
+}
+
+/** One letter's PDF, rendered in the browser, kept for the print API. */
+export async function uploadLetterPdfAction(formData: FormData): Promise<boolean> {
+  const { actor, tenant } = await manager();
+  const id = z.uuid().safeParse(formData.get("id"));
+  const file = formData.get("pdf");
+  if (!id.success || !(file instanceof File)) return false;
+  const pdf = new Uint8Array(await file.arrayBuffer());
+  return tenant((tx) => storeLetterPdf(tx, actor, id.data, pdf));
+}
+
+/** Hands drafts whose PDF is stored to the workspace's print API (§7.9). */
+export async function dispatchLettersAction(ids: string[]): Promise<BulkState> {
+  const { actor, tenant } = await manager();
+  const parsed = idsSchema.safeParse(ids);
+  if (!parsed.success) return { ok: false, message: "Ungültige Auswahl." };
+  const provider = await tenant((tx) => activePrintProvider(tx, actor.workspaceId));
+  const result = provider ? await dispatchLetters(tenant, actor, parsed.data, provider) : null;
+  revalidateLetters();
+  if (!result) {
+    return { ok: false, message: "Kein Druckdienst eingerichtet (Einstellungen → Briefe)." };
+  }
+  const sent =
+    result.sent > 0
+      ? `${result.sent} ${result.sent === 1 ? "Brief" : "Briefe"} an Pingen übergeben${provider?.id === "pingen-staging" ? " (Testumgebung)" : ""}.`
+      : "";
+  const failed =
+    result.failed.length > 0
+      ? ` ${result.failed.length} ${result.failed.length === 1 ? "Brief wurde" : "Briefe wurden"} abgelehnt: ${result.failed[0]!.message}`
+      : "";
+  return { ok: result.sent > 0, message: (sent + failed).trim() };
 }
 
 function summary(result: { changed: number; refused: number }, verb: string): BulkState {
