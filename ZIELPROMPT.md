@@ -403,6 +403,7 @@ Was in v1 bewusst **nicht** gebaut wird: Einladungs-UI, Team-Verwaltung, Abrechn
 - Event-Ingestion: Schema-Validierung, Größenlimits, Rate-Limits pro IP/Visit.
 - Chat: Spam-Schutz (Honeypot, Rate-Limit), Sanitizing, keine HTML-Ausgabe von Nutzereingaben.
 - Secrets nur über Env-Variablen, `.env.example` gepflegt.
+- **Security-Audit vor dem Go-live** (siehe §14): unabhängige Prüfung von Anmeldung und Sitzungen, Mandantentrennung, Eingabevalidierung, Rate-Limits, Secrets, Headern/CSP, Abhängigkeiten und Datenschutz. Befunde werden nach Schweregrad in `docs/SECURITY.md` dokumentiert; kritische und hohe Befunde sind vor dem Go-live behoben, mittlere haben einen Termin oder eine begründete Ausnahme. Das Audit wird vor jedem späteren größeren Schritt (SaaS-Launch, neue öffentliche Schnittstellen) wiederholt.
 
 ---
 
@@ -460,4 +461,5 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 - Ein neues Exposé kann von Claude Code in einem Schritt validiert und veröffentlicht werden.
 - Alles datenschutzkonform dokumentiert, getestet, deploybar.
 - **Vor dem Go-live:** Der stündliche Job (`/api/jobs/hourly`: Digests, Retention, Replay-Löschung, Geocoding) läuft per Cron, und die Datenbank wird täglich gesichert, **extern in Cloudflare R2** (EU) und nicht nur auf demselben Server, weil ein lokales Backup bei Verlust des Servers mit verloren geht. Gilt für jede Betriebsvariante, auch Docker Compose (ADR-0054). Auf dem Mikrus-Testserver für die Entwicklung bewusst weggelassen.
+- **Vor dem Go-live:** Ein Security-Audit (§10) ist durchgeführt, kritische und hohe Befunde sind behoben und mit Tests abgesichert, das Ergebnis steht in `docs/SECURITY.md`. Kurz vor dem Go-live zusätzlich ein Blick von außen auf die laufende Produktion (Header, TLS, offene Ports, erreichbare Admin- und Debug-Routen).
 - **Vor dem Go-live:** Staging und Produktion sind getrennt. Staging bekommt jeden Merge auf `main` automatisch, Produktion bekommt nur Versionen, die der Owner freigibt (Release-Tag oder manueller Start, ADR-0057). Jede Umgebung hat eigene Datenbank, eigene Dateien und eigene Subdomains. Ob beide auf einem Server laufen oder auf zwei (sicherer, etwa zwei Mikrus 3.5), entscheidet der Owner beim Go-live; der Workflow unterstützt beides.
