@@ -332,14 +332,18 @@ export async function startVisit(
   });
 
   if (!started.quiet) {
-    await defer(() =>
-      visitSignal(db, {
+    await defer(async () => {
+      await publishActivity(db, input.workspaceId, expose.prospectId, {
+        type: "page_view",
+        occurredAt: new Date(),
+      });
+      await visitSignal(db, {
         workspaceId: input.workspaceId,
         prospectId: expose.prospectId,
         visitId: started.visitId,
         trigger: started.trigger,
-      }),
-    );
+      });
+    });
   }
   return started.result;
 }
@@ -470,12 +474,12 @@ export async function ingestEvents(
   return "ok";
 }
 
-/** „Jetzt gerade: Café Müller liest die Preise“ for the live feed on „Heute“. */
+/** „Jetzt gerade: Café Müller ist gerade im Exposé“ for the live feed on „Heute“ (ADR-0064). */
 async function publishActivity(
   db: Database,
   workspaceId: string,
   prospectId: string,
-  event: { type: string; payload: Record<string, unknown>; occurredAt: Date },
+  event: { type: string; occurredAt: Date },
 ) {
   const [prospect] = await db
     .select({ company: prospects.companyName })

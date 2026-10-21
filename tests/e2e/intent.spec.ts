@@ -115,14 +115,14 @@ test("QR open → read → typing: the owner sees score and notification live", 
   await expect(
     page.getByRole("link", { name: /^Benachrichtigungen \(1 neu\)/ }).first(),
   ).toBeAttached();
-  // Live feed: what the prospect is doing right now.
-  await expect(page.getByText("öffnet das Exposé").first()).toBeVisible();
+  // Live feed: only that the prospect is there right now.
+  await expect(page.getByText("ist gerade im Exposé").first()).toBeVisible();
 
   // Reads to the end (≥ 75 %), sent with the next heartbeat.
   await phone.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await phone.waitForResponse((r) => r.url().endsWith("/t/e") && r.ok(), { timeout: 30_000 });
 
-  // Opens the chat and types a long message without sending it.
+  // Opens the chat and starts a message without sending it.
   const mailsBefore = mailCount(account.email);
   await phone.getByRole("button", { name: /^Live-Chat/ }).click();
   const chat = phone.getByRole("dialog", { name: /Chat mit/ });

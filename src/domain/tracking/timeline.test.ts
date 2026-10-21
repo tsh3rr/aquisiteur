@@ -129,36 +129,29 @@ describe("timeline wording", () => {
     );
   });
 
-  it("shows typed but unsent chat drafts as a step of their visit", () => {
+  it("shows started but unsent chat messages as a step of their visit, never length or text", () => {
     const draft = {
       visitId: "v1",
-      length: 0,
-      maxLength: 0,
+      hasText: false,
       sent: false,
-      content: null,
       updatedAt: new Date("2026-10-01T10:03:00Z"),
     };
-    expect(describeDraft({ ...draft, length: 87 })).toBe(
-      "87 Zeichen in den Chat getippt, aber nicht gesendet",
+    expect(describeDraft({ ...draft, hasText: true })).toBe(
+      "Im Chat angefangen zu schreiben, aber nicht gesendet",
     );
-    expect(describeDraft({ ...draft, length: 12, content: "Was kostet" })).toBe(
-      "12 Zeichen in den Chat getippt, aber nicht gesendet: „Was kostet“",
-    );
-    expect(describeDraft({ ...draft, maxLength: 30 })).toBe(
-      "Chat-Nachricht mit 30 Zeichen angefangen und wieder gelöscht",
-    );
-    expect(describeDraft({ ...draft, maxLength: 30, sent: true })).toBeNull();
+    expect(describeDraft(draft)).toBe("Im Chat angefangen zu schreiben und wieder gelöscht");
+    expect(describeDraft({ ...draft, sent: true })).toBeNull();
 
     const [entry] = buildTimeline({
       visits: [visit()],
       events: [],
       audits: [],
-      drafts: [{ ...draft, length: 87 }],
+      drafts: [{ ...draft, hasText: true }],
       outline,
       showBots: false,
     });
     expect(entry!.steps.map((step) => step.text)).toEqual([
-      "87 Zeichen in den Chat getippt, aber nicht gesendet",
+      "Im Chat angefangen zu schreiben, aber nicht gesendet",
     ]);
   });
 });

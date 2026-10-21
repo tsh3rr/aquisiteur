@@ -127,28 +127,19 @@ describe("computeIntent", () => {
     });
   });
 
-  it("an unsent draft counts by its length", () => {
-    const short = computeIntent({
-      facts: facts({
-        drafts: [{ visitId: "v1", maxLength: 12, updatedAt: at("2026-10-16T14:30:00+02:00") }],
-      }),
-      info,
-      now,
-      timeZone: TZ,
-    });
-    expect(short.signals.map((s) => s.id)).toContain("draft_short");
-    expect(short.signals.map((s) => s.id)).not.toContain("draft_long");
+  it("an unsent draft counts as started writing, never by length or content", () => {
     const long = computeIntent({
       facts: facts({
-        drafts: [{ visitId: "v1", maxLength: 40, updatedAt: at("2026-10-16T14:30:00+02:00") }],
+        drafts: [{ visitId: "v1", updatedAt: at("2026-10-16T14:30:00+02:00") }],
       }),
       info,
       now,
       timeZone: TZ,
     });
-    // visit .05, read .1, short .4, long .6
-    expect(long.score).toBe(79);
-    expect(long.explanation.detail).toMatch(/im Chat 40 Zeichen getippt, aber nicht gesendet/);
+    expect(long.signals.map((s) => s.id)).toContain("draft");
+    // visit .05, read .1, draft .5
+    expect(long.score).toBe(57);
+    expect(long.explanation.detail).toMatch(/im Chat angefangen zu schreiben, aber nicht gesendet/);
     expect(long.explanation.recommendation).toMatch(
       /^Wollte schreiben, hat aber nicht abgeschickt/,
     );

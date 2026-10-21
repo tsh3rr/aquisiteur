@@ -71,11 +71,6 @@ export const chatSettingsSchema = z.object({
       "Danke für Ihre Nachricht! Ich bin gerade nicht am Rechner und melde mich so bald wie möglich.",
     ),
   /**
-   * Store the text of unsent drafts (§7.5). Off by default: then only the
-   * length is kept. When on, the widget says so above the text field.
-   */
-  storeDraftContent: z.boolean().default(false),
-  /**
    * Offer the prospect's known number in the callback form, masked
    * (§7.4). Lives here because it shares the „Kontakt und Chat“ form.
    */

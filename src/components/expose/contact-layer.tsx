@@ -18,7 +18,7 @@ import { onSignals, track, type Signals } from "./tracking-client";
 
 export interface ContactLayerProps {
   slug: string;
-  chat: { enabled: boolean; responseTime: string; storeDraftContent: boolean };
+  chat: { enabled: boolean; responseTime: string };
   nudges: NudgeSettings;
   owner: { name: string; photo: string | null };
   /** wa.me link with the prefilled text, for the WhatsApp handover and the bar. */
@@ -340,7 +340,6 @@ export function ContactLayer(props: ContactLayerProps) {
           onUnread={(count) => setUnread(open ? 0 : count)}
           prefill={prefill}
           responseTime={chat.responseTime}
-          storeDraftContent={chat.storeDraftContent}
           owner={props.owner}
           whatsappHref={props.whatsappHref}
           available={available}

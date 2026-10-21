@@ -747,7 +747,7 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
   Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
   mit einer Erweiterung der Palette um seitenbezogene Befehle.
 
-## ADR-0062 · Vertrauenswürdige Client-Adresse, Origin-Schutz und Grenzen ohne Adresse (2026-10-21, schließt den offenen Punkt aus ADR-0052)
+## ADR-0063 · Vertrauenswürdige Client-Adresse, Origin-Schutz und Grenzen ohne Adresse (2026-10-21, schließt den offenen Punkt aus ADR-0052)
 
 Das Security-Audit vor dem Go-live (ZIELPROMPT §10, §14) hat als hoch eingestuft, dass die App
 `cf-connecting-ip` immer glaubte. Der Server ist über IPv6 auch direkt erreichbar, und im heutigen
@@ -770,3 +770,21 @@ Leere. Ob Mikrus intern Cloudflare nutzt, ist für die App nicht erkennbar und n
   (71 Bit Zufall); getippte Kurzlinks führen auf den Hinweis „zu viele Versuche“. Ein Angreifer kann so
   höchstens die getippten Kurzlinks für eine Stunde stören, aber keine Exposés finden.
 - IPv6-Adressen zählen nach ihrem /64-Netz, weil ein Anschluss meist ein ganzes /64 besitzt.
+
+## ADR-0064 · Entwurfserkennung nur ja/nein, Live-Feed nur „ist gerade da“ (2026-10-21, ändert ADR-0023)
+
+Nach dem Security-Audit (Befund M3) hat der Owner entschieden, die Beobachtung der Besucher
+einzubremsen:
+
+- **Entwurfserkennung** erfasst nur noch, ob jemand im Chat angefangen hat zu schreiben (ja/nein,
+  Zeitpunkt). Kein Inhalt, keine Länge; die Einstellung `chat.storeDraftContent` ist entfernt. Das
+  Widget meldet nur den Wechsel leer ↔ nicht leer. Die Signale `draft_short` und `draft_long` werden zu
+  einem Signal `draft` mit Gewicht 0,5 (vorher 0,4 und 0,6), damit „wollte schreiben“ zusammen mit
+  Besuch und Lesen weiter die 50-%-Schwelle erreicht. `chat_drafts.length` und `max_length` enthalten
+  nur noch 0 oder 1, `content` bleibt leer; die Spalten bleiben, damit die vorige App-Version weiterläuft
+  (Migration 0018 bereinigt Altdaten und gespeicherte Signale).
+- **Live im Cockpit** steht nur noch, dass ein Kunde gerade im Exposé ist, eine Zeile pro Kunde. Keine
+  Abschnitte, keine Klicks, kein „Besucher tippt …“ im Chat. Timeline, Heatmap und Auswertung zeigen die
+  Details weiter im Nachhinein. Die Tippanzeige des Owners für den Besucher bleibt (ja/nein).
+- Die Datenschutzerklärung-Vorlage zählt alle Messwerte einzeln auf, nennt die Entwurfserkennung als
+  ja/nein, die Live-Anzeige „ist gerade da“ und den Session Storage des Chats.

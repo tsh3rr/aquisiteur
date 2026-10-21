@@ -24,7 +24,6 @@ import {
   visitorTypingSchema,
 } from "@/domain/chat";
 import { contactLinks } from "@/domain/expose/contact-links";
-import { LONG_DRAFT, SHORT_DRAFT } from "@/domain/intent/score";
 import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import type { ChatMessageView } from "@/domain/realtime";
 import { signToken, verifyToken } from "@/domain/tracking/signed-token";
@@ -145,7 +144,7 @@ export async function postVisitorMessage(
       .update(chatThreads)
       .set({ status: "open", lastMessageAt: now, lastVisitorMessageAt: now })
       .where(and(eq(chatThreads.workspaceId, input.workspaceId), eq(chatThreads.id, thread!.id)));
-    // Sent: the draft is gone, its longest length stays as a signal.
+    // Sent: the field is empty again; that the visitor started writing stays as a signal.
     await tx
       .update(chatDrafts)
       .set({ length: 0, content: null, threadId: thread!.id, updatedAt: now })
@@ -270,9 +269,9 @@ export async function readVisitorThread(
 }
 
 /**
- * Typing in the chat (§7.5 „Entwurfserkennung“): the length always, the
- * text only if the workspace enabled it (the widget then says so). Also
- * feeds the owner's typing indicator.
+ * Draft detection (§7.5 „Entwurfserkennung“): only whether the visitor has
+ * started writing, never what or how much (docs/PRIVACY.md). Not shown live
+ * in the cockpit; it feeds the score and the timeline.
  */
 export async function recordVisitorTyping(
   db: Database,
@@ -282,21 +281,17 @@ export async function recordVisitorTyping(
   if (!parsed.success) return "invalid";
   const visit = await visitForToken(db, input.workspaceId, parsed.data.token);
   if (!visit) return "invalid";
-  if (!(await hitRateLimit(db, `chat:typing:${visit.id}`, 400, 600))) return "limited";
+  if (!(await hitRateLimit(db, `chat:typing:${visit.id}`, 120, 600))) return "limited";
   const thread = parsed.data.chat
     ? await threadForToken(db, input.workspaceId, parsed.data.chat)
     : null;
   if (thread && thread.prospectId !== visit.prospectId) return "invalid";
-  const settings = await loadWorkspaceSettings(db, input.workspaceId);
-  const content =
-    settings.chat.storeDraftContent && parsed.data.content && parsed.data.length > 0
-      ? parsed.data.content
-      : null;
-  const { length } = parsed.data;
+  const hasText = parsed.data.hasText ? 1 : 0;
   const [before] = await db
     .select({ maxLength: chatDrafts.maxLength })
     .from(chatDrafts)
     .where(and(eq(chatDrafts.workspaceId, input.workspaceId), eq(chatDrafts.visitId, visit.id)));
+  // `length` and `max_length` hold only 0 or 1 since ADR-0064; `content` stays empty.
   await db
     .insert(chatDrafts)
     .values({
@@ -304,29 +299,22 @@ export async function recordVisitorTyping(
       prospectId: visit.prospectId,
       visitId: visit.id,
       threadId: thread?.id ?? null,
-      length,
-      maxLength: length,
-      content,
+      length: hasText,
+      maxLength: hasText,
+      content: null,
     })
     .onConflictDoUpdate({
       target: [chatDrafts.workspaceId, chatDrafts.visitId],
       set: {
-        length,
-        maxLength: sql`greatest(${chatDrafts.maxLength}, ${length})`,
-        content,
+        length: hasText,
+        maxLength: sql`greatest(${chatDrafts.maxLength}, ${hasText})`,
+        content: null,
         threadId: sql`coalesce(${chatDrafts.threadId}, ${thread?.id ?? null}::uuid)`,
         updatedAt: sql`now()`,
       },
     });
-  await publish([workspaceTopic(input.workspaceId)], "chat.typing", {
-    threadId: thread?.id ?? null,
-    prospectId: visit.prospectId,
-    author: "visitor",
-    length,
-  });
-  // The score only changes when the draft passes 3 or 20 characters (§7.6).
-  const previous = before?.maxLength ?? 0;
-  if (!visit.quiet && [SHORT_DRAFT, LONG_DRAFT].some((n) => previous < n && length >= n)) {
+  // The score only changes the first time the visitor starts writing (§7.6).
+  if (!visit.quiet && hasText && !before?.maxLength) {
     await defer(() =>
       processProspect(db, { workspaceId: input.workspaceId, prospectId: visit.prospectId }),
     );

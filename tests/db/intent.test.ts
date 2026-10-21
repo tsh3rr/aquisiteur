@@ -168,9 +168,9 @@ describe("intent score and notifications", () => {
     expect(pushes).not.toHaveBeenCalled();
   });
 
-  it("a long unsent chat draft passes 50 % and notifies by push and e-mail", async () => {
-    for (const length of [5, 25]) {
-      expect(await recordVisitorTyping(db, { workspaceId: wsJ, body: { token, length } })).toBe(
+  it("starting a chat message without sending passes 50 % and notifies by push and e-mail", async () => {
+    for (const hasText of [true, false, true]) {
+      expect(await recordVisitorTyping(db, { workspaceId: wsJ, body: { token, hasText } })).toBe(
         "ok",
       );
     }

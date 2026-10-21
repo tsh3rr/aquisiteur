@@ -17,15 +17,19 @@ interface Item {
 
 const timeFormat = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
 
-/** „Jetzt gerade“ on Heute: what prospects are doing in their exposé, live (§7.6). */
+/**
+ * „Jetzt gerade“ on Heute: who is in their exposé right now, one line per
+ * prospect with the last sign of life; never what they read (ADR-0064).
+ */
 export function LiveFeed() {
   const [items, setItems] = useState<Item[]>([]);
   useLiveEvents((event, payload) => {
     if (!isRealtimeEvent("visit.activity", event, payload)) return;
     setItems((current) => {
-      const item = { ...payload, key: `${payload.prospectId}-${payload.at}-${payload.text}` };
-      if (current.some((existing) => existing.key === item.key)) return current;
-      return [item, ...current].slice(0, 8);
+      const item = { ...payload, key: payload.prospectId };
+      const existing = current.find((entry) => entry.key === item.key);
+      if (existing && existing.at >= item.at) return current;
+      return [item, ...current.filter((entry) => entry.key !== item.key)].slice(0, 8);
     });
   });
 
@@ -38,7 +42,7 @@ export function LiveFeed() {
       <div aria-live="polite" aria-relevant="additions">
         {items.length === 0 ? (
           <p className="text-sm text-foreground-muted">
-            Sobald jemand ein Exposé liest, sehen Sie hier, was er gerade tut.
+            Sobald jemand ein Exposé liest, sehen Sie hier, dass er gerade da ist.
           </p>
         ) : (
           <ul className="grid gap-1.5">

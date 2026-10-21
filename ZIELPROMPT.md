@@ -129,7 +129,7 @@ Alles in **einer** Next.js-App, getrennt über Route Groups und Middleware.
 
 ### 6.4 Echtzeit
 
-- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller liest Abschnitt *Preise*“), Live-Indikator am Prospect.
+- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller ist gerade im Exposé“). Live zeigt das Cockpit nur, **dass** jemand gerade da ist, nie welchen Abschnitt er liest, was er anklickt oder dass er tippt (Owner-Entscheidung 2026-10-21, ADR-0064); Details erscheinen erst danach in Timeline und Auswertung.
 
 ---
 
@@ -224,7 +224,7 @@ Die Referenz im vorbelegten Text erlaubt dem Owner, eingehende WhatsApp-/Mail-Na
 - Owner antwortet aus dem Cockpit, auch vom Handy (PWA + Push). Tipp-Indikator in beide Richtungen.
 - **Übergabe**: Owner kann mit einem Klick vorschlagen, auf WhatsApp weiterzumachen.
 - Offline-Modus: Wenn der Owner nicht antwortet, nach 2 min automatische Nachricht mit Erwartung und alternativen Kanälen.
-- **Entwurfserkennung**: Das Widget erfasst, **dass** und **wie viel** getippt wurde (Zeichenanzahl, Zeitpunkt), auch wenn nicht gesendet wird. Den Inhalt eines nicht gesendeten Entwurfs nur speichern, wenn das im Widget transparent angezeigt wird („Ihr Entwurf wird automatisch gespeichert, damit nichts verloren geht“), und dann nur für den Owner sichtbar. Standard: nur Länge speichern, Inhalt-Speicherung per Einstellung aktivierbar.
+- **Entwurfserkennung**: Das Widget erfasst nur, **dass** jemand angefangen hat zu schreiben (ja/nein, Zeitpunkt), auch wenn nicht gesendet wird. Nie den Inhalt, nie die Länge, und nicht live im Cockpit (Owner-Entscheidung 2026-10-21, ADR-0064). In der Datenschutzerklärung genannt.
 
 ### 7.6 Kontaktabsicht-Score (Herzstück)
 
@@ -242,8 +242,7 @@ Ziel: Der Owner sieht pro Prospect auf einen Blick **wie sicher** jemand Kontakt
 | Hover/Fokus auf Kontakt-Button ≥ 1 s | 0,10 |
 | Pricing interaktiv genutzt | 0,15 |
 | Chat geöffnet | 0,20 |
-| Im Chat ≥ 3 Zeichen getippt, nicht gesendet | 0,40 |
-| Im Chat ≥ 20 Zeichen getippt, nicht gesendet | 0,60 |
+| Im Chat angefangen zu schreiben, nicht gesendet | 0,50 |
 | Rückruf-Formular begonnen | 0,45 |
 | Telefonnummer/E-Mail des Owners kopiert (`copy`-Event) | 0,55 |
 | WhatsApp-, Mail-, Messenger-, SMS- oder Tel-Link geklickt | 0,70 (App kann nicht sehen, ob gesendet wurde) |
@@ -289,7 +288,7 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 
 **Dashboards**
 
-- **„Heute“ (Startseite)**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität, mit Ein-Klick-Aktionen), Live-Feed („Jetzt gerade: Café Müller liest *Preise*“), offene Chats, fällige Follow-ups.
+- **„Heute“ (Startseite)**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität, mit Ein-Klick-Aktionen), Live-Feed („Jetzt gerade: Café Müller ist gerade im Exposé“, ohne Abschnitte), offene Chats, fällige Follow-ups.
 - **Übersichts-Dashboard**: KPI-Kacheln mit Trend gegenüber Vorperiode (versendete Briefe, Öffnungsrate, Ø Zeit bis zur Öffnung, Ø Verweildauer, Kontaktversuche, Kontaktquote, Termine, gewonnene Kunden, Umsatz-Pipeline, Kosten pro Brief und pro Abschluss). Zeitraum frei wählbar, Filter nach Kampagne, Branche, Region, Tag.
 - **Funnel**: versendet → geöffnet → gelesen → Kontaktversuch → Kontakt → Termin → gewonnen, mit Absprungraten pro Stufe, vergleichbar zwischen Kampagnen.
 - **Aktivitätsverlauf**: Scans und Besuche über die Zeit, Heatmap nach Wochentag × Uhrzeit (wann lesen Kunden, wann lohnt sich ein Anruf).

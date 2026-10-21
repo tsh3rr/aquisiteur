@@ -62,11 +62,8 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         <div className="lg:col-span-2">
           <ThreadView
             threadId={thread.id}
-            prospectId={prospect.id}
             initialMessages={detail.messages}
-            initialDraft={
-              detail.draft ? { length: detail.draft.length, content: detail.draft.content } : null
-            }
+            draftPending={detail.draft !== null}
             canHandOver={canHandOver}
             visitorName={thread.visitorName}
           />

@@ -55,7 +55,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Kontaktblock mit allen v1-Kanälen (Chat, WhatsApp, Telefon, Rückruf, E-Mail, Termin, Messenger, SMS)
 - [x] Live-Chat Handy ↔ Cockpit über den Realtime-Port (ADR-0020), Tippanzeige, Rückkanal, WhatsApp-Übergabe
 - [x] Rückrufwunsch, Abwesenheitsnotiz (ADR-0022), Verfügbarkeit (ADR-0026)
-- [x] Entwurfserkennung (ADR-0023), Nudges (max. einer pro Seitenaufruf), Sticky-Kontaktleiste mobil
+- [x] Entwurfserkennung (ADR-0023, seit ADR-0064 nur ja/nein), Nudges (max. einer pro Seitenaufruf), Sticky-Kontaktleiste mobil
 - [x] Status „Kontakt“ automatisch (ADR-0024), Chats und Rückrufe in „Heute“ und auf der Kundenseite
 
 ## Phase 4 · Intent & Benachrichtigung
@@ -63,7 +63,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Score-Engine (Noisy-OR), Erklärung + Empfehlung mit Ein-Klick-Aktionen (ADR-0028), gewichtbar in den Einstellungen
 - [x] Regel-Engine mit Bündelung, Ruhezeit, nur werktags (ADR-0029), Push (ADR-0030, ADR-0034) + E-Mail
 - [x] Tageszusammenfassung über stündlichen Job (ADR-0032), Benachrichtigungsliste mit Live-Zähler
-- [x] „Heute“: wer jetzt eine Reaktion braucht, Live-Feed „Jetzt gerade“; Score auf Kundenseite und in der Liste
+- [x] „Heute“: wer jetzt eine Reaktion braucht, Live-Feed „Jetzt gerade“ (seit ADR-0064 nur „ist gerade da“); Score auf Kundenseite und in der Liste
 - [x] E2E-Kernpfad: QR öffnen → lesen → Chat tippen → Owner sieht Score und Benachrichtigung
 - [ ] Push auf dem echten Handy nach dem Deploy prüfen (Einstellungen → Benachrichtigungen → „Test senden“)
 

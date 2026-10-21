@@ -52,11 +52,10 @@ export async function sendOwnerMessage(
 }
 
 /** Owner typing indicator for the visitor; throttled by the client. */
-export async function ownerTyping(threadId: string, length: number): Promise<void> {
+export async function ownerTyping(threadId: string, typing: boolean): Promise<void> {
   const { workspace, tenant } = await responder();
   const id = z.uuid().safeParse(threadId);
-  const chars = z.number().int().min(0).max(5000).safeParse(length);
-  if (!id.success || !chars.success) return;
+  if (!id.success || typeof typing !== "boolean") return;
   // Only threads of this workspace (RLS) get the indicator.
   const prospectId = await tenant((tx) => threadProspect(tx, workspace.id, id.data));
   if (!prospectId) return;
@@ -64,7 +63,7 @@ export async function ownerTyping(threadId: string, length: number): Promise<voi
     threadId: id.data,
     prospectId,
     author: "owner",
-    length: chars.data,
+    typing,
   });
 }
 

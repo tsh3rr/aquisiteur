@@ -141,13 +141,6 @@ export function ContactSettingsForm({
             rows={3}
           />
         </Field>
-        <Toggle
-          name="chat.storeDraftContent"
-          label="Inhalt nicht gesendeter Entwürfe speichern"
-          hint="Aus: nur die Länge wird gespeichert. An: Der Chat zeigt Besuchern den Hinweis „Ihr Entwurf wird automatisch gespeichert“, und nur Sie sehen den Text."
-          defaultChecked={chat.storeDraftContent}
-          disabled={disabled}
-        />
       </fieldset>
 
       <fieldset className="grid gap-1" disabled={disabled}>

@@ -114,8 +114,8 @@ export interface ThreadDetail {
   exposeSlug: string;
   refCode: string;
   messages: ChatMessageView[];
-  /** Unsent text of this thread's visitor, if the workspace stores it. */
-  draft: { length: number; content: string | null; updatedAt: Date } | null;
+  /** The thread's visitor has started a message that is not sent yet (never its text). */
+  draft: { updatedAt: Date } | null;
 }
 
 export async function loadThread(
@@ -151,11 +151,7 @@ export async function loadThread(
     .orderBy(asc(chatMessages.createdAt))
     .limit(500);
   const [draft] = await tx
-    .select({
-      length: chatDrafts.length,
-      content: chatDrafts.content,
-      updatedAt: chatDrafts.updatedAt,
-    })
+    .select({ updatedAt: chatDrafts.updatedAt })
     .from(chatDrafts)
     .where(
       and(
@@ -323,10 +319,8 @@ export async function unsentDrafts(tx: Transaction, workspaceId: string, prospec
   return tx
     .select({
       visitId: chatDrafts.visitId,
-      length: chatDrafts.length,
-      maxLength: chatDrafts.maxLength,
+      hasText: sql<boolean>`${chatDrafts.length} > 0`,
       sent: sql<boolean>`${chatDrafts.threadId} is not null`,
-      content: chatDrafts.content,
       updatedAt: chatDrafts.updatedAt,
     })
     .from(chatDrafts)

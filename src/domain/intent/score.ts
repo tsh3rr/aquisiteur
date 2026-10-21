@@ -15,8 +15,7 @@ export const SIGNAL_IDS = [
   "contact_hover",
   "pricing",
   "chat_open",
-  "draft_short",
-  "draft_long",
+  "draft",
   "callback_started",
   "contact_copied",
   "channel_click",
@@ -37,8 +36,7 @@ export const DEFAULT_WEIGHTS: Record<WeightedSignalId, number> = {
   contact_hover: 0.1,
   pricing: 0.15,
   chat_open: 0.2,
-  draft_short: 0.4,
-  draft_long: 0.6,
+  draft: 0.5,
   callback_started: 0.45,
   contact_copied: 0.55,
   channel_click: 0.7,
@@ -55,8 +53,7 @@ export const SIGNAL_LABELS: Record<SignalId, string> = {
   contact_hover: "Kontakt-Button mindestens 1 Sekunde angesteuert",
   pricing: "Preise interaktiv genutzt",
   chat_open: "Chat geöffnet",
-  draft_short: "Im Chat mindestens 3 Zeichen getippt, nicht gesendet",
-  draft_long: "Im Chat mindestens 20 Zeichen getippt, nicht gesendet",
+  draft: "Im Chat angefangen zu schreiben, nicht gesendet",
   callback_started: "Rückrufformular begonnen",
   contact_copied: "Telefonnummer oder E-Mail-Adresse kopiert",
   channel_click: "WhatsApp, E-Mail, Messenger, SMS oder Anruf geklickt",
@@ -104,7 +101,8 @@ export interface IntentFacts {
     occurredAt: Date;
     payload: Record<string, unknown>;
   }[];
-  drafts: { visitId: string; maxLength: number; updatedAt: Date }[];
+  /** Visits whose chat field held text that was never sent; whether, not what or how much. */
+  drafts: { visitId: string; updatedAt: Date }[];
   messages: { visitId: string | null; createdAt: Date }[];
   callbacks: { visitId: string | null; createdAt: Date }[];
 }
@@ -118,15 +116,12 @@ export interface Signal {
   /** Details for the explanation. */
   channel?: ContactChannelKind | "chat" | "callback";
   minutes?: number;
-  length?: number;
   copied?: "phone" | "email";
 }
 
 export const READ_SECONDS = 120;
 export const READ_SCROLL = 75;
 export const CONTACT_VIEW_SECONDS = 5;
-export const SHORT_DRAFT = 3;
-export const LONG_DRAFT = 20;
 
 const LINK_CHANNELS = new Set(["whatsapp", "phone", "email", "messenger", "sms"]);
 
@@ -214,9 +209,7 @@ export function detectSignals(
   }
 
   for (const draft of facts.drafts) {
-    const base = { at: draft.updatedAt, device: device(draft.visitId), length: draft.maxLength };
-    if (draft.maxLength >= LONG_DRAFT) add({ id: "draft_long", ...base });
-    if (draft.maxLength >= SHORT_DRAFT) add({ id: "draft_short", ...base });
+    add({ id: "draft", at: draft.updatedAt, device: device(draft.visitId) });
   }
 
   for (const message of facts.messages) {
