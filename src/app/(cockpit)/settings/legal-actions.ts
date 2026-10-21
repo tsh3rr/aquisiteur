@@ -22,11 +22,13 @@ export async function saveLegalAction(
   const parsed = legalSchema.safeParse({
     imprintMarkdown: String(formData.get("imprintMarkdown") ?? ""),
     privacyMarkdown: String(formData.get("privacyMarkdown") ?? ""),
+    dataSource: String(formData.get("dataSource") ?? ""),
   });
   if (!parsed.success) {
     return {
       ok: false,
-      message: "Der Text ist zu lang (Impressum 20.000, Datenschutz 50.000 Zeichen).",
+      message:
+        "Der Text ist zu lang (Impressum 20.000, Datenschutz 50.000, Herkunft der Adressen 300 Zeichen).",
     };
   }
   await tenant(async (tx) => {

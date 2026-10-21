@@ -1,7 +1,16 @@
 import "server-only";
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, lt, notInArray, sql } from "drizzle-orm";
 import type { Database, Transaction } from "@/db";
-import { consents, events, sessionReplays, visits, workspaceSettings } from "@/db/schema";
+import {
+  chatDrafts,
+  consents,
+  events,
+  sessionReplays,
+  visits,
+  workspaceSettings,
+} from "@/db/schema";
+import { BASIS_EVENT_TYPES, type ConsentPurpose } from "@/domain/tracking/consent";
+import { SERVER_EVENT_TYPES } from "@/domain/tracking/events";
 import { workspaceSettingsSchema } from "@/domain/workspace-settings";
 import {
   consentBodySchema,
@@ -23,7 +32,11 @@ import { visitForToken } from "./visits";
 
 export type ConsentResult = "ok" | "invalid" | "limited" | "disabled";
 
-/** Stores a visitor's answer as proof (notice version, time, visit). */
+/**
+ * Stores a visitor's answer for one purpose as proof (notice version, time,
+ * visit). Withdrawing removes what the purpose produced in this visit: the
+ * recording, or the reading statistics (ADR-0065).
+ */
 export async function recordConsent(
   db: Database,
   input: { workspaceId: string; body: unknown },
@@ -33,9 +46,9 @@ export async function recordConsent(
   const visit = await visitForToken(db, input.workspaceId, parsed.data.token);
   if (!visit) return "invalid";
   if (!(await hitRateLimit(db, `t:consent:${visit.id}`, 10, 600))) return "limited";
-  const { decision, version } = parsed.data;
+  const { scope, decision, version } = parsed.data;
   // Withdrawing always works, even after the owner switched replay off.
-  if (decision !== "withdrawn") {
+  if (scope === "replay" && decision !== "withdrawn") {
     const settings = await loadWorkspaceSettings(db, input.workspaceId);
     if (!settings.replay.enabled) return "disabled";
   }
@@ -44,6 +57,7 @@ export async function recordConsent(
       workspaceId: input.workspaceId,
       prospectId: visit.prospectId,
       visitId: visit.id,
+      scope,
       decision,
       noticeVersion: version,
     });
@@ -52,19 +66,61 @@ export async function recordConsent(
       visitId: visit.id,
       exposeId: visit.exposeId,
       type: `consent_${decision}`,
-      payload: { version },
+      payload: { version, scope },
       occurredAt: new Date(),
     });
+    if (scope === "statistics" && decision === "withdrawn") {
+      await purgeStatisticsOfVisit(tx, input.workspaceId, visit.id);
+    }
   });
-  if (decision === "withdrawn") await deleteReplayOfVisit(db, input.workspaceId, visit.id);
+  if (scope === "replay" && decision === "withdrawn") {
+    await deleteReplayOfVisit(db, input.workspaceId, visit.id);
+  }
   return "ok";
 }
 
-async function latestDecision(db: Database, workspaceId: string, visitId: string) {
+/** Everything the script observed beyond the basis, for one visit. */
+async function purgeStatisticsOfVisit(tx: Transaction, workspaceId: string, visitId: string) {
+  const kept = [...BASIS_EVENT_TYPES, ...SERVER_EVENT_TYPES];
+  const removed = await tx
+    .delete(events)
+    .where(
+      and(
+        eq(events.workspaceId, workspaceId),
+        eq(events.visitId, visitId),
+        notInArray(events.type, kept),
+      ),
+    )
+    .returning({ id: events.id });
+  await tx
+    .update(visits)
+    .set({
+      activeSeconds: 0,
+      maxScroll: 0,
+      eventCount: sql`greatest(${visits.eventCount} - ${removed.length}, 0)`,
+    })
+    .where(and(eq(visits.workspaceId, workspaceId), eq(visits.id, visitId)));
+  await tx
+    .delete(chatDrafts)
+    .where(and(eq(chatDrafts.workspaceId, workspaceId), eq(chatDrafts.visitId, visitId)));
+}
+
+async function latestDecision(
+  db: Database,
+  workspaceId: string,
+  visitId: string,
+  scope: ConsentPurpose,
+) {
   const [row] = await db
     .select({ decision: consents.decision })
     .from(consents)
-    .where(and(eq(consents.workspaceId, workspaceId), eq(consents.visitId, visitId)))
+    .where(
+      and(
+        eq(consents.workspaceId, workspaceId),
+        eq(consents.visitId, visitId),
+        eq(consents.scope, scope),
+      ),
+    )
     .orderBy(desc(consents.createdAt))
     .limit(1);
   return row?.decision ?? null;
@@ -85,7 +141,9 @@ export async function appendReplayChunk(
   const visit = await visitForToken(db, input.workspaceId, parsed.data.token);
   if (!visit) return "invalid";
   if (!(await hitRateLimit(db, `t:replay:${visit.id}`, 60, 600))) return "limited";
-  if ((await latestDecision(db, input.workspaceId, visit.id)) !== "given") return "forbidden";
+  if ((await latestDecision(db, input.workspaceId, visit.id, "replay")) !== "given") {
+    return "forbidden";
+  }
   const [bot] = await db
     .select({ isBot: visits.isBot })
     .from(visits)

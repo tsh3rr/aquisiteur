@@ -7,6 +7,8 @@ import { publishExpose, type PublishResult } from "@/server/exposes/publish";
 import { listProspects } from "@/server/prospects/list";
 import { setProspectStatus } from "@/server/prospects/mutations";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
+import { recordConsent } from "@/server/tracking/replay";
+import { CONSENT_NOTICE_VERSION } from "@/domain/tracking/consent";
 import {
   createVisit,
   ingestEvents,
@@ -17,6 +19,7 @@ import {
   ticketForVisit,
 } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
+import { allowStatistics } from "../support/consent";
 import { minimalExpose } from "../support/expose";
 
 /**
@@ -152,6 +155,7 @@ describe("visits", () => {
   it("a real scan confirms the visit, records events and opens the prospect", async () => {
     const { visitId, token } = await scan(cafe.letter.qrToken, PHONE);
     expect(await prospectStatus(cafe.prospectId)).toBe("opened");
+    await allowStatistics(db, wsF, token);
 
     const result = await ingestEvents(db, {
       workspaceId: wsF,
@@ -182,6 +186,7 @@ describe("visits", () => {
       .from(schema.events)
       .where(eq(schema.events.visitId, visitId));
     expect(types.map((row) => row.type).sort()).toEqual([
+      "consent_given",
       "contact_click",
       "page_view",
       "scroll_depth",
@@ -255,6 +260,13 @@ describe("visits", () => {
     expect(await hitRateLimit(db, "test:x", 2, 60)).toBe(false);
     expect(await hitRateLimit(db, "test:x", 2, 60, Date.now() + 61_000)).toBe(true);
   });
+
+  it("counts simultaneous first hits on a new key without failing", async () => {
+    const hits = await Promise.all(
+      Array.from({ length: 8 }, () => hitRateLimit(db, "test:burst", 10, 60)),
+    );
+    expect(hits).toEqual(Array(8).fill(true));
+  });
 });
 
 describe("customer list", () => {
@@ -297,5 +309,85 @@ describe("customer list", () => {
     );
     expect(changed).toBe(0);
     expect(await prospectStatus(foreign.prospectId)).toBe("draft");
+  });
+});
+
+describe("consent (ADR-0065)", () => {
+  it("without consent keeps only the basis, the script's reading statistics are dropped", async () => {
+    const { visitId, token } = await scan(cafe.letter.qrToken, PHONE);
+    const reading = [
+      { type: "heartbeat", at: 15_000, seconds: 15 },
+      { type: "section_view", at: 1_000, blockId: "start" },
+      { type: "scroll_depth", at: 13_000, percent: 50 },
+      { type: "cta_hover", at: 14_000, channel: "whatsapp" },
+      { type: "share", at: 16_000 },
+    ];
+    expect(await ingestEvents(db, { workspaceId: wsF, body: { token, events: reading } })).toBe(
+      "ok",
+    );
+    const stored = async () =>
+      (
+        await db
+          .select({ type: schema.events.type })
+          .from(schema.events)
+          .where(eq(schema.events.visitId, visitId))
+      )
+        .map((row) => row.type)
+        .sort();
+    expect(await stored()).toEqual(["page_view", "share"]);
+    const [visit] = await db.select().from(schema.visits).where(eq(schema.visits.id, visitId));
+    expect(visit).toMatchObject({ activeSeconds: 0, maxScroll: 0, city: "Leipzig" });
+
+    // „Ablehnen“ is stored as proof and changes nothing.
+    const answer = (decision: "given" | "denied" | "withdrawn") =>
+      recordConsent(db, {
+        workspaceId: wsF,
+        body: { token, scope: "statistics", decision, version: CONSENT_NOTICE_VERSION },
+      });
+    expect(await answer("denied")).toBe("ok");
+    await ingestEvents(db, { workspaceId: wsF, body: { token, events: reading } });
+    expect(await stored()).toEqual(["consent_denied", "page_view", "share", "share"]);
+
+    // Asked again via „Datenschutz-Einstellungen“: from now on, nothing backfilled.
+    expect(await answer("given")).toBe("ok");
+    await ingestEvents(db, { workspaceId: wsF, body: { token, events: reading.slice(0, 3) } });
+    expect(await stored()).toContain("section_view");
+    const [counted] = await db.select().from(schema.visits).where(eq(schema.visits.id, visitId));
+    expect(counted).toMatchObject({ activeSeconds: 15, maxScroll: 50 });
+
+    // Withdrawing deletes this visit's statistics; the basis and the proof stay.
+    expect(await answer("withdrawn")).toBe("ok");
+    expect(await stored()).toEqual([
+      "consent_denied",
+      "consent_given",
+      "consent_withdrawn",
+      "page_view",
+      "share",
+      "share",
+    ]);
+    const [after] = await db.select().from(schema.visits).where(eq(schema.visits.id, visitId));
+    expect(after).toMatchObject({ activeSeconds: 0, maxScroll: 0 });
+    const proof = await db
+      .select({ scope: schema.consents.scope, decision: schema.consents.decision })
+      .from(schema.consents)
+      .where(eq(schema.consents.visitId, visitId));
+    expect(proof.map((row) => `${row.scope}:${row.decision}`).sort()).toEqual([
+      "statistics:denied",
+      "statistics:given",
+      "statistics:withdrawn",
+    ]);
+  });
+
+  it("asks for consent, but not on the owner's device or with Global Privacy Control", async () => {
+    const start = (extra: Record<string, string>, internal = false) =>
+      startVisit(db, {
+        workspaceId: wsF,
+        body: { slug: cafe.slug },
+        headers: headers(PHONE, extra),
+        internal,
+      });
+    expect(await start({})).toMatchObject({ consentNotice: true });
+    expect(await start({ "sec-gpc": "1" })).toMatchObject({ consentNotice: false });
+    expect(await start({}, true)).toMatchObject({ consentNotice: false });
   });
 });

@@ -24,7 +24,7 @@ import { getInfra } from "@/infra";
  * Retention (§9), run by the hourly job on the system connection. Every
  * query names its workspace; the periods come from `workspace_settings`.
  *
- * - Raw events older than `eventsDays` (default 365) are deleted. Visits stay
+ * - Raw events older than `eventsDays` (default 180) are deleted. Visits stay
  *   as the aggregate the dashboards count; they hold no IP address.
  * - A prospect who opted out keeps only the block marker: after
  *   `optOutTrackingDays` (default 30) its visits, events, consents,

@@ -7,7 +7,7 @@ import { MAX_MESSAGE_LENGTH, OFFLINE_AFTER_MS } from "@/domain/chat";
 import { isRealtimeEvent, type ChatMessageView } from "@/domain/realtime";
 import { subscribeRealtime, type RealtimeSubscription } from "@/infra/realtime-client";
 import { clsx as cn } from "clsx";
-import { visitToken } from "./tracking-client";
+import { statisticsAllowed, visitToken } from "./tracking-client";
 
 export interface ChatPanelProps {
   slug: string;
@@ -184,6 +184,8 @@ export function ChatPanel(props: ChatPanelProps) {
 
   // Draft detection (§7.5): only whether the field holds text, reported when that changes.
   const reportTyping = (value: string) => {
+    // Reading statistics: only with the visitor's consent (ADR-0065).
+    if (!statisticsAllowed()) return;
     const hasText = value.trim().length > 0;
     if (hasText === reportedHasText.current) return;
     reportedHasText.current = hasText;

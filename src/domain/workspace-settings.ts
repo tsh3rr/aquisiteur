@@ -107,11 +107,13 @@ export const brandingSchema = z.object({
 export const legalSchema = z.object({
   imprintMarkdown: optionalText(20_000),
   privacyMarkdown: optionalText(50_000),
+  /** Where prospect addresses come from; letter and privacy policy name it (Art. 14 DSGVO). */
+  dataSource: optionalText(300),
 });
 
 export const retentionSchema = z.object({
-  eventsDays: z.number().int().min(30).max(3650).default(365),
-  replaysDays: z.number().int().min(7).max(365).default(90),
+  eventsDays: z.number().int().min(30).max(3650).default(180),
+  replaysDays: z.number().int().min(7).max(365).default(30),
   optOutTrackingDays: z.number().int().min(1).max(90).default(30),
 });
 
@@ -191,7 +193,7 @@ export const workspaceSettingsSchema = z.object({
   notifications: notificationSettingsSchema.prefault({}),
   letter: letterSettingsSchema.prefault({}),
   replay: replaySettingsSchema.prefault({}),
-  retention: retentionSchema.prefault({ eventsDays: 365, replaysDays: 90, optOutTrackingDays: 30 }),
+  retention: retentionSchema.prefault({ eventsDays: 180, replaysDays: 30, optOutTrackingDays: 30 }),
 });
 
 export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;

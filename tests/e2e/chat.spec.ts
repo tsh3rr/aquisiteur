@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { E2E } from "../../playwright.config";
-import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
+import {
+  createApiToken,
+  expectAccessible,
+  publishWithCli,
+  rejectConsent,
+  signInWithWorkspace,
+} from "./helpers";
 
 /**
  * Phase 3 "done when": the chat works phone ↔ cockpit in real time. The
@@ -63,6 +69,8 @@ test("phone and cockpit chat in real time", async ({ page, browser }) => {
   const started = phone.waitForResponse((r) => r.url().endsWith("/t/start") && r.ok());
   await phone.goto(exposeUrl);
   await started;
+  // Chat and nudges work without any consent (ADR-0065).
+  await rejectConsent(phone);
 
   // Choosing a price option brings the offer nudge (polite, not modal).
   await phone.locator("section#preise").scrollIntoViewIfNeeded();
@@ -136,6 +144,7 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
   const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const phone = await phoneContext.newPage();
   await phone.goto(exposeUrl);
+  await rejectConsent(phone);
   await phone.locator("section#kontakt").scrollIntoViewIfNeeded();
   await phone.getByRole("button", { name: /Rückruf anfordern/ }).click();
   await phone.getByRole("button", { name: "Rückruf anfordern", exact: true }).click();

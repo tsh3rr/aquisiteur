@@ -1,22 +1,21 @@
 "use client";
 
 import { useEffect, useState, type ComponentType } from "react";
-
-type Props = { privacyHref: string };
+import type { ConsentNoticeProps } from "./consent-notice";
 
 /**
- * Loads the replay notice once the page is idle, so its code stays off the
- * critical path for the first paint (ADR-0014). The notice waits several
- * seconds before asking anyway (ADR-0042).
+ * Loads the consent notice once the page is idle, so its code stays off the
+ * critical path for the first paint (ADR-0014). Nothing beyond the basis is
+ * sent before the visitor answers, so the short wait costs nothing (ADR-0065).
  */
-export function ReplayConsentLazy(props: Props) {
-  const [Notice, setNotice] = useState<ComponentType<Props> | null>(null);
+export function ConsentNoticeLazy(props: ConsentNoticeProps) {
+  const [Notice, setNotice] = useState<ComponentType<ConsentNoticeProps> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      void import("./replay-consent").then((module) => {
-        if (!cancelled) setNotice(() => module.ReplayConsent);
+      void import("./consent-notice").then((module) => {
+        if (!cancelled) setNotice(() => module.ConsentNotice);
       });
     };
     const idle = () => {
