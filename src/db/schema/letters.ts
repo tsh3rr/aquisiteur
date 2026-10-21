@@ -56,7 +56,7 @@ export const letters = pgTable(
     returnedAt: timestamp("returned_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
-    /** First letters only: when the follow-up rule prepared a follow-up for it (§7.9). */
+    /** First letters only: when the follow-up rule prepared a follow-up or gave up on it (§7.9). */
     followUpAt: timestamp("follow_up_at", { withTimezone: true }),
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",

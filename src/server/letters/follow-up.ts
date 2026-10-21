@@ -25,7 +25,7 @@ const NEWEST_DAYS = 3;
  * across workspaces on the system connection; the letter and task are written
  * inside withTenant as the workspace's owner. Nothing is sent by itself.
  * A first letter is followed up at most once (`follow_up_at`), so a draft the
- * owner deletes stays deleted.
+ * owner deletes stays deleted; a letter past the window is settled the same way.
  */
 export async function runAutoFollowUps(db: Database, now = new Date()) {
   const candidates = await db
@@ -34,18 +34,6 @@ export async function runAutoFollowUps(db: Database, now = new Date()) {
       workspaceId: letters.workspaceId,
       prospectId: letters.prospectId,
       postedAt: letters.postedAt,
-      doNotContact: sql<boolean>`${prospects.doNotContactAt} is not null`,
-      openedAt: sql<string | null>`(
-        select min(v.started_at) from visits v
-        where v.workspace_id = ${letters.workspaceId} and v.prospect_id = ${letters.prospectId}
-          and v.confirmed_at is not null and not v.is_bot and not v.is_internal
-          and v.started_at >= ${letters.postedAt}
-      )`,
-      hasFollowUp: sql<boolean>`exists (
-        select 1 from letters f
-        where f.workspace_id = ${letters.workspaceId} and f.prospect_id = ${letters.prospectId}
-          and f.kind = 'follow_up' and f.status <> 'cancelled'
-      )`,
     })
     .from(letters)
     .innerJoin(
@@ -59,6 +47,28 @@ export async function runAutoFollowUps(db: Database, now = new Date()) {
         isNull(letters.followUpAt),
         gte(letters.postedAt, new Date(now.getTime() - OLDEST_DAYS * DAY)),
         lte(letters.postedAt, new Date(now.getTime() - NEWEST_DAYS * DAY)),
+        // Everything that rules a follow-up out for good is filtered here, so
+        // those letters never crowd the due ones out of the batch: the prospect
+        // has moved on in the pipeline (opened, talked, „Kein Interesse“, won,
+        // lost), has a block marker, a visit since posting or a follow-up already.
+        eq(prospects.status, "letter_sent"),
+        isNull(prospects.doNotContactAt),
+        sql`not exists (
+          select 1 from visits v
+          where v.workspace_id = ${letters.workspaceId} and v.prospect_id = ${letters.prospectId}
+            and v.confirmed_at is not null and not v.is_bot and not v.is_internal
+            and v.started_at >= ${letters.postedAt}
+        )`,
+        sql`not exists (
+          select 1 from letters f
+          where f.workspace_id = ${letters.workspaceId} and f.prospect_id = ${letters.prospectId}
+            and f.kind = 'follow_up' and f.status <> 'cancelled'
+        )`,
+        // Workspaces that switched the rule off.
+        sql`coalesce((
+          select (s.letter -> 'followUp' ->> 'enabled')::boolean from workspace_settings s
+          where s.workspace_id = ${letters.workspaceId}
+        ), true)`,
       ),
     )
     .orderBy(asc(letters.postedAt))
@@ -75,15 +85,18 @@ export async function runAutoFollowUps(db: Database, now = new Date()) {
         settingsCache.set(letter.workspaceId, settings);
       }
       const decision = followUpDecision(
-        {
-          postedAt: letter.postedAt!,
-          openedAt: letter.openedAt ? new Date(letter.openedAt) : null,
-          doNotContact: letter.doNotContact,
-          hasFollowUp: letter.hasFollowUp,
-        },
+        { postedAt: letter.postedAt!, openedAt: null, doNotContact: false, hasFollowUp: false },
         settings.letter.followUp,
         now,
       );
+      if (decision === "skip") {
+        // Past the window: settle it, so it no longer counts as a candidate.
+        await db
+          .update(letters)
+          .set({ followUpAt: now })
+          .where(and(eq(letters.workspaceId, letter.workspaceId), eq(letters.id, letter.id)));
+        continue;
+      }
       if (decision !== "due") continue;
       if (!ownerCache.has(letter.workspaceId)) {
         ownerCache.set(letter.workspaceId, await workspaceOwner(db, letter.workspaceId));

@@ -35,6 +35,9 @@ let actorO: Actor;
 let quiet: PublishResult;
 let reader: PublishResult;
 let blocked: PublishResult;
+let declined: PublishResult;
+let bounced: PublishResult;
+let stale: PublishResult;
 let other: PublishResult;
 
 const { push } = getInfra();
@@ -101,6 +104,9 @@ beforeAll(async () => {
   quiet = await publish(actorI, "cafe-still", "Café Still");
   reader = await publish(actorI, "baeckerei-leser", "Bäckerei Leser");
   blocked = await publish(actorI, "friseur-nein", "Friseur Nein");
+  declined = await publish(actorI, "metzger-telefon", "Metzger Telefon");
+  bounced = await publish(actorI, "kiosk-zurueck", "Kiosk Zurück");
+  stale = await publish(actorI, "laden-alt", "Laden Alt");
   other = await publish(actorO, "gym-ole", "Gym Ole");
   // Ole's workspace waits longer and gets a different follow-up text.
   const [settings] = await db
@@ -130,6 +136,7 @@ afterAll(async () => {
 describe("automatic follow-ups", () => {
   const now = new Date();
   let quietLetter = "";
+  let staleLetter = "";
 
   beforeAll(async () => {
     quietLetter = await postFirstLetter(
@@ -139,6 +146,23 @@ describe("automatic follow-ups", () => {
     );
     await postFirstLetter(actorI, reader.prospectId, new Date(now.getTime() - 15 * DAY));
     await postFirstLetter(actorI, blocked.prospectId, new Date(now.getTime() - 15 * DAY));
+    await postFirstLetter(actorI, declined.prospectId, new Date(now.getTime() - 15 * DAY));
+    const bouncedLetter = await postFirstLetter(
+      actorI,
+      bounced.prospectId,
+      new Date(now.getTime() - 15 * DAY),
+    );
+    await asIda((tx) => advanceLetters(tx, actorI, [bouncedLetter], "returned"));
+    staleLetter = await postFirstLetter(
+      actorI,
+      stale.prospectId,
+      new Date(now.getTime() - 40 * DAY),
+    );
+    // The owner heard „kein Interesse“ on the phone and moved the card by hand: no block marker.
+    await db
+      .update(schema.prospects)
+      .set({ status: "no_interest" })
+      .where(eq(schema.prospects.id, declined.prospectId));
     await postFirstLetter(actorO, other.prospectId, new Date(now.getTime() - 15 * DAY));
     // Bäckerei Leser opened the exposé after the letter arrived.
     const started = await startVisit(db, {
@@ -179,10 +203,34 @@ describe("automatic follow-ups", () => {
     expect(reminded!.remindedAt).toEqual(now);
   });
 
-  it("leaves out prospects who read the exposé or said „Kein Interesse“", async () => {
+  it("leaves out prospects who read the exposé, said „Kein Interesse“ or moved on", async () => {
     expect(await followUpsOf(wsI, reader.prospectId)).toHaveLength(0);
     expect(await followUpsOf(wsI, blocked.prospectId)).toHaveLength(0);
     expect(await tasksOf(blocked.prospectId)).toHaveLength(0);
+    expect(await followUpsOf(wsI, declined.prospectId)).toHaveLength(0);
+  });
+
+  it("skips returned letters and settles letters past the window", async () => {
+    expect(await followUpsOf(wsI, bounced.prospectId)).toHaveLength(0);
+    expect(await followUpsOf(wsI, stale.prospectId)).toHaveLength(0);
+    const [letter] = await db
+      .select()
+      .from(schema.letters)
+      .where(eq(schema.letters.id, staleLetter));
+    expect(letter!.followUpAt).toEqual(now);
+  });
+
+  it("a follow-up made by hand uses the follow-up template too", async () => {
+    const { created } = await asIda((tx) =>
+      createLetters(tx, actorI, { prospectIds: [reader.prospectId], kind: "follow_up" }),
+    );
+    const [letter] = await db
+      .select()
+      .from(schema.letters)
+      .where(eq(schema.letters.id, created[0]!));
+    expect(letter!.subject).toBe("Noch einmal kurz: Ideen für {{firma}}");
+    expect(letter!.body).toContain("untergegangen");
+    await asIda((tx) => deleteDraftLetters(tx, actorI, created));
   });
 
   it("honours each workspace's own waiting time", async () => {

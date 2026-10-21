@@ -756,9 +756,14 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
   Aufgaben-Erinnerungen). Mit einem echten Provider wird daraus später „einreihen“ statt „Entwurf“.
 - Regel rein in `src/domain/letters/follow-up.ts`: fällig, wenn ein erster Brief seit `afterDays`
   (Standard 14, einstellbar 3 bis 90) versendet ist und es seitdem keinen echten Besuch des Prospects
-  gab (bestätigt, kein Bot, nicht intern, wie „Zeit bis zur Öffnung“), kein Sperrvermerk und noch kein
-  nicht stornierter Folgebrief existiert. Briefe, die länger als `afterDays` + 14 Tage zurückliegen,
+  gab (bestätigt, kein Bot, nicht intern, wie „Zeit bis zur Öffnung“). Briefe, die länger als `afterDays` + 14 Tage zurückliegen,
   bleiben unberührt, damit Einschalten oder ein ausgefallener Cron keine Flut alter Folgebriefe erzeugt.
+- Ausschlüsse stehen in der SQL-Abfrage, nicht erst im Code: Der Prospect muss noch im Status
+  „Brief versendet“ stehen (wer geöffnet, gesprochen, „Kein Interesse“ gesagt, gewonnen oder verloren
+  hat, bekommt keinen „Vielleicht ist der Brief untergegangen“-Brief), dazu kein Besuch, kein
+  Sperrvermerk, kein Folgebrief und die Regel im Workspace an. So verdrängen dauerhaft ausgeschlossene
+  Briefe die fälligen nie aus dem Stapel von 200. Briefe jenseits des Fensters bekommen ebenfalls
+  `follow_up_at` und fallen damit heraus.
 - Pro erstem Brief höchstens einmal: `letters.follow_up_at` wird beansprucht, bevor der Entwurf
   entsteht. Ein gelöschter Entwurf kommt deshalb nicht wieder, und zwei überlappende Läufe erzeugen nie
   zwei Folgebriefe. Teilindex `letters_follow_up_idx` für die Suche über alle Workspaces.
