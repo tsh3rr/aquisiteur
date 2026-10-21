@@ -46,18 +46,27 @@ export const CHAT_LIMITS = {
   expose: { limit: 120, seconds: 3600 },
   /** New conversations on one exposé. */
   exposeThreads: { limit: 10, seconds: 3600 },
-  /** Everything the workspace receives; protects the owner's phone from a push flood. */
-  workspace: { limit: 600, seconds: 3600 },
+  /**
+   * Everything the workspace receives; protects the owner's phone from a push
+   * flood. High enough that one client (stopped at 360 per hour above) cannot
+   * use it up for everybody else.
+   */
+  workspace: { limit: 1500, seconds: 3600 },
   challenge: { limit: 20, seconds: 600 },
 } as const;
 
 type Limit = { limit: number; seconds: number };
 
+/**
+ * Counts the buckets from the narrowest to the widest and stops at the first
+ * one that is full, so a client its own limit already refuses does not keep
+ * filling the buckets it shares with everybody (exposé, workspace).
+ */
 async function allHit(db: Database, checks: [string, Limit][]): Promise<boolean> {
-  const results = await Promise.all(
-    checks.map(([key, { limit, seconds }]) => hitRateLimit(db, key, limit, seconds)),
-  );
-  return results.every(Boolean);
+  for (const [key, { limit, seconds }] of checks) {
+    if (!(await hitRateLimit(db, key, limit, seconds))) return false;
+  }
+  return true;
 }
 
 export interface MessageLimitInput {
@@ -79,27 +88,31 @@ export function hitMessageLimits(db: Database, input: MessageLimitInput): Promis
   const checks: [string, Limit][] = [
     [`chat:burst:${input.visitId}`, CHAT_LIMITS.visitBurst],
     [`chat:msg:${input.visitId}`, CHAT_LIMITS.visitWindow],
+  ];
+  if (input.client) {
+    checks.push([`chat:c:${input.workspaceId}:${input.client}`, CHAT_LIMITS.client]);
+  }
+  if (input.newThread) checks.push([`chat:thread:${input.exposeId}`, CHAT_LIMITS.exposeThreads]);
+  checks.push(
     [`chat:x:${input.exposeId}`, CHAT_LIMITS.expose],
     [`chat:ws:${input.workspaceId}`, CHAT_LIMITS.workspace],
-  ];
-  if (input.client)
-    checks.push([`chat:c:${input.workspaceId}:${input.client}`, CHAT_LIMITS.client]);
-  if (input.newThread) checks.push([`chat:thread:${input.exposeId}`, CHAT_LIMITS.exposeThreads]);
+  );
   return allHit(db, checks);
 }
 
-/** Callback requests: per exposé (as before) plus per client network and workspace. */
+/** Callback requests: per client network, per exposé (as before) and per workspace. */
 export function hitCallbackLimits(
   db: Database,
   input: { workspaceId: string; exposeId: string; client: string | null },
 ): Promise<boolean> {
-  const checks: [string, Limit][] = [
-    [`callback:${input.exposeId}`, { limit: 10, seconds: 3600 }],
-    [`callback:ws:${input.workspaceId}`, { limit: 100, seconds: 3600 }],
-  ];
+  const checks: [string, Limit][] = [];
   if (input.client) {
     checks.push([`callback:c:${input.workspaceId}:${input.client}`, { limit: 5, seconds: 3600 }]);
   }
+  checks.push(
+    [`callback:${input.exposeId}`, { limit: 10, seconds: 3600 }],
+    [`callback:ws:${input.workspaceId}`, { limit: 100, seconds: 3600 }],
+  );
   return allHit(db, checks);
 }
 
@@ -173,12 +186,15 @@ export async function issueChallenge(
 
 /**
  * True when `proof` solves an unexpired challenge issued for this visit or
- * exposé. Stateless: a solution stays valid until its token expires, which
- * is fine because it only ever unlocks the one visit's own thread.
+ * exposé. For the chat a solution may be reused until it expires, since it
+ * only unlocks the one visit's own thread. With `singleUse` (the callback
+ * form, bound to the exposé and not to a visit) each solution counts once: a
+ * marker in `rate_limits` lives as long as the token.
  */
 export async function proofValid(
   proof: unknown,
   subject: { visitId?: string | null; exposeId?: string | null },
+  singleUse?: Database,
 ): Promise<boolean> {
   const parsed = powSolutionSchema.safeParse(proof);
   if (!parsed.success) return false;
@@ -190,5 +206,6 @@ export async function proofValid(
     subject.exposeId ? subjectOfExpose(subject.exposeId) : null,
   ];
   if (!allowed.includes(parts.subject)) return false;
-  return powSolves(id, parsed.data.number);
+  if (!(await powSolves(id, parsed.data.number))) return false;
+  return singleUse ? hitRateLimit(singleUse, `pow:used:${parts.hash}`, 1, POW_TTL_SECONDS) : true;
 }

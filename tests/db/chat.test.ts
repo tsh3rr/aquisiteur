@@ -84,6 +84,14 @@ async function solved(workspaceId: string, subject: { token: string } | { slug: 
   return solvePow(challenge);
 }
 
+async function sharedCount(key: string) {
+  const [row] = await db
+    .select({ count: schema.rateLimits.count })
+    .from(schema.rateLimits)
+    .where(eq(schema.rateLimits.key, `aq:${key}`));
+  return row?.count ?? 0;
+}
+
 async function prospectStatus(id: string) {
   const [row] = await db.select().from(schema.prospects).where(eq(schema.prospects.id, id));
   return row!.status;
@@ -345,6 +353,10 @@ describe("abuse protection (ADR-0066)", () => {
     }
     expect(results.slice(0, -1).every((r) => "message" in r)).toBe(true);
     expect(results.at(-1)).toEqual({ error: "limited" });
+    // Refused requests stop at the visit's own bucket and leave the shared ones alone.
+    const before = await sharedCount(`chat:ws:${wsI}`);
+    await send(token, "Noch eine");
+    expect(await sharedCount(`chat:ws:${wsI}`)).toBe(before);
   });
 
   it("caps new conversations per exposé, whatever the visit", async () => {
@@ -436,6 +448,7 @@ describe("abuse protection (ADR-0066)", () => {
 
   it("asks the callback form for a solved challenge, except on the owner's device", async () => {
     const base = { slug: physio.slug, name: "Paula", phone: "0341 987654" };
+    const proof = await solved(wsI, { slug: physio.slug });
     expect(
       await createCallbackRequest(db, { workspaceId: wsI, body: base, internal: false }),
     ).toEqual({ error: "challenge" });
@@ -450,10 +463,18 @@ describe("abuse protection (ADR-0066)", () => {
     expect(
       await createCallbackRequest(db, {
         workspaceId: wsI,
-        body: { ...base, proof: await solved(wsI, { slug: physio.slug }) },
+        body: { ...base, proof },
         internal: false,
       }),
     ).toEqual({ ok: true });
+    // A solution counts once: sending it again needs a fresh one.
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsI,
+        body: { ...base, proof },
+        internal: false,
+      }),
+    ).toEqual({ error: "challenge" });
   });
 });
 

@@ -142,6 +142,13 @@ export async function postVisitorMessage(
   if (!known && !(await proofValid(parsed.data.proof, { visitId: visit.id }))) {
     return { error: "challenge" };
   }
+  // Content first: a refused text should not use up the exposé's new conversations.
+  const body = normalizeMessage(parsed.data.body);
+  const problem = messageProblem(
+    body,
+    known ? await lastVisitorMessage(db, input.workspaceId, known.id) : null,
+  );
+  if (problem) return { error: "rejected", problem };
   const withinLimits = await hitMessageLimits(db, {
     workspaceId: input.workspaceId,
     visitId: visit.id,
@@ -150,12 +157,6 @@ export async function postVisitorMessage(
     newThread: !known,
   });
   if (!withinLimits) return { error: "limited" };
-  const body = normalizeMessage(parsed.data.body);
-  const problem = messageProblem(
-    body,
-    known ? await lastVisitorMessage(db, input.workspaceId, known.id) : null,
-  );
-  if (problem) return { error: "rejected", problem };
 
   const result = await db.transaction(async (tx) => {
     let thread: typeof chatThreads.$inferSelect | null | undefined =
@@ -331,6 +332,7 @@ export async function recordVisitorTyping(
   if (!visit) return "invalid";
   if (!(await hitRateLimit(db, `chat:typing:${visit.id}`, 120, 600))) return "limited";
   if (!(await statisticsAllowed(db, input.workspaceId, visit.id))) return "ok";
+  if (await contactBlocked(db, input.workspaceId, visit.prospectId)) return "ok";
   const thread = parsed.data.chat
     ? await threadForToken(db, input.workspaceId, parsed.data.chat)
     : null;
@@ -515,7 +517,7 @@ export async function createCallbackRequest(
   if (!expose) return { error: "not_found" };
   if (await contactBlocked(db, input.workspaceId, expose.prospectId)) return { error: "blocked" };
   // The owner's own device tests the form without solving anything.
-  if (!input.internal && !(await proofValid(parsed.data.proof, { exposeId: expose.id }))) {
+  if (!input.internal && !(await proofValid(parsed.data.proof, { exposeId: expose.id }, db))) {
     return { error: "challenge" };
   }
   const withinLimits = await hitCallbackLimits(db, {

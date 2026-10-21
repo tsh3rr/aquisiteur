@@ -64,7 +64,7 @@ strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Op
       ersten Nachricht einer Unterhaltung und vor jedem Rückrufwunsch, an Besuch bzw. Exposé gebunden,
       15 Minuten gültig (`/t/challenge`, `src/domain/proof-of-work.ts`). - Rate Limits pro Besuch (8 pro Minute, 30 pro 10 Minuten), pro Client-Netz (60 pro 10 Minuten,
       Hash aus Secret und IP bzw. /64), pro Exposé (120 Nachrichten und 10 neue Unterhaltungen pro
-      Stunde) und pro Workspace (600 pro Stunde). Rückruf: 5 pro Client, 10 pro Exposé, 100 pro
+      Stunde) und pro Workspace (1.500 pro Stunde), von eng nach weit gezählt: was die eigene Grenze schon ablehnt, zählt nicht mehr in die geteilten. Rückruf: 5 pro Client, 10 pro Exposé, 100 pro
       Workspace und Stunde. - Inhaltsregeln (`src/domain/chat-guard.ts`): höchstens 2.000 Zeichen, 3 Links und 40 Zeilen;
       unsichtbare Zeichen und Bidi-Steuerzeichen („Trojan Source“) werden entfernt; dieselbe Nachricht
       innerhalb von 2 Minuten wird abgelehnt. - „Chat sperren“ im Cockpit pro Kunde: Exposé nimmt keine Nachrichten, Rückkanäle und Rückrufe mehr

@@ -50,7 +50,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
             <p className="text-sm text-foreground-muted">
               <Link
                 href={`/kunden/${prospect.id}`}
-                className="text-accent underline-offset-4 hover:underline"
+                className="text-accent underline underline-offset-4 hover:no-underline"
               >
                 {prospect.companyName}
               </Link>{" "}

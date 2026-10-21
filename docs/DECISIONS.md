@@ -923,9 +923,13 @@ zusammen wirken und einzeln nicht perfekt sein müssen:
 - **Honeypot** jetzt auch im Chat (Feld `website`, für Menschen und Screenreader unsichtbar).
 - **Rate Limits in Ebenen** (`CHAT_LIMITS`): pro Besuch 8 pro Minute und 30 pro 10 Minuten, pro
   Client-Netz 60 pro 10 Minuten (Hash aus Secret und IP, IPv6 als /64, wie ADR-0064), pro Exposé 120
-  Nachrichten und 10 neue Unterhaltungen pro Stunde, pro Workspace 600 pro Stunde (schützt das Handy des
+  Nachrichten und 10 neue Unterhaltungen pro Stunde, pro Workspace 1.500 pro Stunde (schützt das Handy des
   Owners vor einer Push-Flut). Rückruf: 5 pro Client, 10 pro Exposé, 100 pro Workspace und Stunde. Exposé
-  und Workspace zählen ohne Adresse, halten also auch, wenn ein Client seine Adresse wechselt.
+  und Workspace zählen ohne Adresse, halten also auch, wenn ein Client seine Adresse wechselt. Gezählt
+  wird von eng nach weit und beim ersten vollen Zähler abgebrochen; sonst könnte ein einzelner Client,
+  den seine eigene Grenze längst abweist, die geteilten Zähler füllen und Chat oder Rückruf für alle
+  sperren. Eine gelöste Rückruf-Aufgabe gilt nur einmal (Marker in `rate_limits`), weil sie an das
+  Exposé statt an einen Besuch gebunden ist.
 - **Inhaltsregeln** (`src/domain/chat-guard.ts`): Unicode NFC, unsichtbare Zeichen und
   Bidi-Steuerzeichen entfernt (sonst kann eine Nachricht im Cockpit anders aussehen, als sie ist), höchstens
   drei Links und 40 Zeilen, dieselbe Nachricht innerhalb von zwei Minuten abgelehnt. Kein Wortfilter:
