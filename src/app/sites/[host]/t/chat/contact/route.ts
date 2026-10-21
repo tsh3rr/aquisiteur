@@ -8,6 +8,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ hos
     const result = await saveReturnChannel(getDb(), { workspaceId, body });
     if ("ok" in result) return empty(204);
     if (result.error === "limited") return empty(429);
+    if (result.error === "blocked") return empty(403);
     return json(result, 400);
   });
 }

@@ -12,7 +12,9 @@ export type TokenPurpose =
   /** Access to one chat thread from the exposé (phase 3). */
   | "chat"
   /** Listening on one realtime topic (phase 3). */
-  | "live";
+  | "live"
+  /** A proof-of-work challenge for the chat and callback form (ADR-0066). */
+  | "pow";
 
 const encoder = new TextEncoder();
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
 import {
@@ -23,6 +23,7 @@ import {
   visitorMessageSchema,
   visitorTypingSchema,
 } from "@/domain/chat";
+import { messageProblem, normalizeMessage, type MessageProblem } from "@/domain/chat-guard";
 import { contactLinks } from "@/domain/expose/contact-links";
 import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import type { ChatMessageView } from "@/domain/realtime";
@@ -35,6 +36,7 @@ import { liveSubscription, publish, threadTopic, workspaceTopic } from "@/server
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
 import { statisticsAllowed, visitForToken } from "@/server/tracking/visits";
+import { contactBlocked, hitCallbackLimits, hitMessageLimits, proofValid } from "./guard";
 import { workspaceAvailable } from "./presence";
 
 /**
@@ -74,6 +76,31 @@ async function threadForToken(db: Database | Transaction, workspaceId: string, t
   return thread ?? null;
 }
 
+async function threadOfVisit(db: Database | Transaction, workspaceId: string, visitId: string) {
+  const [thread] = await db
+    .select()
+    .from(chatThreads)
+    .where(and(eq(chatThreads.workspaceId, workspaceId), eq(chatThreads.visitId, visitId)))
+    .limit(1);
+  return thread ?? null;
+}
+
+async function lastVisitorMessage(db: Database, workspaceId: string, threadId: string) {
+  const [row] = await db
+    .select({ body: chatMessages.body, createdAt: chatMessages.createdAt })
+    .from(chatMessages)
+    .where(
+      and(
+        eq(chatMessages.workspaceId, workspaceId),
+        eq(chatMessages.threadId, threadId),
+        eq(chatMessages.author, "visitor"),
+      ),
+    )
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
 export interface ThreadAccess {
   chat: string;
   live: RealtimeSubscription;
@@ -87,35 +114,53 @@ async function access(threadId: string): Promise<ThreadAccess> {
 }
 
 export type VisitorMessageResult =
-  { message: ChatMessageView; access?: ThreadAccess } | { error: "invalid" | "limited" };
+  | { message: ChatMessageView; access?: ThreadAccess }
+  | { error: "invalid" | "limited" | "blocked" | "challenge" }
+  | { error: "rejected"; problem: MessageProblem };
 
-/** A visitor message; the first one opens the thread. */
+/**
+ * A visitor message; the first one opens the thread. Guarded in layers
+ * (src/server/chat/guard.ts): honeypot, owner's block, proof of work for a
+ * new thread, rate limits, then the content rules.
+ */
 export async function postVisitorMessage(
   db: Database,
-  input: { workspaceId: string; body: unknown },
+  input: { workspaceId: string; body: unknown; client?: string | null },
 ): Promise<VisitorMessageResult> {
   const parsed = visitorMessageSchema.safeParse(input.body);
   if (!parsed.success) return { error: "invalid" };
   const visit = await visitForToken(db, input.workspaceId, parsed.data.token);
   if (!visit) return { error: "invalid" };
-  if (!(await hitRateLimit(db, `chat:msg:${visit.id}`, 30, 600))) return { error: "limited" };
+  if (await contactBlocked(db, input.workspaceId, visit.prospectId)) return { error: "blocked" };
+
+  let known: typeof chatThreads.$inferSelect | null | undefined = parsed.data.chat
+    ? await threadForToken(db, input.workspaceId, parsed.data.chat)
+    : null;
+  if (known && known.prospectId !== visit.prospectId) return { error: "invalid" };
+  // Same visit, lost token (e.g. a second tab): continue its thread.
+  known ??= await threadOfVisit(db, input.workspaceId, visit.id);
+  if (!known && !(await proofValid(parsed.data.proof, { visitId: visit.id }))) {
+    return { error: "challenge" };
+  }
+  const withinLimits = await hitMessageLimits(db, {
+    workspaceId: input.workspaceId,
+    visitId: visit.id,
+    exposeId: visit.exposeId,
+    client: input.client ?? null,
+    newThread: !known,
+  });
+  if (!withinLimits) return { error: "limited" };
+  const body = normalizeMessage(parsed.data.body);
+  const problem = messageProblem(
+    body,
+    known ? await lastVisitorMessage(db, input.workspaceId, known.id) : null,
+  );
+  if (problem) return { error: "rejected", problem };
 
   const result = await db.transaction(async (tx) => {
-    let thread: typeof chatThreads.$inferSelect | null | undefined = parsed.data.chat
-      ? await threadForToken(tx, input.workspaceId, parsed.data.chat)
-      : null;
-    if (thread && thread.prospectId !== visit.prospectId) return null;
+    let thread: typeof chatThreads.$inferSelect | null | undefined =
+      known ?? (await threadOfVisit(tx, input.workspaceId, visit.id));
     let created = false;
-    if (!thread) {
-      // Same visit, lost token (e.g. a second tab): continue its thread.
-      [thread] = await tx
-        .select()
-        .from(chatThreads)
-        .where(
-          and(eq(chatThreads.workspaceId, input.workspaceId), eq(chatThreads.visitId, visit.id)),
-        )
-        .limit(1);
-    }
     if (!thread) {
       [thread] = await tx
         .insert(chatThreads)
@@ -135,7 +180,7 @@ export async function postVisitorMessage(
         workspaceId: input.workspaceId,
         threadId: thread!.id,
         author: "visitor",
-        body: parsed.data.body,
+        body,
         visitId: visit.id,
         createdAt: now,
       })
@@ -151,7 +196,7 @@ export async function postVisitorMessage(
       .where(and(eq(chatDrafts.workspaceId, input.workspaceId), eq(chatDrafts.visitId, visit.id)));
     await recordServerEvent(tx, input.workspaceId, visit, "chat_message_sent", {
       threadId: thread!.id,
-      length: parsed.data.body.length,
+      length: body.length,
     });
     if (!visit.quiet) {
       await advanceStatus(tx, {
@@ -164,7 +209,6 @@ export async function postVisitorMessage(
     }
     return { thread: thread!, message: message!, created };
   });
-  if (!result) return { error: "invalid" };
 
   const view = toMessageView(result.message);
   await publish(
@@ -187,7 +231,7 @@ export async function postVisitorMessage(
           groupKey: `chat:${thread.id}`,
           url: notificationUrl({ trigger: "chat_message", threadId: thread.id }),
           action: { title: "Zum Kunden", url: `/kunden/${thread.prospectId}` },
-          ...notificationCopy({ trigger: "chat_message", company, message: parsed.data.body }),
+          ...notificationCopy({ trigger: "chat_message", company, message: body }),
         },
       });
     });
@@ -224,6 +268,8 @@ export type ThreadState = {
   access: ThreadAccess;
   contact: { name: string | null; channel: "email" | "phone" | "whatsapp" | null };
   available: boolean;
+  /** The owner blocked this chat (ADR-0066); the widget says so and stops sending. */
+  blocked: boolean;
 };
 
 /** The visitor reopens the chat (reload, reconnect): the thread so far. */
@@ -265,6 +311,7 @@ export async function readVisitorThread(
     access: await access(thread.id),
     contact: { name: thread.visitorName, channel: thread.returnChannel },
     available: await workspaceAvailable(db, input.workspaceId),
+    blocked: await contactBlocked(db, input.workspaceId, thread.prospectId),
   };
 }
 
@@ -330,11 +377,12 @@ export type FormResult = { ok: true } | { error: "invalid"; fields?: Record<stri
 export async function saveReturnChannel(
   db: Database,
   input: { workspaceId: string; body: unknown },
-): Promise<FormResult | { error: "limited" }> {
+): Promise<FormResult | { error: "limited" | "blocked" }> {
   const parsed = returnChannelSchema.safeParse(input.body);
   if (!parsed.success) return { error: "invalid", fields: issuesByField(parsed.error) };
   const thread = await threadForToken(db, input.workspaceId, parsed.data.chat);
   if (!thread) return { error: "invalid" };
+  if (await contactBlocked(db, input.workspaceId, thread.prospectId)) return { error: "blocked" };
   if (!(await hitRateLimit(db, `chat:contact:${thread.id}`, 10, 3600))) return { error: "limited" };
   await db
     .update(chatThreads)
@@ -450,8 +498,8 @@ async function knownPhone(
 
 export async function createCallbackRequest(
   db: Database,
-  input: { workspaceId: string; body: unknown; internal: boolean },
-): Promise<FormResult | { error: "not_found" | "limited" }> {
+  input: { workspaceId: string; body: unknown; internal: boolean; client?: string | null },
+): Promise<FormResult | { error: "not_found" | "limited" | "blocked" | "challenge" }> {
   const parsed = callbackRequestSchema.safeParse(input.body);
   if (!parsed.success) return { error: "invalid", fields: issuesByField(parsed.error) };
   const [expose] = await db
@@ -465,7 +513,17 @@ export async function createCallbackRequest(
       ),
     );
   if (!expose) return { error: "not_found" };
-  if (!(await hitRateLimit(db, `callback:${expose.id}`, 10, 3600))) return { error: "limited" };
+  if (await contactBlocked(db, input.workspaceId, expose.prospectId)) return { error: "blocked" };
+  // The owner's own device tests the form without solving anything.
+  if (!input.internal && !(await proofValid(parsed.data.proof, { exposeId: expose.id }))) {
+    return { error: "challenge" };
+  }
+  const withinLimits = await hitCallbackLimits(db, {
+    workspaceId: input.workspaceId,
+    exposeId: expose.id,
+    client: input.client ?? null,
+  });
+  if (!withinLimits) return { error: "limited" };
   const phone =
     parsed.data.phone ??
     (await knownPhone(db, input.workspaceId, expose.prospectId, parsed.data.phoneRef!));

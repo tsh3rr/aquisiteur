@@ -171,3 +171,40 @@ test("a callback request reaches the owner's day", async ({ page, browser }) => 
   await page.getByRole("button", { name: /Erledigt\W+Rückruf für Sabine Müller/ }).click();
   await expect(page.getByText("Wunschzeit: Dienstag ab 15 Uhr", { exact: true })).toHaveCount(0);
 });
+
+test("the owner blocks the chat against abuse and lifts the block again", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  await owner(page);
+  await page.goto("/chat");
+  await page.getByRole("link", { name: /Café Müller/ }).click();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Chat sperren" }).click();
+  await expect(page.getByText("Gesperrt", { exact: true })).toBeVisible();
+  await expectAccessible(page, "blocked chat thread");
+  await page.screenshot({ path: "test-results/chat-schutz/cockpit-gesperrt.png" });
+
+  const phoneContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const phone = await phoneContext.newPage();
+  await phone.goto(exposeUrl);
+  await rejectConsent(phone);
+  await phone.getByRole("button", { name: /^Chat/ }).first().click();
+  const chat = phone.getByRole("dialog", { name: /Chat mit/ });
+  await chat.getByLabel("Ihre Nachricht").fill("Hallo?");
+  await chat.getByRole("button", { name: "Senden" }).click();
+  await expect(chat.getByText(/keine Nachrichten mehr gesendet werden/)).toBeVisible();
+  await expect(chat.getByLabel("Ihre Nachricht")).toBeDisabled();
+  await expectAccessible(phone, "blocked chat panel");
+  await phone.screenshot({ path: "test-results/chat-schutz/handy-gesperrt.png" });
+  await phoneContext.close();
+
+  await page.getByRole("button", { name: "Sperre aufheben" }).click();
+  await expect(page.getByRole("button", { name: "Chat sperren" })).toBeVisible();
+  await expect(page.getByText("Gesperrt", { exact: true })).toHaveCount(0);
+});

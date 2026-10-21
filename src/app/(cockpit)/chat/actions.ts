@@ -10,6 +10,7 @@ import {
   postOwnerMessage,
   threadProspect,
   setCallbackDone,
+  setChatBlocked,
   setThreadStatus,
   chatInboxCount,
 } from "@/server/chat/owner";
@@ -90,6 +91,26 @@ export async function changeThreadStatus(threadId: string, status: "open" | "clo
   await tenant((tx) => setThreadStatus(tx, workspace.id, id.data, parsedStatus.data));
   revalidatePath("/chat");
   revalidatePath(`/chat/${id.data}`);
+}
+
+/** Blocks or unblocks the prospect's chat and callback form against abuse (ADR-0066). */
+export async function changeChatBlock(threadId: string, prospectId: string, blocked: boolean) {
+  const { workspace, user, actor, tenant } = await requireCockpit();
+  assertCan(actor, "prospects.manage", { workspaceId: workspace.id });
+  const ids = z
+    .object({ threadId: z.uuid(), prospectId: z.uuid() })
+    .safeParse({ threadId, prospectId });
+  if (!ids.success || typeof blocked !== "boolean") return;
+  await tenant((tx) =>
+    setChatBlocked(tx, {
+      workspaceId: workspace.id,
+      userId: user.id,
+      prospectId: ids.data.prospectId,
+      blocked,
+    }),
+  );
+  revalidatePath(`/chat/${ids.data.threadId}`);
+  revalidatePath(`/kunden/${ids.data.prospectId}`);
 }
 
 /** Returns the new count for the Chat menu badge. */

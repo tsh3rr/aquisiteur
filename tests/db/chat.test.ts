@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
+import { solvePow } from "@/domain/proof-of-work";
 import { signToken } from "@/domain/tracking/signed-token";
 import { getInfra } from "@/infra";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
@@ -11,8 +12,10 @@ import {
   loadThread,
   markThreadRead,
   postOwnerMessage,
+  setChatBlocked,
   unreadThreadCount,
 } from "@/server/chat/owner";
+import { CHAT_LIMITS, issueChallenge } from "@/server/chat/guard";
 import { presenceBeat, setAvailability, workspaceAvailable } from "@/server/chat/presence";
 import {
   createCallbackRequest,
@@ -23,6 +26,7 @@ import {
   sendOfflineNotice,
 } from "@/server/chat/visitor";
 import { workspaceTopic } from "@/server/realtime";
+import { hitRateLimit } from "@/server/tracking/rate-limit";
 import { startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
 import { allowStatistics } from "../support/consent";
@@ -47,6 +51,7 @@ let wsI = "";
 let cafe: PublishResult;
 let bakery: PublishResult;
 let foreign: PublishResult;
+let physio: PublishResult;
 
 const PHONE =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
@@ -72,6 +77,13 @@ async function visit(workspaceId: string, slug: string, internal = false) {
   return started.token;
 }
 
+/** What the widget does before the first message: fetch and solve a challenge (ADR-0066). */
+async function solved(workspaceId: string, subject: { token: string } | { slug: string }) {
+  const challenge = await issueChallenge(db, { workspaceId, body: subject });
+  if ("error" in challenge) throw new Error(`challenge failed: ${challenge.error}`);
+  return solvePow(challenge);
+}
+
 async function prospectStatus(id: string) {
   const [row] = await db.select().from(schema.prospects).where(eq(schema.prospects.id, id));
   return row!.status;
@@ -79,6 +91,8 @@ async function prospectStatus(id: string) {
 
 const asHanna = <T>(fn: Parameters<typeof withTenant<T>>[2]) =>
   withTenant(db, { userId: hanna.id, workspaceId: wsH }, fn);
+const asIvo = <T>(fn: Parameters<typeof withTenant<T>>[2]) =>
+  withTenant(db, { userId: ivo.id, workspaceId: wsI }, fn);
 
 /** Collects what the in-process realtime delivers on `topic`. */
 async function listen(topic: string) {
@@ -112,6 +126,7 @@ beforeAll(async () => {
   cafe = await publish(hanna.id, wsH, "cafe-mueller", "Café Müller");
   bakery = await publish(hanna.id, wsH, "baeckerei-korn", "Bäckerei Korn");
   foreign = await publish(ivo.id, wsI, "cafe-mueller", "Café Müller");
+  physio = await publish(ivo.id, wsI, "physio-lindenhof", "Physio Lindenhof");
 });
 
 afterAll(async () => {
@@ -127,7 +142,7 @@ describe("live chat", () => {
     const live = await listen(workspaceTopic(wsH));
     const result = await postVisitorMessage(db, {
       workspaceId: wsH,
-      body: { token, body: "  Was kostet die Website?  " },
+      body: { token, body: "  Was kostet die Website?  ", proof: await solved(wsH, { token }) },
     });
     live.stop();
     if (!("message" in result)) throw new Error(`message failed: ${result.error}`);
@@ -277,6 +292,171 @@ describe("live chat", () => {
   });
 });
 
+describe("abuse protection (ADR-0066)", () => {
+  const send = (token: string, body: string, extra: Record<string, unknown> = {}) =>
+    postVisitorMessage(db, { workspaceId: wsI, body: { token, body, ...extra } });
+
+  it("opens a thread only with a solved challenge for this very visit", async () => {
+    const token = await visit(wsI, physio.slug);
+    const other = await visit(wsI, physio.slug);
+    expect(await send(token, "Hallo")).toEqual({ error: "challenge" });
+    expect(await send(token, "Hallo", { proof: await solved(wsI, { token: other }) })).toEqual({
+      error: "challenge",
+    });
+    const proof = await solved(wsI, { token });
+    expect(await send(token, "Hallo", { proof: { ...proof, number: proof!.number + 1 } })).toEqual({
+      error: "challenge",
+    });
+    expect(await send(token, "Hallo", { proof })).toHaveProperty("message");
+    // The thread exists now: later messages of the visit need nothing more.
+    expect(await send(token, "Noch eine Frage")).toHaveProperty("message");
+  });
+
+  it("refuses a filled honeypot", async () => {
+    const token = await visit(wsI, physio.slug);
+    const proof = await solved(wsI, { token });
+    expect(await send(token, "Kaufen Sie jetzt", { proof, website: "x" })).toEqual({
+      error: "invalid",
+    });
+  });
+
+  it("cleans invisible characters and refuses link lists and double sends", async () => {
+    const token = await visit(wsI, physio.slug);
+    const proof = await solved(wsI, { token });
+    const rlo = String.fromCodePoint(0x202e);
+    const first = await send(token, `Termin${rlo} am Montag?`, { proof });
+    expect("message" in first && first.message.body).toBe("Termin am Montag?");
+    expect(await send(token, "Termin am Montag?")).toEqual({
+      error: "rejected",
+      problem: "duplicate",
+    });
+    expect(await send(token, "https://a.de https://b.de https://c.de https://d.de")).toEqual({
+      error: "rejected",
+      problem: "links",
+    });
+  });
+
+  it("stops a burst from one visit", async () => {
+    const token = await visit(wsI, physio.slug);
+    const proof = await solved(wsI, { token });
+    const results = [];
+    for (let i = 0; i <= CHAT_LIMITS.visitBurst.limit; i++) {
+      results.push(await send(token, `Nachricht ${i}`, { proof }));
+    }
+    expect(results.slice(0, -1).every((r) => "message" in r)).toBe(true);
+    expect(results.at(-1)).toEqual({ error: "limited" });
+  });
+
+  it("caps new conversations per exposé, whatever the visit", async () => {
+    for (let i = 0; i < CHAT_LIMITS.exposeThreads.limit; i++) {
+      await hitRateLimit(db, `chat:thread:${foreign.exposeId}`, 1000, 3600);
+    }
+    const token = await visit(wsI, foreign.slug);
+    const challenge = await issueChallenge(db, { workspaceId: wsI, body: { token } });
+    if ("error" in challenge) throw new Error(challenge.error);
+    const result = await postVisitorMessage(db, {
+      workspaceId: wsI,
+      body: { token, body: "Hallo", proof: await solvePow(challenge) },
+    });
+    expect(result).toEqual({ error: "limited" });
+  });
+
+  it("the owner blocks and unblocks chat and callback for the prospect", async () => {
+    const token = await visit(wsI, physio.slug);
+    const proof = await solved(wsI, { token });
+    const opened = await send(token, "Erste Nachricht", { proof });
+    if (!("message" in opened)) throw new Error(opened.error);
+    const chat = opened.access!.chat;
+    const callbackProof = await solved(wsI, { slug: physio.slug });
+
+    expect(
+      await asIvo((tx) =>
+        setChatBlocked(tx, {
+          workspaceId: wsI,
+          userId: ivo.id,
+          prospectId: physio.prospectId,
+          blocked: true,
+        }),
+      ),
+    ).toBe(true);
+    expect(await send(token, "Noch da?", { chat })).toEqual({ error: "blocked" });
+    expect(await readVisitorThread(db, { workspaceId: wsI, body: { chat } })).toMatchObject({
+      blocked: true,
+      messages: [expect.objectContaining({ body: "Erste Nachricht" })],
+    });
+    expect(
+      await saveReturnChannel(db, {
+        workspaceId: wsI,
+        body: { chat, channel: "email", email: "a@b.de" },
+      }),
+    ).toEqual({ error: "blocked" });
+    expect(await issueChallenge(db, { workspaceId: wsI, body: { slug: physio.slug } })).toEqual({
+      error: "blocked",
+    });
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsI,
+        body: { slug: physio.slug, name: "X", phone: "0341 1", proof: callbackProof },
+        internal: false,
+      }),
+    ).toEqual({ error: "blocked" });
+    const [entry] = await db
+      .select({ action: schema.auditLog.action })
+      .from(schema.auditLog)
+      .where(
+        and(
+          eq(schema.auditLog.workspaceId, wsI),
+          eq(schema.auditLog.targetId, physio.prospectId),
+          eq(schema.auditLog.action, "chat.blocked"),
+        ),
+      );
+    expect(entry?.action).toBe("chat.blocked");
+
+    await asIvo((tx) =>
+      setChatBlocked(tx, {
+        workspaceId: wsI,
+        userId: ivo.id,
+        prospectId: physio.prospectId,
+        blocked: false,
+      }),
+    );
+    expect(await send(token, "Wieder offen?", { chat })).toHaveProperty("message");
+    // Another workspace cannot block this prospect.
+    expect(
+      await withTenant(db, { userId: hanna.id, workspaceId: wsH }, (tx) =>
+        setChatBlocked(tx, {
+          workspaceId: wsH,
+          userId: hanna.id,
+          prospectId: physio.prospectId,
+          blocked: true,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("asks the callback form for a solved challenge, except on the owner's device", async () => {
+    const base = { slug: physio.slug, name: "Paula", phone: "0341 987654" };
+    expect(
+      await createCallbackRequest(db, { workspaceId: wsI, body: base, internal: false }),
+    ).toEqual({ error: "challenge" });
+    const otherProof = await solved(wsI, { slug: foreign.slug });
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsI,
+        body: { ...base, proof: otherProof },
+        internal: false,
+      }),
+    ).toEqual({ error: "challenge" });
+    expect(
+      await createCallbackRequest(db, {
+        workspaceId: wsI,
+        body: { ...base, proof: await solved(wsI, { slug: physio.slug }) },
+        internal: false,
+      }),
+    ).toEqual({ ok: true });
+  });
+});
+
 describe("draft detection", () => {
   it("ignores the typing signal without consent to the reading statistics", async () => {
     const token = await visit(wsH, bakery.slug);
@@ -339,7 +519,11 @@ describe("callback requests", () => {
     expect(
       await createCallbackRequest(db, {
         workspaceId: wsH,
-        body: { ...base, token: await visit(wsH, bakery.slug) },
+        body: {
+          ...base,
+          token: await visit(wsH, bakery.slug),
+          proof: await solved(wsH, { slug: bakery.slug }),
+        },
         internal: false,
       }),
     ).toEqual({ ok: true });

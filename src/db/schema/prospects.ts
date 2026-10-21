@@ -95,6 +95,11 @@ export const prospects = pgTable(
      * opt-out (§9); only the block marker (`doNotContactAt`) stays.
      */
     trackingPurgedAt: timestamp("tracking_purged_at", { withTimezone: true }),
+    /**
+     * Set when the owner blocks this prospect's exposé chat and callback form
+     * against abuse (ADR-0066); visitor messages are refused while it is set.
+     */
+    chatBlockedAt: timestamp("chat_blocked_at", { withTimezone: true }),
     estimatedValueCents: integer("estimated_value_cents"),
     /** Null: no campaign. Cleared by hand before a campaign is deleted. */
     campaignId: uuid("campaign_id"),

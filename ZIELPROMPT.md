@@ -401,7 +401,7 @@ Was in v1 bewusst **nicht** gebaut wird: Einladungs-UI, Team-Verwaltung, Abrechn
 - Cockpit nur mit Passkey/Magic Link, Sessions mit kurzer Laufzeit, CSRF-Schutz (Server Actions), sichere Header (CSP, HSTS, Referrer-Policy `strict-origin-when-cross-origin`).
 - RLS auf allen Tabellen, Service-Role nur serverseitig.
 - Event-Ingestion: Schema-Validierung, Größenlimits, Rate-Limits pro IP/Visit.
-- Chat: Spam-Schutz (Honeypot, Rate-Limit), Sanitizing, keine HTML-Ausgabe von Nutzereingaben.
+- Chat und Rückruf: Bot- und Missbrauchsschutz in Schichten (ADR-0066): Honeypot, unsichtbarer, selbst gehosteter Proof of Work (ohne Cookie, ohne Drittanbieter; kein reCAPTCHA/Turnstile, weil diese Daten an Dritte geben und eine Einwilligung bräuchten), Rate Limits pro Besuch, Client-Netz (nur als Hash), Exposé und Workspace, Inhaltsregeln (Länge, Links, Zeilen, Doppelsendung, unsichtbare Steuerzeichen entfernt), Sanitizing, keine HTML-Ausgabe von Nutzereingaben. Der Owner kann Chat und Rückruf eines Kunden im Cockpit sperren.
 - Secrets nur über Env-Variablen, `.env.example` gepflegt.
 - **Security-Audit vor dem Go-live** (siehe §14): unabhängige Prüfung von Anmeldung und Sitzungen, Mandantentrennung, Eingabevalidierung, Rate-Limits, Secrets, Headern/CSP, Abhängigkeiten und Datenschutz. Befunde werden nach Schweregrad in `docs/SECURITY.md` dokumentiert; kritische und hohe Befunde sind vor dem Go-live behoben, mittlere haben einen Termin oder eine begründete Ausnahme. Das Audit wird vor jedem späteren größeren Schritt (SaaS-Launch, neue öffentliche Schnittstellen) wiederholt.
 

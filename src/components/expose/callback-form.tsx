@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { PhoneCall } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import type { KnownPhone } from "@/domain/expose/known-phones";
+import type { PowSolution } from "@/domain/proof-of-work";
 import { track, visitToken } from "./tracking-client";
 
 type State =
@@ -40,6 +41,13 @@ export function CallbackOption({
   const phoneInput = useRef<HTMLInputElement>(null);
   const knownInput = useRef<HTMLInputElement>(null);
   const started = useRef(false);
+  /** Proof of work (ADR-0066), solved while the visitor fills in the form. */
+  const proof = useRef<Promise<PowSolution | null> | null>(null);
+  // Loaded on demand: the exposé's first load stays lean (ADR-0048).
+  const prepareProof = () =>
+    (proof.current ??= import("./proof-client").then(({ solveChallenge }) =>
+      solveChallenge({ slug }),
+    ));
   const id = useId();
   const error = (field: string) => (state.kind === "error" ? state.fields?.[field] : undefined);
 
@@ -50,11 +58,19 @@ export function CallbackOption({
     }
     setState({ kind: "sending" });
     const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
-    const response = await fetch("/t/callback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...data, slug, token: (await visitToken()) ?? undefined }),
-    }).catch(() => null);
+    const token = (await visitToken()) ?? undefined;
+    const attempt = async () =>
+      fetch("/t/callback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...data, slug, token, proof: await prepareProof() }),
+      }).catch(() => null);
+    let response = await attempt();
+    if (response?.status === 428) {
+      // The challenge expired while the form stayed open: solve a fresh one.
+      proof.current = null;
+      response = await attempt();
+    }
     if (response?.ok) {
       setState({ kind: "sent" });
       return;
@@ -69,9 +85,11 @@ export function CallbackOption({
       message:
         response?.status === 429
           ? "Gerade sind sehr viele Anfragen eingegangen. Bitte versuchen Sie es später noch einmal."
-          : body?.fields
-            ? "Bitte prüfen Sie die markierten Felder."
-            : "Das hat leider nicht geklappt. Bitte versuchen Sie es noch einmal.",
+          : response?.status === 403
+            ? "Über dieses Formular können keine Anfragen mehr gesendet werden. Bitte nutzen Sie einen anderen Kontaktweg."
+            : body?.fields
+              ? "Bitte prüfen Sie die markierten Felder."
+              : "Das hat leider nicht geklappt. Bitte versuchen Sie es noch einmal.",
       fields: body?.fields,
     });
   };
@@ -85,6 +103,7 @@ export function CallbackOption({
         aria-controls={`${id}-form`}
         onClick={() => {
           setOpen((value) => !value);
+          if (!disabled) void prepareProof();
           if (!started.current) {
             started.current = true;
             track({ type: "callback_started" });
