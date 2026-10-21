@@ -894,6 +894,8 @@ Owner hat die zwei Stufen gewählt:
   Gespeicherte Werte bestehender Workspaces bleiben, wie sie sind.
 - **Tonfall**: Hinweis, Briefhinweis und Datenschutzerklärung sachlich in der Wir-Form mit Angabe der
   Rechtsgrundlagen, nicht persönlich-umgangssprachlich (Wunsch des Inhabers).
+- **Worker-Größe**: Hinweis und Kontakt-Layer lädt nur ein Effekt im Browser; `next.config.ts` lässt
+  beide aus dem Server-Bundle weg (wie die PDF-Dokumente), sonst risse der Worker die 2.900 KiB.
 
 Folge: Wer ablehnt, liefert dem Score nur Besuch, Wiederkehr, Chat, Rückruf und Teilen. Offen für
 später: Klicks auf Kontaktwege über eine Server-Weiterleitung messen (dann Basis), automatisches Löschen
