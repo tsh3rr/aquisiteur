@@ -809,7 +809,7 @@ einzubremsen:
   einem Signal `draft` mit Gewicht 0,5 (vorher 0,4 und 0,6), damit „wollte schreiben“ zusammen mit
   Besuch und Lesen weiter die 50-%-Schwelle erreicht. `chat_drafts.length` und `max_length` enthalten
   nur noch 0 oder 1, `content` bleibt leer; die Spalten bleiben, damit die vorige App-Version weiterläuft
-  (Migration 0018 bereinigt Altdaten und gespeicherte Signale).
+  (Migration 0019 bereinigt Altdaten und gespeicherte Signale).
 - **Live im Cockpit** steht nur noch, dass ein Kunde gerade im Exposé ist, eine Zeile pro Kunde. Keine
   Abschnitte, keine Klicks, kein „Besucher tippt …“ im Chat. Timeline, Heatmap und Auswertung zeigen die
   Details weiter im Nachhinein. Die Tippanzeige des Owners für den Besucher bleibt (ja/nein).

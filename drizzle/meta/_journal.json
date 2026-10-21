@@ -134,6 +134,13 @@
       "when": 1792568027851,
       "tag": "0018_letter_follow_ups",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792573638603,
+      "tag": "0019_draft_yes_no",
+      "breakpoints": true
     }
   ]
 }
