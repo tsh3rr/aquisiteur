@@ -18,6 +18,8 @@ describe("generated legal texts", () => {
     expect(text).toContain("Mikrus in Finnland (EU)");
     expect(privacyMarkdown(settings, "X", "cloudflare")).toContain("Supabase");
     expect(text).not.toContain("Aufzeichnung nur mit Ihrer Erlaubnis");
+    expect(text).not.toContain("Pingen");
+    expect(privacyMarkdown(settings, "X", "node", "pingen")).toContain("über Pingen");
   });
 
   it("names draft detection as yes/no only and recordings only when switched on", () => {

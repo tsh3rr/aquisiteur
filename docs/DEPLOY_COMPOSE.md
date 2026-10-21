@@ -218,7 +218,7 @@ Image nur den Namen `production`, ein Server wird nicht angefasst.
 ## Sicherheit
 
 Die App nimmt die Adresse eines Besuchers aus dem letzten Eintrag von `x-forwarded-for`, den der Proxy
-von Mikrus anhängt, und ignoriert Cloudflare-Header (`cf-*`), solange `ORIGIN_SECRET` leer ist (ADR-0063).
+von Mikrus anhängt, und ignoriert Cloudflare-Header (`cf-*`), solange `ORIGIN_SECRET` leer ist (ADR-0064).
 `ORIGIN_SECRET` hier also leer lassen. Port 80 ist für den Proxy von Mikrus offen und damit auch direkt
 erreichbar; wer so kommt, kann seine Adresse frei wählen. Die festen Grenzen pro E-Mail-Adresse und
 pro Workspace gelten trotzdem (`docs/SECURITY.md`).

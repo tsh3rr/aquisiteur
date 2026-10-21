@@ -1,6 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import type { Transaction } from "@/db";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import {
   assets,
   auditLog,
@@ -37,8 +36,10 @@ import { modulesPath, qrMatrix } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import type { AssetManifest } from "@/db/schema";
 import { printSource, resolveEntry } from "@/components/expose/render-context";
-import { getInfra } from "@/infra";
+import type { Database, Transaction } from "@/db";
+import { getInfra, type LetterDispatchProvider, type LetterProviderUpdate } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { letterProvider } from "@/server/letters/providers";
 import { advanceStatus } from "@/server/prospects/auto-status";
 import {
   createTouchpoint,
@@ -219,6 +220,9 @@ export interface LetterListItem {
   campaignId: string | null;
   kind: LetterKind;
   status: LetterStatus;
+  provider: string;
+  /** Why a print API refused or failed the letter. */
+  failureReason: string | null;
   subject: string;
   shortCode: string | null;
   costCents: number | null;
@@ -251,6 +255,8 @@ export async function listLetters(
       campaignId: letters.campaignId,
       kind: letters.kind,
       status: letters.status,
+      provider: letters.provider,
+      failureReason: letters.failureReason,
       subject: letters.subject,
       shortCode: touchpoints.shortCode,
       costCents: letters.costCents,
@@ -511,7 +517,7 @@ export async function advanceLetters(
   let refused = ids.length - rows.length;
   for (const letter of rows) {
     const path = pathTo(letter.status, to);
-    const provider = getInfra().letters(letter.provider);
+    const provider = await letterProvider(tx, actor.workspaceId, letter.provider);
     if (!path || path.length === 0 || !provider) {
       if (path?.length !== 0) refused += 1;
       continue;
@@ -520,6 +526,16 @@ export async function advanceLetters(
     if (provider.tracksDelivery && ["printed", "posted"].includes(to)) {
       refused += 1;
       continue;
+    }
+    // A print API may refuse a cancellation (already printing); the letter then stays as it is.
+    if (path.includes("cancelled") && letter.providerRef) {
+      try {
+        await provider.cancel(letter.providerRef);
+      } catch (error) {
+        console.error("letter cancel refused", letter.id, error);
+        refused += 1;
+        continue;
+      }
     }
     const update: Partial<typeof letters.$inferInsert> = { status: to };
     for (const status of path) {
@@ -535,7 +551,6 @@ export async function advanceLetters(
         });
         update.providerRef = providerRef;
       }
-      if (status === "cancelled" && letter.providerRef) await provider.cancel(letter.providerRef);
     }
     if (path.includes("posted")) {
       const estimate = await provider.estimateCost({ options: letter.options });
@@ -585,6 +600,10 @@ export async function deleteDraftLetters(tx: Transaction, actor: Actor, ids: str
       ),
     )
     .returning({ id: letters.id, touchpointId: letters.touchpointId, kind: letters.kind });
+  await deleteLetterPdfs(
+    actor.workspaceId,
+    deleted.map((row) => row.id),
+  );
   // A follow-up's own code goes with it; the initial letter's code belongs to the exposé.
   const followUps = deleted.filter((row) => row.kind === "follow_up");
   if (followUps.length > 0) {
@@ -603,4 +622,223 @@ export async function deleteDraftLetters(tx: Transaction, actor: Actor, ids: str
       );
   }
   return deleted.length;
+}
+
+/** Where a letter's print-ready PDF is kept for a print API (§7.9). */
+export const letterPdfKey = (workspaceId: string, letterId: string) =>
+  `${workspaceId}/letters/${letterId}.pdf`;
+
+export const MAX_LETTER_PDF_BYTES = 8 * 1024 * 1024;
+
+/** The PDF is only needed until the print API has its own copy. */
+export async function deleteLetterPdfs(workspaceId: string, letterIds: string[]) {
+  const storage = getInfra().storage;
+  for (const id of letterIds) {
+    await storage.delete(letterPdfKey(workspaceId, id)).catch(() => undefined);
+  }
+}
+
+/**
+ * Stores the PDF the browser rendered for a draft letter, so a print API can
+ * pick it up. Only drafts: what was printed must not change afterwards.
+ */
+export async function storeLetterPdf(
+  tx: Transaction,
+  actor: Actor,
+  letterId: string,
+  pdf: Uint8Array,
+): Promise<boolean> {
+  const isPdf = pdf.byteLength > 4 && new TextDecoder().decode(pdf.subarray(0, 5)) === "%PDF-";
+  if (!isPdf || pdf.byteLength > MAX_LETTER_PDF_BYTES) return false;
+  const [letter] = await tx
+    .select({ id: letters.id })
+    .from(letters)
+    .where(
+      and(
+        eq(letters.workspaceId, actor.workspaceId),
+        eq(letters.id, letterId),
+        eq(letters.status, "draft"),
+      ),
+    );
+  if (!letter) return false;
+  await getInfra().storage.put(letterPdfKey(actor.workspaceId, letterId), pdf, {
+    contentType: "application/pdf",
+  });
+  return true;
+}
+
+/** Pingen's live and test environment share one webhook URL (ADR-0063). */
+export const PINGEN_PROVIDERS = ["pingen", "pingen-staging"];
+
+/** A claimed letter older than this whose hand-over never finished may be handed over again. */
+const STALE_CLAIM_MS = 10 * 60 * 1000;
+
+/**
+ * Hands draft letters to the workspace's print API (§7.9); each needs its PDF
+ * stored first. The calls to the provider run outside any transaction: a
+ * letter is claimed (queued) and committed first, then sent, then recorded,
+ * so a rollback can never forget a letter the provider already accepted.
+ * A letter the provider refuses goes back to draft, with the reason. A claim
+ * left behind by a crash is retried with the same idempotency key.
+ */
+export async function dispatchLetters(
+  tenant: <T>(fn: (tx: Transaction) => Promise<T>) => Promise<T>,
+  actor: Actor,
+  ids: string[],
+  provider: LetterDispatchProvider,
+  now = new Date(),
+): Promise<{ sent: number; failed: { letterId: string; message: string }[] }> {
+  let sent = 0;
+  const failed: { letterId: string; message: string }[] = [];
+  for (const id of [...new Set(ids)]) {
+    const claimed = await tenant(async (tx) => {
+      const [row] = await tx
+        .update(letters)
+        .set({ status: "queued", queuedAt: now, failureReason: null })
+        .where(
+          and(
+            eq(letters.workspaceId, actor.workspaceId),
+            eq(letters.id, id),
+            or(
+              eq(letters.status, "draft"),
+              and(
+                eq(letters.status, "queued"),
+                isNull(letters.providerRef),
+                lte(letters.queuedAt, new Date(now.getTime() - STALE_CLAIM_MS)),
+              ),
+            ),
+          ),
+        )
+        .returning();
+      return row ?? null;
+    });
+    if (!claimed) continue;
+    let providerRef: string;
+    try {
+      ({ providerRef } = await provider.send({
+        letterId: claimed.id,
+        workspaceId: claimed.workspaceId,
+        pdfKey: letterPdfKey(actor.workspaceId, claimed.id),
+        options: claimed.options,
+        idempotencyKey: claimed.id,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler.";
+      await tenant((tx) =>
+        tx
+          .update(letters)
+          .set({ status: "draft", queuedAt: null, failureReason: message })
+          .where(and(eq(letters.workspaceId, actor.workspaceId), eq(letters.id, claimed.id))),
+      );
+      failed.push({ letterId: claimed.id, message });
+      continue;
+    }
+    await tenant(async (tx) => {
+      await tx
+        .update(letters)
+        .set({ status: "submitted", provider: provider.id, providerRef, submittedAt: now })
+        .where(and(eq(letters.workspaceId, actor.workspaceId), eq(letters.id, claimed.id)));
+      await tx.insert(auditLog).values({
+        workspaceId: actor.workspaceId,
+        actorUserId: actor.userId,
+        action: "letter.submitted",
+        targetType: "letter",
+        targetId: claimed.id,
+        meta: { provider: provider.id, prospectId: claimed.prospectId, kind: claimed.kind },
+      });
+    });
+    await deleteLetterPdfs(actor.workspaceId, [claimed.id]);
+    sent += 1;
+  }
+  return { sent, failed };
+}
+
+/**
+ * Applies what a print API reports (webhook or status query) on the system
+ * connection, scoped to the workspace. Walks every state in between, sets the
+ * prospect to „Brief versendet“ on posting and keeps the provider's price.
+ * Repeated or late reports change nothing; a reported problem on a letter
+ * still on its way is kept as a note. A letter from Pingen's test environment
+ * ends as cancelled once Pingen reports it printed or posted, because nothing
+ * was printed: it must not start the clock, a follow-up or the costs.
+ */
+export async function recordProviderUpdates(
+  db: Database,
+  workspaceId: string,
+  providers: string[],
+  updates: LetterProviderUpdate[],
+): Promise<number> {
+  let changed = 0;
+  for (const reported of updates) {
+    changed += await db.transaction(async (tx) => {
+      const [letter] = await tx
+        .select()
+        .from(letters)
+        .where(
+          and(
+            eq(letters.workspaceId, workspaceId),
+            inArray(letters.provider, providers),
+            eq(letters.providerRef, reported.providerRef),
+          ),
+        )
+        .for("update");
+      if (!letter) return 0;
+      const isTest = letter.provider.endsWith("-staging");
+      const update =
+        isTest && ["printed", "posted", "returned"].includes(reported.status)
+          ? {
+              ...reported,
+              status: "cancelled" as const,
+              costCents: null,
+              reason: "Testversand: Pingen meldet ihn als verschickt, gedruckt wurde nichts.",
+            }
+          : reported;
+      const path = pathTo(letter.status, update.status);
+      if (!path) return 0;
+      if (path.length === 0) {
+        if (!update.reason || update.reason === letter.failureReason) return 0;
+        await tx
+          .update(letters)
+          .set({ failureReason: update.reason })
+          .where(and(eq(letters.workspaceId, workspaceId), eq(letters.id, letter.id)));
+        return 1;
+      }
+      const set: Partial<typeof letters.$inferInsert> = { status: update.status };
+      for (const status of path) {
+        const column = STATUS_TIMESTAMP[status];
+        if (column) (set as Record<string, unknown>)[column] = update.at;
+      }
+      if (update.costCents !== null) set.costCents = update.costCents;
+      // A note on a problem is cleared once the letter moves on, unless it ends there.
+      set.failureReason = ["failed", "cancelled"].includes(update.status) ? update.reason : null;
+      await tx
+        .update(letters)
+        .set(set)
+        .where(and(eq(letters.workspaceId, workspaceId), eq(letters.id, letter.id)));
+      if (path.includes("posted")) {
+        await advanceStatus(tx, {
+          workspaceId,
+          prospectId: letter.prospectId,
+          to: "letter_sent",
+          via: "letter",
+          meta: { letterId: letter.id },
+        });
+        await tx.insert(usageEvents).values({
+          workspaceId,
+          kind: "letter",
+          meta: { letterId: letter.id, provider: letter.provider },
+        });
+      }
+      await tx.insert(auditLog).values({
+        workspaceId,
+        actorUserId: null,
+        action: `letter.${update.status}`,
+        targetType: "letter",
+        targetId: letter.id,
+        meta: { from: letter.status, prospectId: letter.prospectId, provider: letter.provider },
+      });
+      return 1;
+    });
+  }
+  return changed;
 }

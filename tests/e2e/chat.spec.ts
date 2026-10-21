@@ -95,7 +95,7 @@ test("phone and cockpit chat in real time", async ({ page, browser }) => {
   await hydrated;
   await expectAccessible(page, "chat thread");
 
-  // Visitor types: nothing shows live in the cockpit until it is sent (ADR-0064).
+  // Visitor types: nothing shows live in the cockpit until it is sent (ADR-0065).
   await chat.getByLabel("Ihre Nachricht").fill("Ab wann könnten Sie");
   await chat.getByLabel("Ihre Nachricht").fill("Ab wann könnten Sie starten?");
   await chat.getByLabel("Ihre Nachricht").press("Enter");

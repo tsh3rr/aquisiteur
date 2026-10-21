@@ -474,7 +474,7 @@ export async function ingestEvents(
   return "ok";
 }
 
-/** „Jetzt gerade: Café Müller ist gerade im Exposé“ for the live feed on „Heute“ (ADR-0064). */
+/** „Jetzt gerade: Café Müller ist gerade im Exposé“ for the live feed on „Heute“ (ADR-0065). */
 async function publishActivity(
   db: Database,
   workspaceId: string,

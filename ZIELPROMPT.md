@@ -129,7 +129,7 @@ Alles in **einer** Next.js-App, getrennt über Route Groups und Middleware.
 
 ### 6.4 Echtzeit
 
-- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller ist gerade im Exposé“). Live zeigt das Cockpit nur, **dass** jemand gerade da ist, nie welchen Abschnitt er liest, was er anklickt oder dass er tippt (Owner-Entscheidung 2026-10-21, ADR-0064); Details erscheinen erst danach in Timeline und Auswertung.
+- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller ist gerade im Exposé“). Live zeigt das Cockpit nur, **dass** jemand gerade da ist, nie welchen Abschnitt er liest, was er anklickt oder dass er tippt (Owner-Entscheidung 2026-10-21, ADR-0065); Details erscheinen erst danach in Timeline und Auswertung.
 
 ---
 
@@ -224,7 +224,7 @@ Die Referenz im vorbelegten Text erlaubt dem Owner, eingehende WhatsApp-/Mail-Na
 - Owner antwortet aus dem Cockpit, auch vom Handy (PWA + Push). Tipp-Indikator in beide Richtungen.
 - **Übergabe**: Owner kann mit einem Klick vorschlagen, auf WhatsApp weiterzumachen.
 - Offline-Modus: Wenn der Owner nicht antwortet, nach 2 min automatische Nachricht mit Erwartung und alternativen Kanälen.
-- **Entwurfserkennung**: Das Widget erfasst nur, **dass** jemand angefangen hat zu schreiben (ja/nein, Zeitpunkt), auch wenn nicht gesendet wird. Nie den Inhalt, nie die Länge, und nicht live im Cockpit (Owner-Entscheidung 2026-10-21, ADR-0064). In der Datenschutzerklärung genannt.
+- **Entwurfserkennung**: Das Widget erfasst nur, **dass** jemand angefangen hat zu schreiben (ja/nein, Zeitpunkt), auch wenn nicht gesendet wird. Nie den Inhalt, nie die Länge, und nicht live im Cockpit (Owner-Entscheidung 2026-10-21, ADR-0065). In der Datenschutzerklärung genannt.
 
 ### 7.6 Kontaktabsicht-Score (Herzstück)
 
@@ -335,9 +335,9 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 - `letters` hat einen eigenen Lebenszyklus: `draft → queued → submitted → printed → posted → (returned | failed | cancelled)`, mit `provider`, `provider_ref`, `cost_cents`, `posted_at` und Zeitstempeln pro Zustand. „Zeit bis zur Öffnung“ rechnet immer ab `posted_at`.
 - Druckoptionen modellieren: Farbe/S-W, Simplex/Duplex, Versandart (Standard, Prio), Umschlagformat, Beilagen.
 - PDFs strikt nach den gängigen Print-API-Vorgaben erzeugen (Adressfeld-Position DIN 5008, Ränder für Frankierzone, eingebettete Schriften, PDF/A-tauglich). Dann funktionieren sie mit jedem Anbieter.
-- **Erster echter Provider: Pingen** (Stand Oktober 2026). Pingen druckt Briefe an österreichische Empfänger lokal und lässt sie von der Österreichischen Post zustellen (Brief 2–3 Werktage, Premium Brief am nächsten Werktag). Ein Brief mit 1 Blatt S/W kostet ca. 1,43 € netto, ab 500 Briefen/Monat ca. 1,25 € netto. Die API bietet REST mit OAuth2 (Client Credentials), Webhooks für Statusänderungen, eine kostenlose Sandbox, Idempotency-Keys und ein JS-SDK. Die Pingen-Zustände werden auf den Brief-Lebenszyklus gemappt, Webhooks werden signaturgeprüft und idempotent verarbeitet. Vor dem Produktivbetrieb wird ein AV-Vertrag abgeschlossen.
+- **Erster echter Provider: Pingen** (Stand Oktober 2026). Pingen druckt Briefe an österreichische Empfänger lokal und lässt sie von der Österreichischen Post zustellen (Brief 2–3 Werktage, Premium Brief am nächsten Werktag). Ein Brief mit 1 Blatt S/W kostet ca. 1,43 € netto, ab 500 Briefen/Monat ca. 1,25 € netto. Die API bietet REST mit OAuth2 (Client Credentials), Webhooks für Statusänderungen, eine kostenlose Sandbox, Idempotency-Keys und ein JS-SDK. Die Pingen-Zustände werden auf den Brief-Lebenszyklus gemappt, Webhooks werden signaturgeprüft und idempotent verarbeitet. Vor dem Produktivbetrieb wird ein AV-Vertrag abgeschlossen. Umgesetzt (ADR-0063): Zugangsdaten unter Einstellungen → Briefe → Druckdienst, Testumgebung als Standard, „Per Pingen versenden“ in der Briefliste mit Bestätigung, Status per Webhook und stündlicher Abfrage. Das PDF entsteht im Browser des Owners; automatische Folgebriefe bleiben deshalb auch mit Pingen ein Entwurf, den der Owner mit einem Klick abschickt.
 - Weitere mögliche Adapter: **LetterXpress** (druckt in Deutschland, nach Österreich nur als Auslandsbrief) und ein Handschrift-Dienst (z. B. **Pensaki**) für besonders wichtige Prospects.
-- Automatischer Follow-up-Versand: „X Tage nach `posted_at` (Standard 14) kein Besuch → Folgebrief vorbereiten“. Beim Selbstdruck (`manual`) legt die App einen Entwurf mit eigenem Code und eine Aufgabe „Folgebrief drucken und versenden“ an, verschickt aber nichts; mit einem echten Provider wird der Brief stattdessen eingereiht. Höchstens ein automatischer Folgebrief pro erstem Brief, nie nach „Kein Interesse“, eigene Vorlage für Folgebriefe, abschaltbar in den Einstellungen.
+- Automatischer Follow-up-Versand: „X Tage nach `posted_at` (Standard 14) kein Besuch → Folgebrief vorbereiten“. Die App legt einen Entwurf mit eigenem Code und eine Aufgabe „Folgebrief drucken und versenden“ an, verschickt aber nichts von selbst, auch nicht mit Pingen: Das PDF entsteht im Browser des Owners, der den Entwurf mit einem Klick an Pingen übergibt (ADR-0063). Höchstens ein automatischer Folgebrief pro erstem Brief, nie nach „Kein Interesse“, eigene Vorlage für Folgebriefe, abschaltbar in den Einstellungen.
 - Zugangsdaten pro Workspace verschlüsselt (siehe §9a), Kosten pro Brief in `usage_events`.
 
 ---
@@ -448,7 +448,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
 | **5 – Brief & Auswertung** | Übersichts-, Kampagnen- und Inhalts-Dashboards, Karte, Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
-| **Später** | Print-API-Adapter (zuerst Pingen, danach ggf. LetterXpress und ein Handschrift-Dienst) + automatische Follow-ups, Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
+| **Später** | Weitere Print-API-Adapter (LetterXpress, ein Handschrift-Dienst; Pingen und automatische Folgebriefe sind umgesetzt), Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
 ---
 

@@ -8,6 +8,7 @@ import { consoleMonitor } from "./dev/monitor";
 import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
 import { nominatimGeocoder } from "./nominatim/geocoder";
+import { pingenLetters } from "./pingen/letters";
 import { diskStorage } from "./disk/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
@@ -89,7 +90,13 @@ export function getInfra(): Infra {
     storage,
     realtime,
     push,
-    letters: (provider) => (provider === manualLetters.id ? manualLetters : null),
+    letters: (provider, config) => {
+      if (provider === manualLetters.id) return manualLetters;
+      if (provider === "pingen" && config?.provider === "pingen") {
+        return pingenLetters(config, { storage });
+      }
+      return null;
+    },
     geocoder:
       env.GEOCODER_PROVIDER === "nominatim"
         ? nominatimGeocoder({ appUrl: env.APP_URL, contact: env.GEOCODER_CONTACT })

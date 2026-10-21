@@ -1,6 +1,6 @@
 /**
  * The live feed on „Heute“ (§7.8): only that a prospect is in their exposé
- * right now, never which section they read or what they click (ADR-0064).
+ * right now, never which section they read or what they click (ADR-0065).
  * Timeline and analytics keep the details after the fact.
  */
 export const PRESENT_PHRASE = "ist gerade im Exposé";
