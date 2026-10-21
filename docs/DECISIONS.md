@@ -837,8 +837,8 @@ Owner hat die zwei Stufen gewählt:
   Clients).
 - **Hinweis** (`src/components/expose/consent-notice.tsx`) in jedem öffentlichen Exposé statt nur bei
   eingeschalteter Aufzeichnung: nicht blockierend, sofort nach dem Laden statt nach 8 s (sonst würde
-  vorher gemessen). „Ablehnen“, „Auswählen“, „Einverstanden“ gleichwertig; „Einverstanden“ meint nur die
-  Lesestatistik. Unter „Auswählen“ beide Schalter aus. Schließen ist keine Antwort. Global Privacy
+  vorher gemessen). „Ablehnen“, „Einstellungen“, „Akzeptieren“ gleichwertig; „Akzeptieren“ meint nur die
+  Lesestatistik. Unter „Einstellungen“ beide Schalter aus. Schließen ist keine Antwort. Global Privacy
   Control (`Sec-GPC: 1`) und das Owner-Gerät: kein Hinweis, keine Lesestatistik. Im Browser
   `aq-consent` mit Version, Tag und den zwei Entscheidungen, nach 180 Tagen oder neuer Textversion neu
   fragen. „Datenschutz-Einstellungen“ im Fuß öffnet die Schalter.
@@ -848,6 +848,8 @@ Owner hat die zwei Stufen gewählt:
   `legal.dataSource`, persönlicher Link, Widerspruch, Link auf `/datenschutz`).
 - **Fristen**: Standard 180 statt 365 Tage für Ereignisse und 30 statt 90 Tage für Aufzeichnungen.
   Gespeicherte Werte bestehender Workspaces bleiben, wie sie sind.
+- **Tonfall**: Hinweis, Briefhinweis und Datenschutzerklärung sachlich in der Wir-Form mit Angabe der
+  Rechtsgrundlagen, nicht persönlich-umgangssprachlich (Wunsch des Inhabers).
 
 Folge: Wer ablehnt, liefert dem Score nur Besuch, Wiederkehr, Chat, Rückruf und Teilen. Offen für
 später: Klicks auf Kontaktwege über eine Server-Weiterleitung messen (dann Basis), automatisches Löschen

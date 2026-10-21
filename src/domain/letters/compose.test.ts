@@ -102,10 +102,10 @@ describe("privacy note in the letter", () => {
   it("names the source, the personal link and the objection (Art. 14, 21 DSGVO)", () => {
     const note = composeLetter(input).privacyNote;
     expect(note).toContain("aus Ihrem Google-Unternehmensprofil");
-    expect(note).toContain("Wenn Sie die Seite öffnen, sehe ich das");
-    expect(note).toContain("nur mit Ihrer Zustimmung");
+    expect(note).toContain("beim Aufruf der Seite wird der Besuch erfasst");
+    expect(note).toContain("nur mit Ihrer Einwilligung");
     expect(note).toContain("an hallo@pixelwerk.example");
-    expect(note).toContain("Details: pixelwerk.de/datenschutz");
+    expect(note).toContain("Weitere Informationen: pixelwerk.de/datenschutz");
   });
 
   it("works without an e-mail address", () => {
@@ -114,6 +114,6 @@ describe("privacy note in the letter", () => {
       privacyUrl: "a.de/datenschutz",
       email: null,
     });
-    expect(note).toContain("per Klick auf „Kein Interesse“ auf der Seite.");
+    expect(note).toContain("über „Kein Interesse“ auf der Seite.");
   });
 });

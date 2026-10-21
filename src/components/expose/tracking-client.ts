@@ -7,7 +7,7 @@
  * Two tiers (ADR-0065): without consent only the basis leaves the page (the
  * visit start with what the URL carries, sharing, the objection). What the
  * page observes beyond that stays in memory for the nudges and is sent only
- * after „Einverstanden“, from that moment on, never backfilled.
+ * after „Akzeptieren“, from that moment on, never backfilled.
  */
 import {
   CONSENT_NOTICE_VERSION,

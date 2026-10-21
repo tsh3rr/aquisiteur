@@ -129,10 +129,10 @@ test("without a „yes“ the exposé sends only the basis (ADR-0065)", async ({
   const notice = consentNotice(phone);
   await expect(notice).toBeVisible({ timeout: 20_000 });
   await expect(notice.getByRole("button", { name: "Ablehnen" })).toBeVisible();
-  await expect(notice.getByRole("button", { name: "Auswählen" })).toBeVisible();
-  await expect(notice.getByRole("button", { name: "Einverstanden" })).toBeVisible();
+  await expect(notice.getByRole("button", { name: "Einstellungen" })).toBeVisible();
+  await expect(notice.getByRole("button", { name: "Akzeptieren" })).toBeVisible();
   if (shots) await phone.screenshot({ path: `${shots}/01-handy-hinweis.png` });
-  await notice.getByRole("button", { name: "Auswählen" }).click();
+  await notice.getByRole("button", { name: "Einstellungen" }).click();
   await expect(notice.getByLabel(/Lesestatistik/)).not.toBeChecked();
   if (shots) await phone.screenshot({ path: `${shots}/02-handy-auswahl.png` });
   await expectAccessible(phone, "consent switches");

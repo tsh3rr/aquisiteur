@@ -71,8 +71,8 @@ test("the owner writes the legal pages and checks the limits", async ({ page }) 
   await page.goto(`${host}/impressum`);
   await expect(page.getByText("Musterweg 1, 12345 Musterstadt")).toBeVisible();
   await page.goto(`${host}/datenschutz`);
-  await expect(page.getByText(/Lesestatistik, nur mit Ihrer Zustimmung/)).toBeVisible();
-  await expect(page.getByText(/Lesestatistik löschen wir nach 180 Tagen/)).toBeVisible();
+  await expect(page.getByText(/Lesestatistik \(nur mit Einwilligung\)/)).toBeVisible();
+  await expect(page.getByText(/Lesestatistik werden nach 180 Tagen gelöscht/)).toBeVisible();
   await expectAccessible(page, "generated privacy page");
 });
 

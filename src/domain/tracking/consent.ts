@@ -16,29 +16,33 @@ export const CONSENT_NOTICE_VERSION = "2026-10-21";
 export const CONSENT_MAX_AGE_DAYS = 180;
 
 export const CONSENT_NOTICE = {
-  title: "Darf ich sehen, was Sie interessiert?",
+  title: "Datenschutzhinweis",
   body: (company: string) =>
-    `Diese Seite habe ich persönlich für ${company} erstellt. Ohne Ihre Zustimmung sehe ich nur, dass sie geöffnet wurde, und was Sie mir selbst schicken. Mit Ihrer Zustimmung sehe ich zusätzlich, welche Abschnitte Sie wie lange lesen, damit ich mich mit dem melde, was Sie wirklich interessiert.`,
+    `Diese Seite wurde für ${company} erstellt. Ohne Ihre Einwilligung erfassen wir nur den Aufruf der Seite und die Angaben, die Sie uns selbst übermitteln. Mit Ihrer Einwilligung erfassen wir zusätzlich, welche Abschnitte Sie wie lange lesen (Lesestatistik), um unsere Kontaktaufnahme auf Ihr Interesse abzustimmen. Die Einwilligung ist freiwillig und jederzeit widerruflich.`,
   reject: "Ablehnen",
-  choose: "Auswählen",
-  accept: "Einverstanden",
+  choose: "Einstellungen",
+  accept: "Akzeptieren",
   save: "Auswahl speichern",
-  acceptAll: "Alle erlauben",
+  acceptAll: "Alle akzeptieren",
   close: "Hinweis schließen",
   necessary: {
-    label: "Notwendig",
-    text: "Anzeige der Seite, Chat und Rückruf, wenn Sie sie nutzen, Schutz vor Missbrauch und Ihre Entscheidung. Dazu sehe ich, dass und wann die Seite geöffnet wurde.",
+    label: "Technisch erforderlich",
+    text: "Bereitstellung der Seite, Chat und Rückruf bei Nutzung, Schutz vor Missbrauch und Speicherung Ihrer Auswahl. Dabei wird erfasst, dass und wann die Seite aufgerufen wurde. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.",
   },
   statistics: {
     label: "Lesestatistik",
-    text: "Welche Abschnitte Sie lesen, wie lange und wie weit Sie scrollen, welche Kontaktwege und Preisoptionen Sie ansteuern, ob Sie im Chat angefangen haben zu schreiben (nie was), und dass Sie gerade auf der Seite sind.",
+    text: "Erfassung der angesehenen Abschnitte und ihrer Lesedauer, der Scrolltiefe, der Nutzung von Kontaktwegen und Preisoptionen, des Beginns einer Chat-Eingabe (ohne deren Inhalt) sowie Ihrer Anwesenheit auf der Seite. Rechtsgrundlage: Einwilligung (Art. 6 Abs. 1 lit. a DSGVO).",
   },
   replay: {
-    label: "Aufzeichnung",
+    label: "Sitzungsaufzeichnung",
     text: (days: number) =>
-      `Eine Aufzeichnung, wie Sie scrollen und klicken, ohne Eingaben und ohne Chat. Gelöscht nach ${days} Tagen oder sofort, wenn Sie widerrufen.`,
+      `Aufzeichnung von Scrollen, Klicks und Mausbewegungen auf dieser Seite, ohne Eingaben in Formularfeldern und ohne Chat. Löschung nach ${days} Tagen oder unverzüglich nach Widerruf. Rechtsgrundlage: Einwilligung (Art. 6 Abs. 1 lit. a DSGVO).`,
   },
   settings: "Datenschutz-Einstellungen",
+  more: "Datenschutzerklärung",
+  revoke:
+    "Sie können Ihre Auswahl jederzeit über „Datenschutz-Einstellungen“ am Seitenende ändern oder widerrufen. Weitere Informationen enthält unsere",
+  recording: "Sitzungsaufzeichnung aktiv · widerrufen",
 } as const;
 
 /**

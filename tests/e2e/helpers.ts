@@ -148,15 +148,15 @@ export function publishWithCli(folder: string, token: string): string {
 
 /** The consent notice on a public exposé (ADR-0065). */
 export function consentNotice(page: Page) {
-  return page.getByRole("region", { name: /Darf ich sehen|Datenschutz-Einstellungen/ });
+  return page.getByRole("region", { name: /Datenschutzhinweis|Datenschutz-Einstellungen/ });
 }
 
-/** The prospect clicks „Einverstanden“: reading statistics from now on. */
+/** The prospect clicks „Akzeptieren“: reading statistics from now on. */
 export async function acceptStatistics(page: Page) {
   const notice = consentNotice(page);
   await expect(notice).toBeVisible({ timeout: 20_000 });
   const answered = page.waitForResponse((r) => r.url().endsWith("/t/consent"));
-  await notice.getByRole("button", { name: "Einverstanden" }).click();
+  await notice.getByRole("button", { name: "Akzeptieren" }).click();
   expect((await answered).status()).toBe(204);
   await expect(notice).toBeHidden();
 }

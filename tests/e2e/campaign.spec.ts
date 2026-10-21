@@ -141,17 +141,17 @@ test("the prospect allows a recording and the owner watches it", async ({ page, 
   const notice = consentNotice(phone);
   await expect(notice).toBeVisible({ timeout: 20_000 });
   await expectAccessible(phone, "exposé with consent notice");
-  await notice.getByRole("button", { name: "Auswählen" }).click();
+  await notice.getByRole("button", { name: "Einstellungen" }).click();
   await expect(notice.getByLabel(/Lesestatistik/)).not.toBeChecked();
-  await expect(notice.getByLabel(/Aufzeichnung/)).not.toBeChecked();
+  await expect(notice.getByLabel(/aufzeichnung/i)).not.toBeChecked();
   await expectAccessible(phone, "exposé with consent switches");
-  await notice.getByLabel(/Aufzeichnung/).check();
+  await notice.getByLabel(/aufzeichnung/i).check();
   const consent = phone.waitForResponse(
     (r) => r.url().endsWith("/t/consent") && r.request().postData()?.includes("replay") === true,
   );
   await notice.getByRole("button", { name: "Auswahl speichern" }).click();
   expect((await consent).status()).toBe(204);
-  await expect(phone.getByRole("button", { name: /Aufzeichnung läuft/ })).toBeVisible();
+  await expect(phone.getByRole("button", { name: /Sitzungsaufzeichnung aktiv/ })).toBeVisible();
   const uploaded = phone.waitForResponse((r) => r.url().endsWith("/t/replay"), {
     timeout: 30_000,
   });

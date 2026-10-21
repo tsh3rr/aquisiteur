@@ -167,7 +167,7 @@ export function ConsentNotice({ privacyHref, company, replay }: ConsentNoticePro
               {CONSENT_NOTICE.body(company)}{" "}
               {privacyHref ? (
                 <a href={privacyHref} className="underline underline-offset-2">
-                  Mehr dazu
+                  {CONSENT_NOTICE.more}
                 </a>
               ) : null}
             </p>
@@ -231,11 +231,11 @@ export function ConsentNotice({ privacyHref, company, replay }: ConsentNoticePro
             ) : null}
             {privacyHref ? (
               <p className="text-sm text-foreground-muted">
-                Einzelheiten in der{" "}
+                {CONSENT_NOTICE.revoke}{" "}
                 <a href={privacyHref} className="underline underline-offset-2">
-                  Datenschutzerklärung
+                  {CONSENT_NOTICE.more}
                 </a>
-                . Sie können Ihre Auswahl hier jederzeit ändern.
+                .
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2">
@@ -267,7 +267,7 @@ export function ConsentNotice({ privacyHref, company, replay }: ConsentNoticePro
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface/95 px-4 text-xs text-foreground-muted shadow-sm backdrop-blur hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           <span aria-hidden className="size-2 rounded-full bg-danger" />
-          Aufzeichnung läuft · beenden
+          {CONSENT_NOTICE.recording}
         </button>
       </div>
     );

@@ -137,12 +137,12 @@ export function letterPrivacyNote(input: {
   email: string | null;
 }): string {
   const objection = input.email
-    ? `per Klick auf „Kein Interesse“ auf der Seite oder an ${input.email}`
-    : "per Klick auf „Kein Interesse“ auf der Seite";
+    ? `über „Kein Interesse“ auf der Seite oder per E-Mail an ${input.email}`
+    : "über „Kein Interesse“ auf der Seite";
   return [
-    `Datenschutz: Ihre Anschrift stammt aus ${input.dataSource}.`,
-    "Der QR-Code und der Link sind persönlich für Sie: Wenn Sie die Seite öffnen, sehe ich das. Mehr sehe ich nur mit Ihrer Zustimmung auf der Seite.",
-    `Sie können jederzeit widersprechen, ${objection}. Details: ${input.privacyUrl}`,
+    `Datenschutzhinweis (Art. 14 DSGVO): Ihre Anschrift stammt aus ${input.dataSource}. Verantwortlich ist der oben genannte Absender.`,
+    "QR-Code und Link sind Ihrem Unternehmen zugeordnet; beim Aufruf der Seite wird der Besuch erfasst. Weitergehende Auswertungen erfolgen nur mit Ihrer Einwilligung.",
+    `Sie können der Verwendung Ihrer Daten zu Werbezwecken jederzeit widersprechen (Art. 21 DSGVO), ${objection}. Weitere Informationen: ${input.privacyUrl}`,
   ].join(" ");
 }
 
