@@ -174,7 +174,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Briefe</CardTitle>
           <CardDescription>
-            Absender, Standardtext und Unterschrift für die gedruckten Briefe.
+            Absender, Standardtexte, Folgebriefe und Unterschrift für die gedruckten Briefe.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-8">

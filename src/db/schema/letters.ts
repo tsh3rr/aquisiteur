@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   foreignKey,
   index,
@@ -55,6 +56,8 @@ export const letters = pgTable(
     returnedAt: timestamp("returned_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** First letters only: when the follow-up rule prepared a follow-up for it (§7.9). */
+    followUpAt: timestamp("follow_up_at", { withTimezone: true }),
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -68,6 +71,10 @@ export const letters = pgTable(
     index("letters_prospect_idx").on(t.workspaceId, t.prospectId, t.createdAt),
     index("letters_campaign_idx").on(t.workspaceId, t.campaignId),
     index("letters_posted_idx").on(t.workspaceId, t.postedAt),
+    // The hourly job looks across workspaces for first letters that may need a follow-up.
+    index("letters_follow_up_idx")
+      .on(t.postedAt)
+      .where(sql`${t.kind} = 'initial' and ${t.status} = 'posted' and ${t.followUpAt} is null`),
     foreignKey({
       name: "letters_prospect_fk",
       columns: [t.workspaceId, t.prospectId],

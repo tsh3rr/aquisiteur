@@ -79,12 +79,18 @@ function senderFrom(settings: WorkspaceSettings, workspaceName: string): LetterS
 /**
  * Creates draft letters for the given prospects. An initial letter uses the
  * exposé's letter touchpoint and text; a follow-up gets a touchpoint of its
- * own (§7.9 „Follow-up-Brief mit eigenem Code“) and the workspace template.
+ * own (§7.9 „Follow-up-Brief mit eigenem Code“) and the follow-up template.
  */
 export async function createLetters(
   tx: Transaction,
   actor: Actor,
-  input: { prospectIds: string[]; kind: LetterKind; options?: Partial<PrintOptions> },
+  input: {
+    prospectIds: string[];
+    kind: LetterKind;
+    options?: Partial<PrintOptions>;
+    /** Prepared by the follow-up rule rather than by hand (for the audit log). */
+    auto?: boolean;
+  },
 ): Promise<{
   created: string[];
   skipped: { prospectId: string; companyName: string; reason: SkipReason }[];
@@ -183,8 +189,12 @@ export async function createLetters(
         touchpointId: touchpoint.id,
         kind: input.kind,
         options,
-        subject: exposeLetter?.subject ?? settings.letter.subject,
-        body: exposeLetter?.body ?? settings.letter.body,
+        subject:
+          exposeLetter?.subject ??
+          (input.kind === "follow_up" ? settings.letter.followUp.subject : settings.letter.subject),
+        body:
+          exposeLetter?.body ??
+          (input.kind === "follow_up" ? settings.letter.followUp.body : settings.letter.body),
         createdByUserId: actor.userId,
       })
       .returning({ id: letters.id });
@@ -196,7 +206,7 @@ export async function createLetters(
       actorUserId: actor.userId,
       action: "letter.created",
       targetType: "letter",
-      meta: { count: created.length, kind: input.kind },
+      meta: { count: created.length, kind: input.kind, ...(input.auto ? { auto: true } : {}) },
     });
   }
   return { created, skipped };

@@ -31,7 +31,7 @@ function cents(value: string) {
   return normalised ? Math.round(Number(normalised) * 100) : Number.NaN;
 }
 
-/** Settings → Briefe (§7.9): sender, template, costs. The signature has its own upload. */
+/** Settings → Briefe (§7.9): sender, templates, follow-ups, costs. The signature has its own upload. */
 export async function saveLetterSettings(
   _prev: LetterSettingsState,
   formData: FormData,
@@ -52,11 +52,19 @@ export async function saveLetterSettings(
       closing: text(formData, "letter.closing") || undefined,
       qrHint: text(formData, "letter.qrHint") || undefined,
       costCents: cents(text(formData, "letter.cost")),
+      followUp: {
+        enabled: formData.get("letter.followUp.enabled") === "on",
+        afterDays: Number(text(formData, "letter.followUp.afterDays")),
+        subject: text(formData, "letter.followUp.subject") || undefined,
+        body: text(formData, "letter.followUp.body") || undefined,
+      },
     },
   });
   if (!parsed.success) {
     const errors = issuesByField(parsed.error);
     if (errors["letter.costCents"]) errors["letter.cost"] = "Bitte einen Betrag in Euro angeben.";
+    if (errors["letter.followUp.afterDays"])
+      errors["letter.followUp.afterDays"] = "Bitte eine ganze Zahl von 3 bis 90 Tagen angeben.";
     return { ok: false, message: "Bitte prüfen Sie die markierten Felder.", errors };
   }
   await tenant(async (tx) => {
