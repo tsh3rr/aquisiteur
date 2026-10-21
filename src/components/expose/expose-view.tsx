@@ -5,7 +5,7 @@ import { displayFont, styleFontHref } from "./fonts";
 import { prefilledMessage, telHref, whatsappHref } from "@/domain/expose/contact-links";
 import { ContactLayerLazy } from "./contact-layer-lazy";
 import { ExposeTracker } from "./expose-tracker";
-import { ReplayConsentLazy } from "./replay-consent-lazy";
+import { ConsentNoticeLazy } from "./consent-notice-lazy";
 import { FooterActions } from "./footer-actions";
 import { ownerName } from "./owner";
 import { Picture } from "./picture";
@@ -59,8 +59,15 @@ export function ExposeView({
       className={`${displayFont.variable} min-h-dvh bg-background pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-foreground`}
     >
       {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}
-      {mode === "public" && data.settings.replay.enabled && links.privacy ? (
-        <ReplayConsentLazy privacyHref={links.privacy} />
+      {mode === "public" ? (
+        <ConsentNoticeLazy
+          privacyHref={links.privacy}
+          company={data.prospect.companyName}
+          replay={{
+            enabled: data.settings.replay.enabled,
+            days: data.settings.retention.replaysDays,
+          }}
+        />
       ) : null}
       {styleFont ? (
         <link rel="preload" href={styleFont} as="font" type="font/woff2" crossOrigin="anonymous" />
@@ -173,6 +180,15 @@ export function ExposeView({
               >
                 Datenschutz
               </a>
+            ) : null}
+            {mode === "public" ? (
+              <button
+                type="button"
+                data-consent-settings
+                className="min-h-6 underline underline-offset-4 hover:text-foreground"
+              >
+                Datenschutz-Einstellungen
+              </button>
             ) : null}
             {links.optOut ? (
               <a href={links.optOut} className="underline underline-offset-4 hover:text-foreground">

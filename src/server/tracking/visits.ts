@@ -1,8 +1,9 @@
 import "server-only";
-import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
-import { events, exposes, prospects, touchpoints, visits } from "@/db/schema";
+import { consents, events, exposes, prospects, touchpoints, visits } from "@/db/schema";
+import { isStatisticsEvent } from "@/domain/tracking/consent";
 import { notificationCopy, notificationUrl } from "@/domain/notifications";
 import { activityPhrase } from "@/domain/tracking/activity";
 import {
@@ -193,6 +194,11 @@ export type StartResult =
       returning: boolean;
       /** Someone of the workspace is reachable right now (§7.4). */
       available: boolean;
+      /**
+       * Show the consent notice: not on the owner's device, and not when the
+       * browser sends Global Privacy Control, which counts as „Ablehnen“ (ADR-0065).
+       */
+      consentNotice: boolean;
     }
   | { error: "invalid" | "not_found" | "limited" };
 
@@ -324,6 +330,7 @@ export async function startVisit(
         token: await signToken(secret(), "visit", current.id, VISIT_TTL),
         returning: Boolean(earlier),
         available: await workspaceAvailable(db, input.workspaceId),
+        consentNotice: !input.internal && input.headers.get("sec-gpc") !== "1",
       },
       visitId: current.id,
       quiet: current.quiet,
@@ -412,6 +419,23 @@ export async function visitForToken(db: Database, workspaceId: string, token: st
   return visit ?? null;
 }
 
+/** The visitor's latest answer for the reading statistics of this visit is „yes“. */
+export async function statisticsAllowed(db: Database, workspaceId: string, visitId: string) {
+  const [row] = await db
+    .select({ decision: consents.decision })
+    .from(consents)
+    .where(
+      and(
+        eq(consents.workspaceId, workspaceId),
+        eq(consents.visitId, visitId),
+        eq(consents.scope, "statistics"),
+      ),
+    )
+    .orderBy(desc(consents.createdAt))
+    .limit(1);
+  return row?.decision === "given";
+}
+
 function payloadOf(event: TrackedEvent): Record<string, unknown> {
   const { type: _type, at: _at, ...rest } = event;
   if ("blockId" in rest) delete (rest as { blockId?: string }).blockId;
@@ -430,7 +454,13 @@ export async function ingestEvents(
   const visit = await visitForToken(db, input.workspaceId, batch.data.token);
   if (!visit) return "invalid";
   if (!(await hitRateLimit(db, `t:e:${visit.id}`, 120, 600))) return "limited";
-  const parsed = parseEvents(batch.data.events);
+  let parsed = parseEvents(batch.data.events);
+  // Reading statistics only with the visitor's „yes“ (ADR-0065); the script holds them back too.
+  if (parsed.some((event) => isStatisticsEvent(event.type))) {
+    if (!(await statisticsAllowed(db, input.workspaceId, visit.id))) {
+      parsed = parsed.filter((event) => !isStatisticsEvent(event.type));
+    }
+  }
   if (parsed.length === 0) return "ok";
 
   const origin = (visit.confirmedAt ?? visit.startedAt).getTime();

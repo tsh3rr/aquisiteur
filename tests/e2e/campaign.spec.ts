@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E } from "../../playwright.config";
-import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
+import {
+  consentNotice,
+  createApiToken,
+  expectAccessible,
+  publishWithCli,
+  signInWithWorkspace,
+} from "./helpers";
 
 /**
  * Phase 5 "done when": a campaign runs from import to evaluation. The owner
@@ -132,11 +138,18 @@ test("the prospect allows a recording and the owner watches it", async ({ page, 
   });
   const phone = await phoneContext.newPage();
   await phone.goto(exposeUrl);
-  const notice = phone.getByRole("region", { name: /Darf ich sehen/ });
+  const notice = consentNotice(phone);
   await expect(notice).toBeVisible({ timeout: 20_000 });
-  await expectAccessible(phone, "exposé with replay notice");
-  const consent = phone.waitForResponse((r) => r.url().endsWith("/t/consent"));
-  await notice.getByRole("button", { name: "Ja, einverstanden" }).click();
+  await expectAccessible(phone, "exposé with consent notice");
+  await notice.getByRole("button", { name: "Auswählen" }).click();
+  await expect(notice.getByLabel(/Lesestatistik/)).not.toBeChecked();
+  await expect(notice.getByLabel(/Aufzeichnung/)).not.toBeChecked();
+  await expectAccessible(phone, "exposé with consent switches");
+  await notice.getByLabel(/Aufzeichnung/).check();
+  const consent = phone.waitForResponse(
+    (r) => r.url().endsWith("/t/consent") && r.request().postData()?.includes("replay") === true,
+  );
+  await notice.getByRole("button", { name: "Auswahl speichern" }).click();
   expect((await consent).status()).toBe(204);
   await expect(phone.getByRole("button", { name: /Aufzeichnung läuft/ })).toBeVisible();
   const uploaded = phone.waitForResponse((r) => r.url().endsWith("/t/replay"), {

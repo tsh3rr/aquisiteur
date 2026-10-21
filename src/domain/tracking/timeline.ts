@@ -181,11 +181,13 @@ export function describeEvent(event: TimelineEvent, outline: ExposeOutline): str
     case "nudge_dismissed":
       return `Hinweis geschlossen: ${NUDGE_LABELS[String(payload.nudge)] ?? "Hinweis"}`;
     case "consent_given":
-      return "Aufzeichnung erlaubt";
+      return payload.scope === "statistics" ? "Lesestatistik erlaubt" : "Aufzeichnung erlaubt";
     case "consent_denied":
-      return "Aufzeichnung abgelehnt";
+      return payload.scope === "statistics" ? "Lesestatistik abgelehnt" : "Aufzeichnung abgelehnt";
     case "consent_withdrawn":
-      return "Aufzeichnung beendet und gelöscht";
+      return payload.scope === "statistics"
+        ? "Lesestatistik widerrufen und gelöscht"
+        : "Aufzeichnung beendet und gelöscht";
     default:
       // page_view, section_view, scroll_depth and heartbeats feed the visit summary.
       return null;

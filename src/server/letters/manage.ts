@@ -16,6 +16,7 @@ import {
 import type { Actor } from "@/domain/authz";
 import {
   composeLetter,
+  DEFAULT_DATA_SOURCE,
   letterProblems,
   type ComposedLetter,
   type LetterSender,
@@ -432,6 +433,10 @@ export async function loadPrintableLetters(
       date: letter.postedAt ?? now,
       timeZone: settings.notifications.timezone,
       signatureUrl,
+      privacy: {
+        dataSource: settings.legal.dataSource ?? DEFAULT_DATA_SOURCE,
+        privacyUrl: `${origin.replace(/^https?:\/\//, "")}/datenschutz`,
+      },
     });
     const source = letter.options.teaser !== false ? documents.get(touchpoint.exposeId) : undefined;
     const teaser = source ? buildLetterTeaser(source.document) : null;

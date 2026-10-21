@@ -288,11 +288,11 @@ export default async function SettingsPage() {
             legal={settings.legal}
             generated={{
               imprint: imprintMarkdown(
-                { ...settings, legal: { imprintMarkdown: undefined, privacyMarkdown: undefined } },
+                { ...settings, legal: { ...settings.legal, imprintMarkdown: undefined } },
                 workspace.name,
               ),
               privacy: privacyMarkdown(
-                { ...settings, legal: { imprintMarkdown: undefined, privacyMarkdown: undefined } },
+                { ...settings, legal: { ...settings.legal, privacyMarkdown: undefined } },
                 workspace.name,
                 serverEnv().HOSTING_PROFILE,
               ),

@@ -815,3 +815,40 @@ einzubremsen:
   Details weiter im Nachhinein. Die Tippanzeige des Owners für den Besucher bleibt (ja/nein).
 - Die Datenschutzerklärung-Vorlage zählt alle Messwerte einzeln auf, nennt die Entwurfserkennung als
   ja/nein, die Live-Anzeige „ist gerade da“ und den Session Storage des Chats.
+
+## ADR-0065 · Messung in zwei Stufen: Basis ohne, Lesestatistik und Aufzeichnung mit Einwilligung (2026-10-21, ändert ADR-0042)
+
+Die rechtliche Einschätzung (Projekt-Dokument „Aquisiteur: Datenschutz, Tracking und Einwilligungen“)
+kam zu dem Schluss, dass „cookieless“ allein § 25 TDDDG bzw. § 165 Abs. 3 TKG 2021 nicht erfüllt: Ein
+Script, das Scrollen, sichtbare Abschnitte, Hover oder Eingaben beobachtet und sendet, greift nach den
+EDSA-Leitlinien 2/2023 auf das Endgerät zu. Unbedingt erforderlich ist das für den Besucher nicht. Der
+Owner hat die zwei Stufen gewählt:
+
+- **Basis ohne Einwilligung**: Besuchsstart (`page_view`) mit dem, was die angeforderte URL trägt (Slug,
+  Ticket), dazu Header (Gerät aus dem User-Agent, Stadt aus `cf-ipcity`), Teilen und Widerspruch, alles
+  was der Besucher absendet (Chat, Rückruf). Das Script schickt keine Fenstergröße mehr. Alles, was es
+  sonst beobachtet, bleibt im Speicher der Seite für die Nudges.
+- **Lesestatistik mit Einwilligung**: alle übrigen Ereignisse des Scripts (`isStatisticsEvent`), das
+  Tipp-Signal im Chat und damit Live-Anwesenheit über Heartbeats. Ab dem „Ja“, nie rückwirkend. Der
+  Server prüft je Batch die letzte Entscheidung des Besuchs (`consents.scope = 'statistics'`) und
+  verwirft sonst; das Script hält die Ereignisse ohnehin zurück. Ein früheres „Ja“ des Geräts schickt das
+  Script für den neuen Besuch selbst als Nachweis, bevor es das erste Batch sendet.
+- **Aufzeichnung** bleibt eine eigene Einwilligung (`scope = 'replay'`, Standard ohne `scope` für alte
+  Clients).
+- **Hinweis** (`src/components/expose/consent-notice.tsx`) in jedem öffentlichen Exposé statt nur bei
+  eingeschalteter Aufzeichnung: nicht blockierend, sofort nach dem Laden statt nach 8 s (sonst würde
+  vorher gemessen). „Ablehnen“, „Auswählen“, „Einverstanden“ gleichwertig; „Einverstanden“ meint nur die
+  Lesestatistik. Unter „Auswählen“ beide Schalter aus. Schließen ist keine Antwort. Global Privacy
+  Control (`Sec-GPC: 1`) und das Owner-Gerät: kein Hinweis, keine Lesestatistik. Im Browser
+  `aq-consent` mit Version, Tag und den zwei Entscheidungen, nach 180 Tagen oder neuer Textversion neu
+  fragen. „Datenschutz-Einstellungen“ im Fuß öffnet die Schalter.
+- **Widerruf** der Lesestatistik löscht deren Ereignisse dieses Besuchs, setzt aktive Zeit und
+  Scrolltiefe zurück und entfernt das Tipp-Signal; Basis und Nachweise bleiben.
+- **Brief** bekommt einen Datenschutzhinweis nach Art. 14 DSGVO (Herkunft der Adresse aus
+  `legal.dataSource`, persönlicher Link, Widerspruch, Link auf `/datenschutz`).
+- **Fristen**: Standard 180 statt 365 Tage für Ereignisse und 30 statt 90 Tage für Aufzeichnungen.
+  Gespeicherte Werte bestehender Workspaces bleiben, wie sie sind.
+
+Folge: Wer ablehnt, liefert dem Score nur Besuch, Wiederkehr, Chat, Rückruf und Teilen. Offen für
+später: Klicks auf Kontaktwege über eine Server-Weiterleitung messen (dann Basis), automatisches Löschen
+von Kunden ohne Reaktion nach 12 Monaten.

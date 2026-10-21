@@ -41,6 +41,8 @@ export interface LetterInput {
   date: Date;
   timeZone: string;
   signatureUrl: string | null;
+  /** Where the address came from and where the privacy policy lives (Art. 14 DSGVO). */
+  privacy: { dataSource: string; privacyUrl: string };
 }
 
 export interface ComposedLetter {
@@ -60,6 +62,8 @@ export interface ComposedLetter {
   qr: { url: string; hint: string; shortLink: string | null };
   /** Phone, e-mail and website, one per line in the info block. */
   senderContact: string[];
+  /** Short privacy note under the signature (Art. 14 DSGVO, ADR-0065). */
+  privacyNote: string;
   /** Contact details in the footer. */
   footer: string[];
   /** Placeholders the text used that had no value, e.g. ["ansprechpartner"]. */
@@ -118,6 +122,30 @@ export function fillPlaceholders(
 
 export const PLACEHOLDERS = ["firma", "ansprechpartner", "ort", "kurzlink", "absender"] as const;
 
+/** Default for `legal.dataSource`, named in the letter and the privacy policy. */
+export const DEFAULT_DATA_SOURCE =
+  "öffentlich zugänglichen Angaben wie Ihrer Website, Ihrem Unternehmensprofil bei Google oder dem Handels- bzw. Firmenbuch";
+
+/**
+ * The first contact has to say where the address came from, that the link
+ * is personal, and that the recipient may object (Art. 14 Abs. 3 lit. b,
+ * Art. 21 Abs. 4 DSGVO). Short, with the full text one link away.
+ */
+export function letterPrivacyNote(input: {
+  dataSource: string;
+  privacyUrl: string;
+  email: string | null;
+}): string {
+  const objection = input.email
+    ? `per Klick auf „Kein Interesse“ auf der Seite oder an ${input.email}`
+    : "per Klick auf „Kein Interesse“ auf der Seite";
+  return [
+    `Datenschutz: Ihre Anschrift stammt aus ${input.dataSource}.`,
+    "Der QR-Code und der Link sind persönlich für Sie: Wenn Sie die Seite öffnen, sehe ich das. Mehr sehe ich nur mit Ihrer Zustimmung auf der Seite.",
+    `Sie können jederzeit widersprechen, ${objection}. Details: ${input.privacyUrl}`,
+  ].join(" ");
+}
+
 export function composeLetter(input: LetterInput): ComposedLetter {
   const { sender, recipient } = input;
   const person = contactName(recipient.contact);
@@ -165,6 +193,11 @@ export function composeLetter(input: LetterInput): ComposedLetter {
     signer: { name: sender.name, role: sender.role, signatureUrl: input.signatureUrl },
     qr: { url: input.qrUrl, hint: input.qrHint, shortLink: input.shortLink },
     senderContact,
+    privacyNote: letterPrivacyNote({
+      dataSource: input.privacy.dataSource,
+      privacyUrl: input.privacy.privacyUrl,
+      email: sender.email,
+    }),
     footer: [
       [sender.company, sender.street, senderPlace].filter(Boolean).join(", "),
       senderContact.join(" · "),

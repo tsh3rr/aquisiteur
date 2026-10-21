@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
-import { REPLAY_NOTICE_VERSION } from "@/domain/tracking/replay";
+import { CONSENT_NOTICE_VERSION } from "@/domain/tracking/consent";
 import { exportProspect, exportWorkspaceStream } from "@/server/data-export";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
 import { deleteProspect, setDoNotContact } from "@/server/prospects/mutations";
@@ -47,7 +47,7 @@ async function visitWithRecording(expose: PublishResult) {
   await db.update(schema.workspaceSettings).set({ replay: { enabled: true } });
   await recordConsent(db, {
     workspaceId: ws,
-    body: { token: started.token, decision: "given", version: REPLAY_NOTICE_VERSION },
+    body: { token: started.token, decision: "given", version: CONSENT_NOTICE_VERSION },
   });
   const body = { token: started.token, events: [{ type: 4, timestamp: Date.now() }] };
   await appendReplayChunk(db, {

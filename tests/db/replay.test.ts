@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
-import { REPLAY_NOTICE_VERSION } from "@/domain/tracking/replay";
+import { CONSENT_NOTICE_VERSION } from "@/domain/tracking/consent";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
 import {
   appendReplayChunk,
@@ -52,7 +52,7 @@ async function visit() {
 const consent = (token: string, decision: "given" | "denied" | "withdrawn") =>
   recordConsent(db, {
     workspaceId: wsR,
-    body: { token, decision, version: REPLAY_NOTICE_VERSION },
+    body: { token, decision, version: CONSENT_NOTICE_VERSION },
   });
 
 const chunk = (token: string, events: { type: number; timestamp: number }[]) => {
@@ -129,7 +129,7 @@ describe("consent and session replay", () => {
       .from(schema.consents)
       .where(eq(schema.consents.workspaceId, wsR));
     expect(decisions.map((row) => row.decision).sort()).toEqual(["denied", "given"]);
-    expect(decisions.every((row) => row.version === REPLAY_NOTICE_VERSION)).toBe(true);
+    expect(decisions.every((row) => row.version === CONSENT_NOTICE_VERSION)).toBe(true);
     const types = await db
       .select({ type: schema.events.type })
       .from(schema.events)

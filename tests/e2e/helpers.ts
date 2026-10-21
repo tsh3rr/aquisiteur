@@ -145,3 +145,26 @@ export function publishWithCli(folder: string, token: string): string {
     AQUISITEUR_API_URL: E2E.baseURL,
   });
 }
+
+/** The consent notice on a public exposé (ADR-0065). */
+export function consentNotice(page: Page) {
+  return page.getByRole("region", { name: /Darf ich sehen|Datenschutz-Einstellungen/ });
+}
+
+/** The prospect clicks „Einverstanden“: reading statistics from now on. */
+export async function acceptStatistics(page: Page) {
+  const notice = consentNotice(page);
+  await expect(notice).toBeVisible({ timeout: 20_000 });
+  const answered = page.waitForResponse((r) => r.url().endsWith("/t/consent"));
+  await notice.getByRole("button", { name: "Einverstanden" }).click();
+  expect((await answered).status()).toBe(204);
+  await expect(notice).toBeHidden();
+}
+
+/** The prospect clicks „Ablehnen“: only the basis, chat and callback still work. */
+export async function rejectConsent(page: Page) {
+  const notice = consentNotice(page);
+  await expect(notice).toBeVisible({ timeout: 20_000 });
+  await notice.getByRole("button", { name: "Ablehnen" }).click();
+  await expect(notice).toBeHidden();
+}

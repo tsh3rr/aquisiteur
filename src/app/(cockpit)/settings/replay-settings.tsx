@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { REPLAY_NOTICE } from "@/domain/tracking/replay";
+import { CONSENT_NOTICE } from "@/domain/tracking/consent";
 import { saveReplaySettings, type ReplaySettingsState } from "./replay-actions";
 
 export function ReplaySettingsForm({
@@ -34,16 +34,17 @@ export function ReplaySettingsForm({
         </label>
         <div className="grid gap-1 rounded-md border border-border bg-surface-sunken p-4 text-sm">
           <p className="font-medium">So sieht der Hinweis aus:</p>
-          <p>{REPLAY_NOTICE.title}</p>
-          <p className="text-foreground-muted">{REPLAY_NOTICE.body}</p>
+          <p>{CONSENT_NOTICE.title}</p>
+          <p className="text-foreground-muted">{CONSENT_NOTICE.body("Café Müller")}</p>
           <p className="text-foreground-muted">
-            Zwei gleichwertige Knöpfe: „{REPLAY_NOTICE.accept}“ und „{REPLAY_NOTICE.decline}“.
+            {`Drei gleichwertige Knöpfe: „${CONSENT_NOTICE.reject}“, „${CONSENT_NOTICE.choose}“ und „${CONSENT_NOTICE.accept}“. Unter „${CONSENT_NOTICE.choose}“ stehen die Schalter „${CONSENT_NOTICE.statistics.label}“ und, wenn hier eingeschaltet, „${CONSENT_NOTICE.replay.label}“, beide anfangs aus.`}
           </p>
         </div>
         <p className="text-sm text-foreground-muted">
-          Aufgezeichnet wird nur nach einem „Ja“. Eingaben in Feldern, der Chat und das
-          Rückrufformular bleiben verborgen. Aufzeichnungen werden nach {retentionDays} Tagen
-          gelöscht, bei Widerruf sofort.
+          Der Hinweis erscheint in jedem Exposé, weil auch die Lesestatistik eine Zustimmung
+          braucht. Aufgezeichnet wird nur, wenn der Besucher „{CONSENT_NOTICE.replay.label}“
+          einschaltet. Eingaben in Feldern, der Chat und das Rückrufformular bleiben verborgen.
+          Aufzeichnungen werden nach {retentionDays} Tagen gelöscht, bei Widerruf sofort.
         </p>
       </fieldset>
       <div aria-live="polite">

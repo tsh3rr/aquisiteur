@@ -30,6 +30,7 @@ import { updateProspect } from "@/server/prospects/mutations";
 import { ingestEvents, startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
 import type { GeocoderPort } from "@/infra";
+import { allowStatistics } from "../support/consent";
 import { minimalExpose } from "../support/expose";
 
 /** Phase 5: campaigns, CSV import, letters and the dashboards' figures. */
@@ -308,6 +309,7 @@ describe("dashboards", () => {
       internal: false,
     });
     if (!("token" in started)) throw new Error("visit failed");
+    await allowStatistics(db, wsL, started.token);
     // Started an hour ago, so the events' times are not clamped to "now".
     const hourAgo = new Date(Date.now() - 3600 * 1000);
     await db

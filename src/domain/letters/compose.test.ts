@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { composeLetter, fillPlaceholders, salutationFor, type LetterInput } from "./compose";
+import {
+  composeLetter,
+  fillPlaceholders,
+  letterPrivacyNote,
+  salutationFor,
+  type LetterInput,
+} from "./compose";
 
 const input: LetterInput = {
   sender: {
@@ -31,6 +37,10 @@ const input: LetterInput = {
   date: new Date("2026-10-16T10:00:00Z"),
   timeZone: "Europe/Berlin",
   signatureUrl: null,
+  privacy: {
+    dataSource: "Ihrem Google-Unternehmensprofil",
+    privacyUrl: "pixelwerk.de/datenschutz",
+  },
 };
 
 describe("composeLetter", () => {
@@ -85,5 +95,25 @@ describe("salutationFor", () => {
 describe("fillPlaceholders", () => {
   it("leaves unknown placeholders visible", () => {
     expect(fillPlaceholders("{{foo}} {{firma}}", { firma: "A" }).text).toBe("{{foo}} A");
+  });
+});
+
+describe("privacy note in the letter", () => {
+  it("names the source, the personal link and the objection (Art. 14, 21 DSGVO)", () => {
+    const note = composeLetter(input).privacyNote;
+    expect(note).toContain("aus Ihrem Google-Unternehmensprofil");
+    expect(note).toContain("Wenn Sie die Seite öffnen, sehe ich das");
+    expect(note).toContain("nur mit Ihrer Zustimmung");
+    expect(note).toContain("an hallo@pixelwerk.example");
+    expect(note).toContain("Details: pixelwerk.de/datenschutz");
+  });
+
+  it("works without an e-mail address", () => {
+    const note = letterPrivacyNote({
+      dataSource: "X",
+      privacyUrl: "a.de/datenschutz",
+      email: null,
+    });
+    expect(note).toContain("per Klick auf „Kein Interesse“ auf der Seite.");
   });
 });

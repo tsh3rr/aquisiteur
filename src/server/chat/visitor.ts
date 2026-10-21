@@ -34,7 +34,7 @@ import { advanceStatus } from "@/server/prospects/auto-status";
 import { liveSubscription, publish, threadTopic, workspaceTopic } from "@/server/realtime";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
-import { visitForToken } from "@/server/tracking/visits";
+import { statisticsAllowed, visitForToken } from "@/server/tracking/visits";
 import { workspaceAvailable } from "./presence";
 
 /**
@@ -271,7 +271,8 @@ export async function readVisitorThread(
 /**
  * Draft detection (§7.5 „Entwurfserkennung“): only whether the visitor has
  * started writing, never what or how much (docs/PRIVACY.md). Not shown live
- * in the cockpit; it feeds the score and the timeline.
+ * in the cockpit; it feeds the score and the timeline. Part of the reading
+ * statistics, so only with the visitor's consent (ADR-0065).
  */
 export async function recordVisitorTyping(
   db: Database,
@@ -282,6 +283,7 @@ export async function recordVisitorTyping(
   const visit = await visitForToken(db, input.workspaceId, parsed.data.token);
   if (!visit) return "invalid";
   if (!(await hitRateLimit(db, `chat:typing:${visit.id}`, 120, 600))) return "limited";
+  if (!(await statisticsAllowed(db, input.workspaceId, visit.id))) return "ok";
   const thread = parsed.data.chat
     ? await threadForToken(db, input.workspaceId, parsed.data.chat)
     : null;

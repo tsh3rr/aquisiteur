@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
   qrText: { marginLeft: mm(5), flexGrow: 1, flexShrink: 1 },
   link: { fontSize: 13, fontWeight: 600, color: "#111111", textDecoration: "none" },
   signature: { height: mm(16), objectFit: "contain", objectPositionX: 0, marginTop: mm(2) },
+  privacy: { marginTop: mm(8), fontSize: 7.5, lineHeight: 1.35, color: "#555555" },
   footer: {
     position: "absolute",
     bottom: mm(10),
@@ -229,6 +230,8 @@ function LetterPage({ letter }: { letter: PrintableLetterData }) {
         {letter.signer.name ? <Text>{letter.signer.name}</Text> : null}
         {letter.signer.role ? <Text style={{ color: "#555555" }}>{letter.signer.role}</Text> : null}
       </View>
+
+      <Text style={styles.privacy}>{letter.privacyNote}</Text>
 
       <View fixed style={styles.footer}>
         {letter.footer.map((line, index) => (

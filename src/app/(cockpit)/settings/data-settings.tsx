@@ -26,7 +26,7 @@ export function RetentionForm({
         <legend className="sr-only">Aufbewahrungsfristen</legend>
         <Field
           label="Ereignisse (Tage)"
-          hint="Scrollen, Klicks, Lesezeit je Abschnitt. Standard 365."
+          hint="Lesestatistik mit Einwilligung: Scrollen, Klicks, Lesezeit je Abschnitt. Standard 180."
           error={e("eventsDays")}
         >
           <Input
@@ -40,7 +40,7 @@ export function RetentionForm({
         </Field>
         <Field
           label="Aufzeichnungen (Tage)"
-          hint="Sitzungsaufzeichnungen mit Einwilligung. Standard 90."
+          hint="Sitzungsaufzeichnungen mit Einwilligung. Standard 30."
           error={e("replaysDays")}
         >
           <Input

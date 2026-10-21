@@ -25,6 +25,7 @@ import {
 import { workspaceTopic } from "@/server/realtime";
 import { startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
+import { allowStatistics } from "../support/consent";
 import { minimalExpose } from "../support/expose";
 
 /**
@@ -277,8 +278,21 @@ describe("live chat", () => {
 });
 
 describe("draft detection", () => {
+  it("ignores the typing signal without consent to the reading statistics", async () => {
+    const token = await visit(wsH, bakery.slug);
+    expect(
+      await recordVisitorTyping(db, { workspaceId: wsH, body: { token, hasText: true } }),
+    ).toBe("ok");
+    const rows = await db
+      .select()
+      .from(schema.chatDrafts)
+      .where(eq(schema.chatDrafts.prospectId, bakery.prospectId));
+    expect(rows).toEqual([]);
+  });
+
   it("records only whether the visitor started writing, never text or length", async () => {
     const token = await visit(wsH, bakery.slug);
+    await allowStatistics(db, wsH, token);
     const draft = async () =>
       (
         await db

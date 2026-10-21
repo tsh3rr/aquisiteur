@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Download, type Page } from "@playwright/test";
 import { E2E } from "../../playwright.config";
-import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
+import {
+  createApiToken,
+  expectAccessible,
+  publishWithCli,
+  rejectConsent,
+  signInWithWorkspace,
+} from "./helpers";
 
 /**
  * Phase 1 "done when": an exposé published with the CLI is reachable under
@@ -126,6 +132,7 @@ test("the reader saves the exposé as a designed PDF", async ({ page }) => {
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto(publicUrl);
+  await rejectConsent(page);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Als PDF speichern" }).click();
   expect(await savedPdf(download, "expose-public.pdf")).toBeGreaterThan(2);
@@ -135,6 +142,7 @@ test("the reader saves the exposé as a designed PDF", async ({ page }) => {
 
 test("the prospect can opt out, and the opt-out is recorded once", async ({ page }) => {
   await page.goto(publicUrl);
+  await rejectConsent(page);
   await page.getByRole("link", { name: "Kein Interesse, bitte nicht mehr kontaktieren" }).click();
   await expect(page.getByRole("heading", { name: "Kein Interesse?" })).toBeVisible();
   await expectAccessible(page, "opt-out confirmation");
@@ -164,6 +172,7 @@ test("a nudge expands the chat button and folds back when the visitor reads on",
   page,
 }) => {
   await page.goto(publicUrl);
+  await rejectConsent(page);
   const launcher = page.getByRole("button", { name: /^Chat/ });
   await expect(launcher).toBeVisible();
 

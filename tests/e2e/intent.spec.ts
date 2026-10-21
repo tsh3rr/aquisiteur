@@ -3,6 +3,7 @@ import { devices, expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
 import { E2E } from "../../playwright.config";
 import {
+  acceptStatistics,
   createApiToken,
   expectAccessible,
   mailCount,
@@ -108,6 +109,7 @@ test("QR open → read → typing: the owner sees score and notification live", 
   const started = phone.waitForResponse((r) => r.url().endsWith("/t/start") && r.ok());
   await phone.goto(qrUrl);
   await started;
+  await acceptStatistics(phone);
 
   // The first real scan: a push to the phone and an entry in the cockpit.
   await expect.poll(() => pushes().map((p) => p.title)).toContain("Café Müller · Exposé geöffnet");

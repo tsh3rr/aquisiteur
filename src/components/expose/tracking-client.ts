@@ -1,9 +1,20 @@
 /**
- * The exposé's own tracking script (§6.3): no cookies, no storage; the
- * visit token lives in memory for this page view only. Events are batched
- * and sent with fetch(keepalive) or, when the page goes away, sendBeacon.
- * Kept dependency-free and small (< 5 KB gzip).
+ * The exposé's own tracking script (§6.3): no cookies; the visit token lives
+ * in memory for this page view only. Events are batched and sent with
+ * fetch(keepalive) or, when the page goes away, sendBeacon. Kept
+ * dependency-free and small (< 5 KB gzip).
+ *
+ * Two tiers (ADR-0065): without consent only the basis leaves the page (the
+ * visit start with what the URL carries, sharing, the objection). What the
+ * page observes beyond that stays in memory for the nudges and is sent only
+ * after „Einverstanden“, from that moment on, never backfilled.
  */
+import {
+  CONSENT_NOTICE_VERSION,
+  CONSENT_STORAGE_KEY,
+  isStatisticsEvent,
+  storedConsent,
+} from "@/domain/tracking/consent";
 
 type TrackEvent = { type: string; [key: string]: unknown };
 
@@ -18,6 +29,10 @@ let queue: TrackEvent[] = [];
 /** Slug whose visit this page already started (survives a remount). */
 let startedSlug: string | null = null;
 let active = false;
+/** The visitor allowed reading statistics (consent notice or an earlier answer). */
+let statistics = false;
+/** The start answer: whether to show the consent notice at all. */
+let consentNotice = false;
 
 /**
  * What the page observed so far, for the nudges and the contact bar
@@ -92,8 +107,49 @@ function flush(beacon = false) {
 /** Records an event; harmless before start() or in the cockpit preview. */
 export function track(event: TrackEvent) {
   if (!active) return;
+  if (!statistics && isStatisticsEvent(event.type)) return;
   queue.push({ ...event, at: at() });
   if (queue.length >= 20) flush();
+}
+
+export function statisticsAllowed(): boolean {
+  return statistics;
+}
+
+/** Switches the reading statistics on or off for the rest of this page view. */
+export function setStatistics(allowed: boolean) {
+  statistics = allowed;
+  if (!allowed) queue = queue.filter((event) => !isStatisticsEvent(event.type));
+}
+
+/** Stores one answer of the consent notice for this visit (proof, server-side gate). */
+export async function sendConsent(
+  scope: "statistics" | "replay",
+  decision: "given" | "denied" | "withdrawn",
+): Promise<boolean> {
+  const current = await visitToken();
+  if (!current) return false;
+  const response = await post("/t/consent", {
+    token: current,
+    scope,
+    decision,
+    version: CONSENT_NOTICE_VERSION,
+  });
+  return Boolean(response?.ok);
+}
+
+/** Whether to ask: false on the owner's device and with Global Privacy Control. */
+export async function shouldAskConsent(): Promise<boolean> {
+  await visitToken();
+  return consentNotice;
+}
+
+function rememberedStatistics(): boolean {
+  try {
+    return storedConsent(localStorage.getItem(CONSENT_STORAGE_KEY))?.statistics === true;
+  } catch {
+    return false;
+  }
 }
 
 /** A share link of its own for „Mit Kollegen teilen“, or null to share the page URL. */
@@ -120,6 +176,7 @@ const channelOf = (element: HTMLElement) =>
 export function start(slug: string): () => void {
   if (active) return () => {};
   active = true;
+  statistics = rememberedStatistics();
   if (startedSlug !== slug) {
     // One visit per page view, even if the component remounts.
     startedSlug = slug;
@@ -134,20 +191,31 @@ export function start(slug: string): () => void {
       url.searchParams.delete("v");
       history.replaceState(history.state, "", url);
     }
-    void post("/t/start", {
-      slug,
-      ticket,
-      viewport: { width: window.innerWidth, height: window.innerHeight },
-    })
+    // Only what the requested URL carries; nothing read from the device.
+    void post("/t/start", { slug, ticket })
       .then((response) => (response?.ok ? response.json() : null))
-      .then((data: { token?: string; returning?: boolean; available?: boolean } | null) => {
-        token = data?.token ?? null;
-        ready = true;
-        update({ returning: Boolean(data?.returning), available: Boolean(data?.available) });
-        for (const resolve of tokenWaiters) resolve(token);
-        tokenWaiters = [];
-        flush();
-      });
+      .then(
+        (
+          data: {
+            token?: string;
+            returning?: boolean;
+            available?: boolean;
+            consentNotice?: boolean;
+          } | null,
+        ) => {
+          token = data?.token ?? null;
+          consentNotice = Boolean(data?.consentNotice);
+          // Global Privacy Control or the owner's own device: no statistics.
+          if (!consentNotice) statistics = false;
+          // An earlier „yes“ counts for this visit too; the server needs it before the first batch.
+          const proof = token && statistics ? sendConsent("statistics", "given") : null;
+          ready = true;
+          update({ returning: Boolean(data?.returning), available: Boolean(data?.available) });
+          for (const resolve of tokenWaiters) resolve(token);
+          tokenWaiters = [];
+          void Promise.resolve(proof).then(() => flush());
+        },
+      );
   }
 
   // Active time: one heartbeat per 15 s while the tab is visible.

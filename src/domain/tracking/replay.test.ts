@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  REPLAY_NOTICE_VERSION,
-  replayChunkKey,
-  replayChunkSchema,
-  spanOf,
-  storedDecision,
-} from "./replay";
+import { consentBodySchema, replayChunkKey, replayChunkSchema, spanOf } from "./replay";
 
 describe("session replay", () => {
   it("keeps chunks under the workspace prefix", () => {
@@ -33,10 +27,19 @@ describe("session replay", () => {
     expect(spanOf(events, 1_000)).toBe(4_500);
   });
 
-  it("asks again when the notice changed", () => {
-    expect(storedDecision(JSON.stringify({ v: REPLAY_NOTICE_VERSION, d: "given" }))).toBe("given");
-    expect(storedDecision(JSON.stringify({ v: "old", d: "given" }))).toBeNull();
-    expect(storedDecision("{broken")).toBeNull();
-    expect(storedDecision(null)).toBeNull();
+  it("reads a decision without scope as the recording", () => {
+    const token = "t".repeat(30);
+    const old = consentBodySchema.parse({ token, decision: "given", version: "2026-10" });
+    expect(old.scope).toBe("replay");
+    const statistics = consentBodySchema.parse({
+      token,
+      scope: "statistics",
+      decision: "denied",
+      version: "2026-10-21",
+    });
+    expect(statistics.scope).toBe("statistics");
+    expect(
+      consentBodySchema.safeParse({ token, scope: "ads", decision: "given", version: "x" }).success,
+    ).toBe(false);
   });
 });

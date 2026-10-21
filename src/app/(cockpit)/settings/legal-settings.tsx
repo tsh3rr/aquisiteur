@@ -5,7 +5,8 @@ import { useActionState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
+import { DEFAULT_DATA_SOURCE } from "@/domain/letters/compose";
 import { saveLegalAction, type LegalSettingsState } from "./legal-actions";
 
 const initial: LegalSettingsState = { ok: false };
@@ -17,7 +18,7 @@ export function LegalSettingsForm({
   publicOrigin,
   canEdit,
 }: {
-  legal: { imprintMarkdown?: string; privacyMarkdown?: string };
+  legal: { imprintMarkdown?: string; privacyMarkdown?: string; dataSource?: string };
   generated: { imprint: string; privacy: string };
   publicOrigin: string;
   canEdit: boolean;
@@ -45,6 +46,12 @@ export function LegalSettingsForm({
     <form action={action} className="grid gap-6">
       <fieldset className="grid gap-6" disabled={!canEdit || pending}>
         <legend className="sr-only">Rechtstexte</legend>
+        <Field
+          label="Herkunft der Adressen"
+          hint={`Steht im Datenschutzhinweis jedes Briefs und in der Datenschutzerklärung („Ihre Anschrift stammt aus …“). Leer: „${DEFAULT_DATA_SOURCE}“.`}
+        >
+          <Input name="dataSource" maxLength={300} defaultValue={legal.dataSource ?? ""} />
+        </Field>
         {pages.map((page) => (
           <div key={page.name} className="grid gap-2">
             <Field

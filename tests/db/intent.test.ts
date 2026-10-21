@@ -20,6 +20,7 @@ import {
 import { notify } from "@/server/notifications/notify";
 import { ingestEvents, startVisit } from "@/server/tracking/visits";
 import { createWorkspace } from "@/server/workspaces";
+import { allowStatistics } from "../support/consent";
 import { minimalExpose } from "../support/expose";
 
 /**
@@ -133,6 +134,7 @@ describe("intent score and notifications", () => {
 
   it("the first real visit notifies by push and starts the score", async () => {
     token = await visit(wsJ, cafe.slug);
+    await allowStatistics(db, wsJ, token);
     const [first] = await notificationsOf(wsJ);
     expect(first).toMatchObject({
       trigger: "first_visit",
