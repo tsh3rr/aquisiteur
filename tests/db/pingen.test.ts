@@ -5,10 +5,18 @@ import * as schema from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import type { LetterDispatchProvider } from "@/infra";
 import { publishExpose, type PublishResult } from "@/server/exposes/publish";
-import { createLetters, dispatchLetters, storeLetterPdf } from "@/server/letters/manage";
+import {
+  advanceLetters,
+  createLetters,
+  dispatchLetters,
+  PINGEN_PROVIDERS,
+  recordProviderUpdates,
+  storeLetterPdf,
+} from "@/server/letters/manage";
 import {
   activePrintProvider,
   loadPingenSettings,
+  printServiceOf,
   savePingenSettings,
 } from "@/server/letters/providers";
 import { syncLetterStatuses } from "@/server/letters/sync";
@@ -137,7 +145,8 @@ describe("credentials", () => {
         webhookSecret: "",
       }),
     );
-    expect((await asPia((tx) => activePrintProvider(tx, ws)))?.id).toBe("pingen");
+    // Test environment by default: its letters are kept apart from real ones.
+    expect((await asPia((tx) => activePrintProvider(tx, ws)))?.id).toBe("pingen-staging");
     expect(await asPia((tx) => loadPingenSettings(tx, ws))).toMatchObject({
       clientId: "client-2",
       hasClientSecret: true,
@@ -185,9 +194,7 @@ describe("dispatch", () => {
         return null;
       },
     };
-    const result = await asPia((tx) =>
-      dispatchLetters(tx, actor, [cafeLetter, shopLetter], provider),
-    );
+    const result = await dispatchLetters(asPia, actor, [cafeLetter, shopLetter], provider);
     expect(result).toEqual({
       sent: 1,
       failed: [{ letterId: shopLetter, message: "Pingen: Address not recognised" }],
@@ -202,7 +209,7 @@ describe("dispatch", () => {
       failureReason: "Pingen: Address not recognised",
     });
     // A letter already handed over is not sent twice.
-    expect((await asPia((tx) => dispatchLetters(tx, actor, [cafeLetter], provider))).sent).toBe(0);
+    expect((await dispatchLetters(asPia, actor, [cafeLetter], provider)).sent).toBe(0);
     expect(sent).toEqual([cafeLetter]);
   });
 
@@ -258,6 +265,64 @@ describe("dispatch", () => {
     expect(response.status).toBe(404);
   });
 
+  it("keeps a fixable issue as a note and refuses a cancel Pingen declines", async () => {
+    await db
+      .update(schema.letters)
+      .set({
+        status: "submitted",
+        provider: "pingen",
+        providerRef: "p-shop",
+        submittedAt: new Date(),
+      })
+      .where(eq(schema.letters.id, shopLetter));
+    const at = new Date();
+    expect(
+      await recordProviderUpdates(db, ws, PINGEN_PROVIDERS, [
+        {
+          providerRef: "p-shop",
+          status: "submitted",
+          at,
+          costCents: null,
+          reason: "Address unclear",
+        },
+      ]),
+    ).toBe(1);
+    expect(await letter(shopLetter)).toMatchObject({
+      status: "submitted",
+      failureReason: "Address unclear",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith("/auth/access-tokens")
+          ? Response.json({ access_token: "tok", expires_in: 43200 })
+          : Response.json({ errors: [{ detail: "Letter is already printing." }] }, { status: 422 }),
+      ),
+    );
+    expect(await asPia((tx) => advanceLetters(tx, actor, [shopLetter], "cancelled"))).toEqual({
+      changed: 0,
+      refused: 1,
+    });
+    expect((await letter(shopLetter)).status).toBe("submitted");
+  });
+
+  it("a test letter ends as cancelled instead of posted", async () => {
+    const { created } = await asPia((tx) =>
+      createLetters(tx, actor, { prospectIds: [shop.prospectId], kind: "follow_up" }),
+    );
+    const testLetter = created[0]!;
+    await db
+      .update(schema.letters)
+      .set({ status: "submitted", provider: "pingen-staging", providerRef: "p-test" })
+      .where(eq(schema.letters.id, testLetter));
+    await recordProviderUpdates(db, ws, PINGEN_PROVIDERS, [
+      { providerRef: "p-test", status: "posted", at: new Date(), costCents: 143, reason: null },
+    ]);
+    const result = await letter(testLetter);
+    expect(result).toMatchObject({ status: "cancelled", postedAt: null, costCents: null });
+    expect(result.failureReason).toContain("Testversand");
+  });
+
   it("the hourly sync asks Pingen about letters on their way", async () => {
     await db
       .update(schema.letters)
@@ -282,5 +347,17 @@ describe("dispatch", () => {
     const result = await syncLetterStatuses(db);
     expect(result.changed).toBe(1);
     expect(await letter(shopLetter)).toMatchObject({ status: "returned" });
+    // Pingen received real addresses, so the privacy page keeps naming it after switching off.
+    await asPia((tx) =>
+      savePingenSettings(tx, actor, {
+        enabled: false,
+        staging: true,
+        organisationId: "org-1",
+        clientId: "client-2",
+        clientSecret: "",
+        webhookSecret: "",
+      }),
+    );
+    expect(await printServiceOf(db, ws)).toBe("pingen");
   });
 });

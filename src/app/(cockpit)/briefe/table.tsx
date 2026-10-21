@@ -219,10 +219,12 @@ export function LetterTable({
                   <Badge tone={LETTER_STATUS_TONES[row.status]}>
                     {LETTER_STATUS_LABELS[row.status]}
                   </Badge>
-                  {row.provider === "pingen" ? (
-                    <span className="block text-xs text-foreground-muted">über Pingen</span>
+                  {row.provider.startsWith("pingen") ? (
+                    <span className="block text-xs text-foreground-muted">
+                      {row.provider === "pingen-staging" ? "über Pingen (Test)" : "über Pingen"}
+                    </span>
                   ) : null}
-                  {row.failureReason && ["draft", "failed"].includes(row.status) ? (
+                  {row.failureReason ? (
                     <span className="block max-w-56 text-xs text-danger">{row.failureReason}</span>
                   ) : null}
                 </td>

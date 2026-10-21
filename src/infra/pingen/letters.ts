@@ -32,7 +32,6 @@ const HOSTS = {
 };
 
 const JSON_API = "application/vnd.api+json";
-const MAX_WEBHOOK_BYTES = 256 * 1024;
 
 /**
  * Pingen's letter states mapped onto the app's lifecycle. Unknown states map
@@ -42,6 +41,7 @@ export function mapPingenStatus(status: string): LetterStatus | null {
   switch (status) {
     case "validating":
     case "valid":
+    case "action_required":
     case "submitted":
     case "accepted":
       return "submitted";
@@ -55,7 +55,6 @@ export function mapPingenStatus(status: string): LetterStatus | null {
       return "returned";
     case "cancelled":
       return "cancelled";
-    case "action_required":
     case "invalid":
     case "unprintable":
     case "expired":
@@ -112,7 +111,11 @@ async function readAll(stream: ReadableStream): Promise<Uint8Array<ArrayBuffer>>
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Tokens live 12 hours at Pingen; cached per client id with a safety margin. */
+/**
+ * Tokens live 12 hours at Pingen; cached with a safety margin. The key holds
+ * the secret too, so another workspace entering the same client id, or a
+ * changed secret, never reuses a token.
+ */
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 
 export function pingenLetters(
@@ -122,7 +125,11 @@ export function pingenLetters(
   const fetcher = deps.fetch ?? fetch;
   const now = deps.now ?? Date.now;
   const host = config.staging ? HOSTS.staging : HOSTS.production;
-  const cacheKey = `${config.staging ? "staging" : "production"}:${config.clientId}`;
+  const cacheKey = [
+    config.staging ? "staging" : "production",
+    config.clientId,
+    config.clientSecret,
+  ].join("\u0000");
   const org = `/organisations/${encodeURIComponent(config.organisationId)}`;
 
   async function token(): Promise<string> {
@@ -184,7 +191,8 @@ export function pingenLetters(
   type Resource = { data?: { id?: string; attributes?: Record<string, unknown> } };
 
   return {
-    id: "pingen",
+    // Test letters are kept apart, so they never count as posted (ADR-0063).
+    id: config.staging ? "pingen-staging" : "pingen",
     tracksDelivery: true,
 
     async send(letter) {
@@ -265,13 +273,9 @@ export function pingenLetters(
       return { name: String(organisation.data?.attributes?.name ?? "") };
     },
 
-    async handleWebhook(request) {
+    async handleWebhook(body, headers) {
       if (!config.webhookSecret) throw new PingenError("Kein Webhook-Schlüssel hinterlegt.", 401);
-      const length = Number(request.headers.get("content-length") ?? 0);
-      if (length > MAX_WEBHOOK_BYTES) throw new PingenError("Webhook zu groß.", 413);
-      const body = new Uint8Array(await request.arrayBuffer());
-      if (body.byteLength > MAX_WEBHOOK_BYTES) throw new PingenError("Webhook zu groß.", 413);
-      const given = (request.headers.get("signature") ?? "").toLowerCase();
+      const given = (headers.get("signature") ?? "").toLowerCase();
       if (!given || !constantTimeEqual(await hmacHex(config.webhookSecret, body), given)) {
         throw new PingenError("Webhook-Signatur ungültig.", 401);
       }
@@ -292,10 +296,15 @@ export function pingenLetters(
       const byCategory: Record<string, LetterStatus> = {
         webhook_sent: "posted",
         webhook_undeliverable: "returned",
-        webhook_issues: "failed",
       };
+      const letterStatus = String(included?.attributes?.status ?? "");
+      const isIssue = event.type === "webhook_issues";
+      // An issue can often be fixed in Pingen (e.g. the address), so it is a note
+      // on a letter still on its way, unless Pingen gave the letter up.
       const status =
-        byCategory[event.type ?? ""] ?? mapPingenStatus(String(included?.attributes?.status ?? ""));
+        byCategory[event.type ?? ""] ??
+        mapPingenStatus(letterStatus) ??
+        (isIssue ? "submitted" : null);
       if (!status) return [];
       const at = event.attributes?.created_at ? new Date(event.attributes.created_at) : new Date();
       const update: LetterProviderUpdate = {
@@ -303,7 +312,7 @@ export function pingenLetters(
         status,
         at: Number.isNaN(at.getTime()) ? new Date() : at,
         costCents: toCents(included?.attributes?.price_value),
-        reason: status === "failed" ? (event.attributes?.reason ?? null) : null,
+        reason: isIssue || status === "failed" ? (event.attributes?.reason ?? null) : null,
       };
       return [update];
     },

@@ -138,17 +138,15 @@ export async function dispatchLettersAction(ids: string[]): Promise<BulkState> {
   const { actor, tenant } = await manager();
   const parsed = idsSchema.safeParse(ids);
   if (!parsed.success) return { ok: false, message: "Ungültige Auswahl." };
-  const result = await tenant(async (tx) => {
-    const provider = await activePrintProvider(tx, actor.workspaceId);
-    return provider ? dispatchLetters(tx, actor, parsed.data, provider) : null;
-  });
+  const provider = await tenant((tx) => activePrintProvider(tx, actor.workspaceId));
+  const result = provider ? await dispatchLetters(tenant, actor, parsed.data, provider) : null;
   revalidateLetters();
   if (!result) {
     return { ok: false, message: "Kein Druckdienst eingerichtet (Einstellungen → Briefe)." };
   }
   const sent =
     result.sent > 0
-      ? `${result.sent} ${result.sent === 1 ? "Brief" : "Briefe"} an Pingen übergeben.`
+      ? `${result.sent} ${result.sent === 1 ? "Brief" : "Briefe"} an Pingen übergeben${provider?.id === "pingen-staging" ? " (Testumgebung)" : ""}.`
       : "";
   const failed =
     result.failed.length > 0

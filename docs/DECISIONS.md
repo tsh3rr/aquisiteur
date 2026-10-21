@@ -793,12 +793,27 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
   höchstens 8 MB) und übergibt dann. Ein Server-Rendering hätte react-pdf in den Worker gezogen.
   Folge: Automatische Folgebriefe (ADR-0062) bleiben auch mit Pingen Entwurf plus Aufgabe; der Owner
   schickt sie mit einem Klick ab.
-- Ablehnung durch Pingen lässt den Brief als Entwurf mit Grund (`failure_reason`) stehen. Rückmeldungen
-  kommen per Webhook (`/api/webhooks/pingen/<workspace_id>`, HMAC-SHA256 über den Rohtext im Header
-  `Signature`, sonst 401) und als Sicherheitsnetz stündlich per Statusabfrage für Briefe, die seit über
-  einer Stunde unterwegs sind. Beides läuft über `recordProviderUpdates`: Zustände dazwischen werden
-  durchlaufen, „versendet“ setzt den Prospect auf „Brief versendet“, Pingens Preis ersetzt die
-  Pauschale, doppelte Meldungen ändern nichts. `issues` gilt als „fehlgeschlagen“ mit Pingens Grund.
-- Die Testumgebung von Pingen ist Standard, bis der Owner sie abschaltet; die Bestätigung vor dem
-  Versand nennt Testumgebung oder Kosten. Die generierte Datenschutzerklärung nennt Pingen, sobald es
-  eingeschaltet ist.
+- Die Aufrufe bei Pingen laufen außerhalb jeder Datenbank-Transaktion: Brief beanspruchen (`queued`,
+  committet), senden, Ergebnis in einer zweiten Transaktion festhalten, erst dann das PDF löschen. Ein
+  Rollback vergisst so nie einen Brief, den Pingen schon angenommen hat; ein liegengebliebener Anspruch
+  wird nach 10 Minuten mit demselben Idempotency-Key erneut gesendet. Lehnt Pingen ab, wird der Brief
+  wieder Entwurf mit Grund (`failure_reason`). Lehnt Pingen ein Storno ab (schon im Druck), bleibt der
+  Brief, wie er ist, und zählt als abgelehnt.
+- Rückmeldungen kommen per Webhook (`/api/webhooks/pingen/<workspace_id>`, Body höchstens 256 KB per
+  `readBodyLimited`, HMAC-SHA256 über den Rohtext im Header `Signature`, sonst 401) und als
+  Sicherheitsnetz stündlich per Statusabfrage für Briefe, die seit über einer Stunde und unter 60 Tagen
+  unterwegs sind; jede Abfrage stellt den Brief hinten an, damit unlösbare Fälle die anderen nicht
+  verdrängen. Beides läuft über `recordProviderUpdates`: Zustände dazwischen werden durchlaufen,
+  „versendet“ setzt den Prospect auf „Brief versendet“, Pingens Preis ersetzt die Pauschale, doppelte
+  oder verspätete Meldungen ändern nichts. Ein `issue` bei einem Brief, den man in Pingen noch
+  korrigieren kann (`action_required`), ist nur ein Hinweis am Brief; „fehlgeschlagen“ wird er erst,
+  wenn Pingen ihn aufgibt (`invalid`, `unprintable`, `expired`).
+- Die Testumgebung von Pingen ist Standard, bis der Owner sie abschaltet. Briefe von dort tragen den
+  Provider `pingen-staging`, sprechen auch nach dem Umschalten weiter mit der Testumgebung und enden als
+  „storniert“ mit dem Hinweis „Testversand“, sobald Pingen sie als verschickt meldet. So starten sie
+  weder „Zeit bis zur Öffnung“ noch Folgebriefe, Kosten oder Nutzungszähler. Die Bestätigung vor dem
+  Versand nennt die Testumgebung oder „kostenpflichtig“; einen Preis nennt sie nicht, Pingens Preis
+  steht nach dem Versand am Brief. Die generierte Datenschutzerklärung nennt Pingen, solange es
+  eingeschaltet ist oder je ein echter Brief darüber ging.
+- Pingen-Tokens werden im Speicher nach Umgebung, Client-ID und Secret getrennt gecacht, damit kein
+  anderer Workspace mit derselben Client-ID und kein geändertes Secret einen alten Token nutzt.

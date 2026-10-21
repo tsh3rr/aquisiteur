@@ -167,7 +167,7 @@ export interface LetterProviderUpdate {
   at: Date;
   /** What the provider charges for the letter, once known. */
   costCents: number | null;
-  /** Why it failed, in the provider's words. */
+  /** A problem the provider reports, in its own words (why it failed, or what needs fixing). */
   reason: string | null;
 }
 
@@ -190,8 +190,11 @@ export interface LetterDispatchProvider {
   ): Promise<{ cents: number } | null>;
   /** Verifies the credentials; throws with a message for the owner when they do not work. */
   checkConnection?(): Promise<{ name: string }>;
-  /** Verifies and parses a status webhook; throws on a bad signature. */
-  handleWebhook?(request: Request): Promise<LetterProviderUpdate[]>;
+  /**
+   * Verifies and parses a status webhook; throws on a bad signature. The
+   * caller reads the body with a size limit (`readBodyLimited`).
+   */
+  handleWebhook?(body: Uint8Array<ArrayBuffer>, headers: Headers): Promise<LetterProviderUpdate[]>;
 }
 
 /** Credentials of a workspace's print provider (§7.9), decrypted by the app. */

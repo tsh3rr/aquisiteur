@@ -147,6 +147,25 @@ describe("pingenLetters", () => {
     expect(fetcher.mock.calls.filter(([url]) => String(url).includes("identity"))).toHaveLength(1);
   });
 
+  it("never shares a token between different secrets for the same client id", async () => {
+    let issued = 0;
+    const fetcher = fakePingen({
+      "POST identity-staging.pingen.com/auth/access-tokens": () =>
+        json({ access_token: `tok-${++issued}`, expires_in: 43200 }),
+      "GET api-staging.pingen.com/organisations/org-1": () =>
+        json({ data: { attributes: { name: "Agentur" } } }),
+    });
+    const build = (clientSecret: string) =>
+      pingenLetters(
+        { ...config, clientId: "client-shared", clientSecret },
+        { storage: storage(null), fetch: fetcher as typeof fetch },
+      );
+    await build("a").checkConnection!();
+    await build("a").checkConnection!();
+    await build("b").checkConnection!();
+    expect(issued).toBe(2);
+  });
+
   it("names rejected credentials", async () => {
     const fetcher = fakePingen({
       "POST identity-staging.pingen.com/auth/access-tokens": () => json({}, 401),
@@ -171,7 +190,7 @@ describe("pingenLetters", () => {
       const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
       return Array.from(new Uint8Array(signature), (b) => b.toString(16).padStart(2, "0")).join("");
     };
-    const event = (type: string, extra: Record<string, unknown> = {}) =>
+    const event = (type: string, extra: Record<string, unknown> = {}, letterStatus = "sent") =>
       JSON.stringify({
         data: {
           type,
@@ -180,19 +199,15 @@ describe("pingenLetters", () => {
           relationships: { letter: { data: { type: "letters", id: "p1" } } },
         },
         included: [
-          { type: "letters", id: "p1", attributes: { status: "sent", price_value: 1.43 } },
+          { type: "letters", id: "p1", attributes: { status: letterStatus, price_value: 1.43 } },
         ],
       });
     const request = (body: string, signature: string) =>
-      new Request("https://app.test/api/webhooks/pingen/w1", {
-        method: "POST",
-        headers: { signature },
-        body,
-      });
+      [new TextEncoder().encode(body), new Headers({ signature })] as const;
 
     it("accepts a signed „sent“ event", async () => {
       const body = event("webhook_sent");
-      expect(await provider.handleWebhook!(request(body, await sign(body)))).toEqual([
+      expect(await provider.handleWebhook!(...request(body, await sign(body)))).toEqual([
         {
           providerRef: "p1",
           status: "posted",
@@ -203,18 +218,21 @@ describe("pingenLetters", () => {
       ]);
     });
 
-    it("turns an issue into a failure with Pingen's reason", async () => {
-      const body = event("webhook_issues", { reason: "Address not found" });
-      const [update] = await provider.handleWebhook!(request(body, await sign(body)));
-      expect(update).toMatchObject({ status: "failed", reason: "Address not found" });
+    it("keeps a fixable issue as a note, a lost letter as a failure", async () => {
+      const fixable = event("webhook_issues", { reason: "Address not found" }, "action_required");
+      const [note] = await provider.handleWebhook!(...request(fixable, await sign(fixable)));
+      expect(note).toMatchObject({ status: "submitted", reason: "Address not found" });
+      const lost = event("webhook_issues", { reason: "Unprintable" }, "unprintable");
+      const [failure] = await provider.handleWebhook!(...request(lost, await sign(lost)));
+      expect(failure).toMatchObject({ status: "failed", reason: "Unprintable" });
     });
 
     it("rejects a wrong or missing signature", async () => {
       const body = event("webhook_sent");
       await expect(
-        provider.handleWebhook!(request(body, await sign(body, "other"))),
+        provider.handleWebhook!(...request(body, await sign(body, "other"))),
       ).rejects.toThrow("Signatur");
-      await expect(provider.handleWebhook!(request(body, ""))).rejects.toThrow("Signatur");
+      await expect(provider.handleWebhook!(...request(body, ""))).rejects.toThrow("Signatur");
     });
   });
 });
@@ -224,7 +242,8 @@ describe("mapPingenStatus", () => {
     expect(mapPingenStatus("validating")).toBe("submitted");
     expect(mapPingenStatus("sent")).toBe("posted");
     expect(mapPingenStatus("undeliverable")).toBe("returned");
-    expect(mapPingenStatus("action_required")).toBe("failed");
+    expect(mapPingenStatus("action_required")).toBe("submitted");
+    expect(mapPingenStatus("unprintable")).toBe("failed");
     expect(mapPingenStatus("cancelled")).toBe("cancelled");
     expect(mapPingenStatus("something_new")).toBeNull();
   });

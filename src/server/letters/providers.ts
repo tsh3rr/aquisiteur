@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
-import { auditLog, integrations } from "@/db/schema";
+import { auditLog, integrations, letters } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import { getInfra, type LetterDispatchProvider, type LetterProviderConfig } from "@/infra";
 import { decryptSecret, encryptSecret, importSecretKey } from "@/lib/crypto";
@@ -145,10 +145,19 @@ export async function savePingenSettings(
   return { ok: true };
 }
 
-/** Whether the workspace sends through Pingen; no secrets are read (privacy page). */
+/**
+ * Whether recipients' addresses go, or went, to Pingen: switched on, or a real
+ * (not test) letter was sent through it. No secrets are read (privacy page).
+ */
 export async function printServiceOf(db: Reader, workspaceId: string): Promise<"pingen" | null> {
   const found = await row(db, workspaceId);
-  return found && configSchema.parse(found.config).enabled ? "pingen" : null;
+  if (found && configSchema.parse(found.config).enabled) return "pingen";
+  const [sent] = await db
+    .select({ id: letters.id })
+    .from(letters)
+    .where(and(eq(letters.workspaceId, workspaceId), eq(letters.provider, "pingen")))
+    .limit(1);
+  return sent ? "pingen" : null;
 }
 
 /** Decrypted credentials, or null when Pingen is not set up (or not switched on). */
@@ -176,18 +185,23 @@ async function pingenConfig(
 /**
  * The provider a letter was sent with. Credentials are loaded even when the
  * owner has switched Pingen off since, so letters on their way can still be
- * tracked and cancelled.
+ * tracked and cancelled. `pingen-staging` letters always talk to Pingen's test
+ * environment, whatever the setting is now; plain `pingen` means the setting.
  */
 export async function letterProvider(
   db: Reader,
   workspaceId: string,
   provider: string,
 ): Promise<LetterDispatchProvider | null> {
-  if (provider !== "pingen") return getInfra().letters(provider);
-  return getInfra().letters(
-    provider,
-    await pingenConfig(db, workspaceId, { requireEnabled: false }),
-  );
+  if (provider !== "pingen" && provider !== "pingen-staging") {
+    return getInfra().letters(provider);
+  }
+  const config = await pingenConfig(db, workspaceId, { requireEnabled: false });
+  if (!config) return null;
+  return getInfra().letters("pingen", {
+    ...config,
+    staging: provider === "pingen-staging" ? true : config.staging,
+  });
 }
 
 /** The print API new letters go to, or null when the owner prints them. */
