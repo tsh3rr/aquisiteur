@@ -277,31 +277,28 @@ describe("live chat", () => {
 });
 
 describe("draft detection", () => {
-  it("keeps only the length unless the workspace stores draft content", async () => {
+  it("records only whether the visitor started writing, never text or length", async () => {
     const token = await visit(wsH, bakery.slug);
+    const draft = async () =>
+      (
+        await db
+          .select()
+          .from(schema.chatDrafts)
+          .where(eq(schema.chatDrafts.prospectId, bakery.prospectId))
+      )[0];
+
+    await recordVisitorTyping(db, { workspaceId: wsH, body: { token, hasText: true } });
+    expect(await draft()).toMatchObject({ length: 1, maxLength: 1, content: null });
+
+    // A widget from before the change still sends length and text: reduced to yes/no.
     await recordVisitorTyping(db, {
       workspaceId: wsH,
       body: { token, length: 18, content: "Ich hätte gern ein" },
     });
-    const [lengthOnly] = await db
-      .select()
-      .from(schema.chatDrafts)
-      .where(eq(schema.chatDrafts.prospectId, bakery.prospectId));
-    expect(lengthOnly).toMatchObject({ length: 18, maxLength: 18, content: null });
+    expect(await draft()).toMatchObject({ length: 1, maxLength: 1, content: null });
 
-    await db
-      .update(schema.workspaceSettings)
-      .set({ chat: { storeDraftContent: true } })
-      .where(eq(schema.workspaceSettings.workspaceId, wsH));
-    await recordVisitorTyping(db, {
-      workspaceId: wsH,
-      body: { token, length: 7, content: "Ich hät" },
-    });
-    const [withContent] = await db
-      .select()
-      .from(schema.chatDrafts)
-      .where(eq(schema.chatDrafts.prospectId, bakery.prospectId));
-    expect(withContent).toMatchObject({ length: 7, maxLength: 18, content: "Ich hät" });
+    await recordVisitorTyping(db, { workspaceId: wsH, body: { token, hasText: false } });
+    expect(await draft()).toMatchObject({ length: 0, maxLength: 1, content: null });
     // Bakery is not contacted by typing alone.
     expect(await prospectStatus(bakery.prospectId)).toBe("opened");
   });

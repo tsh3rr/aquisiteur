@@ -22,6 +22,9 @@ export async function expectAccessible(
     "wcag22aa",
   ]);
   for (const selector of exclude) builder = builder.exclude(selector);
+  // Next streams the <title> with the metadata, which can land after a server
+  // action's refresh; axe would report "document-title" in between.
+  await expect(page).toHaveTitle(/\S/);
   // An element still fading in (the nudge's 240 ms entrance) reads as low contrast.
   // Waits for running one-off animations, at most a second.
   await page.evaluate(() =>

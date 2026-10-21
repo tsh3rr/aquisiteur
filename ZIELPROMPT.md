@@ -129,7 +129,7 @@ Alles in **einer** Next.js-App, getrennt über Route Groups und Middleware.
 
 ### 6.4 Echtzeit
 
-- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller liest Abschnitt *Preise*“), Live-Indikator am Prospect.
+- **Realtime** hinter einer eigenen Schnittstelle (`RealtimeChannel`), auf dem eigenen Server per Server-Sent Events aus dem Node-Prozess (eine Instanz), auf Cloudflare mit Supabase Realtime, für: Live-Chat, Live-Feed im Cockpit („Jetzt gerade: Café Müller ist gerade im Exposé“). Live zeigt das Cockpit nur, **dass** jemand gerade da ist, nie welchen Abschnitt er liest, was er anklickt oder dass er tippt (Owner-Entscheidung 2026-10-21, ADR-0065); Details erscheinen erst danach in Timeline und Auswertung.
 
 ---
 
@@ -224,7 +224,7 @@ Die Referenz im vorbelegten Text erlaubt dem Owner, eingehende WhatsApp-/Mail-Na
 - Owner antwortet aus dem Cockpit, auch vom Handy (PWA + Push). Tipp-Indikator in beide Richtungen.
 - **Übergabe**: Owner kann mit einem Klick vorschlagen, auf WhatsApp weiterzumachen.
 - Offline-Modus: Wenn der Owner nicht antwortet, nach 2 min automatische Nachricht mit Erwartung und alternativen Kanälen.
-- **Entwurfserkennung**: Das Widget erfasst, **dass** und **wie viel** getippt wurde (Zeichenanzahl, Zeitpunkt), auch wenn nicht gesendet wird. Den Inhalt eines nicht gesendeten Entwurfs nur speichern, wenn das im Widget transparent angezeigt wird („Ihr Entwurf wird automatisch gespeichert, damit nichts verloren geht“), und dann nur für den Owner sichtbar. Standard: nur Länge speichern, Inhalt-Speicherung per Einstellung aktivierbar.
+- **Entwurfserkennung**: Das Widget erfasst nur, **dass** jemand angefangen hat zu schreiben (ja/nein, Zeitpunkt), auch wenn nicht gesendet wird. Nie den Inhalt, nie die Länge, und nicht live im Cockpit (Owner-Entscheidung 2026-10-21, ADR-0065). In der Datenschutzerklärung genannt.
 
 ### 7.6 Kontaktabsicht-Score (Herzstück)
 
@@ -242,8 +242,7 @@ Ziel: Der Owner sieht pro Prospect auf einen Blick **wie sicher** jemand Kontakt
 | Hover/Fokus auf Kontakt-Button ≥ 1 s | 0,10 |
 | Pricing interaktiv genutzt | 0,15 |
 | Chat geöffnet | 0,20 |
-| Im Chat ≥ 3 Zeichen getippt, nicht gesendet | 0,40 |
-| Im Chat ≥ 20 Zeichen getippt, nicht gesendet | 0,60 |
+| Im Chat angefangen zu schreiben, nicht gesendet | 0,50 |
 | Rückruf-Formular begonnen | 0,45 |
 | Telefonnummer/E-Mail des Owners kopiert (`copy`-Event) | 0,55 |
 | WhatsApp-, Mail-, Messenger-, SMS- oder Tel-Link geklickt | 0,70 (App kann nicht sehen, ob gesendet wurde) |
@@ -289,7 +288,7 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 
 **Dashboards**
 
-- **„Heute“ (Startseite)**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität, mit Ein-Klick-Aktionen), Live-Feed („Jetzt gerade: Café Müller liest *Preise*“), offene Chats, fällige Follow-ups.
+- **„Heute“ (Startseite)**: Wer braucht jetzt eine Reaktion (sortiert nach Score und Aktualität, mit Ein-Klick-Aktionen), Live-Feed („Jetzt gerade: Café Müller ist gerade im Exposé“, ohne Abschnitte), offene Chats, fällige Follow-ups.
 - **Übersichts-Dashboard**: KPI-Kacheln mit Trend gegenüber Vorperiode (versendete Briefe, Öffnungsrate, Ø Zeit bis zur Öffnung, Ø Verweildauer, Kontaktversuche, Kontaktquote, Termine, gewonnene Kunden, Umsatz-Pipeline, Kosten pro Brief und pro Abschluss). Zeitraum frei wählbar, Filter nach Kampagne, Branche, Region, Tag.
 - **Funnel**: versendet → geöffnet → gelesen → Kontaktversuch → Kontakt → Termin → gewonnen, mit Absprungraten pro Stufe, vergleichbar zwischen Kampagnen.
 - **Aktivitätsverlauf**: Scans und Besuche über die Zeit, Heatmap nach Wochentag × Uhrzeit (wann lesen Kunden, wann lohnt sich ein Anruf).
@@ -403,6 +402,7 @@ Was in v1 bewusst **nicht** gebaut wird: Einladungs-UI, Team-Verwaltung, Abrechn
 - Event-Ingestion: Schema-Validierung, Größenlimits, Rate-Limits pro IP/Visit.
 - Chat: Spam-Schutz (Honeypot, Rate-Limit), Sanitizing, keine HTML-Ausgabe von Nutzereingaben.
 - Secrets nur über Env-Variablen, `.env.example` gepflegt.
+- **Security-Audit vor dem Go-live** (siehe §14): unabhängige Prüfung von Anmeldung und Sitzungen, Mandantentrennung, Eingabevalidierung, Rate-Limits, Secrets, Headern/CSP, Abhängigkeiten und Datenschutz. Befunde werden nach Schweregrad in `docs/SECURITY.md` dokumentiert; kritische und hohe Befunde sind vor dem Go-live behoben, mittlere haben einen Termin oder eine begründete Ausnahme. Das Audit wird vor jedem späteren größeren Schritt (SaaS-Launch, neue öffentliche Schnittstellen) wiederholt.
 
 ---
 
@@ -460,4 +460,5 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 - Ein neues Exposé kann von Claude Code in einem Schritt validiert und veröffentlicht werden.
 - Alles datenschutzkonform dokumentiert, getestet, deploybar.
 - **Vor dem Go-live:** Der stündliche Job (`/api/jobs/hourly`: Folgebriefe, Aufgaben-Erinnerungen, Digests, Retention, Replay-Löschung, Geocoding) läuft per Cron, und die Datenbank wird täglich gesichert, **extern in Cloudflare R2** (EU) und nicht nur auf demselben Server, weil ein lokales Backup bei Verlust des Servers mit verloren geht. Gilt für jede Betriebsvariante, auch Docker Compose (ADR-0054). Auf dem Mikrus-Testserver für die Entwicklung bewusst weggelassen.
+- **Vor dem Go-live:** Ein Security-Audit (§10) ist durchgeführt, kritische und hohe Befunde sind behoben und mit Tests abgesichert, das Ergebnis steht in `docs/SECURITY.md`. Kurz vor dem Go-live zusätzlich ein Blick von außen auf die laufende Produktion (Header, TLS, offene Ports, erreichbare Admin- und Debug-Routen).
 - **Vor dem Go-live:** Staging und Produktion sind getrennt. Staging bekommt jeden Merge auf `main` automatisch, Produktion bekommt nur Versionen, die der Owner freigibt (Release-Tag oder manueller Start, ADR-0057). Jede Umgebung hat eigene Datenbank, eigene Dateien und eigene Subdomains. Ob beide auf einem Server laufen oder auf zwei (sicherer, etwa zwei Mikrus 3.5), entscheidet der Owner beim Go-live; der Workflow unterstützt beides.

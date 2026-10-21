@@ -817,3 +817,45 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
   eingeschaltet ist oder je ein echter Brief darüber ging.
 - Pingen-Tokens werden im Speicher nach Umgebung, Client-ID und Secret getrennt gecacht, damit kein
   anderer Workspace mit derselben Client-ID und kein geändertes Secret einen alten Token nutzt.
+
+## ADR-0064 · Vertrauenswürdige Client-Adresse, Origin-Schutz und Grenzen ohne Adresse (2026-10-21, schließt den offenen Punkt aus ADR-0052)
+
+Das Security-Audit vor dem Go-live (ZIELPROMPT §10, §14) hat als hoch eingestuft, dass die App
+`cf-connecting-ip` immer glaubte. Der Server ist über IPv6 auch direkt erreichbar, und im heutigen
+Betrieb (Docker Compose hinter dem HTTPS-Proxy von Mikrus, ADR-0054, ohne eigenes Cloudflare) kann jeder
+Besucher den Header selbst schicken. Damit liefen Kurzlink-Sperre und Rate Limit der Anmeldelinks ins
+Leere. Ob Mikrus intern Cloudflare nutzt, ist für die App nicht erkennbar und nicht steuerbar.
+
+- Eine Stelle entscheidet: `src/middleware.ts` setzt pro Anfrage `x-aquisiteur-client-ip` (ein
+  mitgeschickter Wert wird überschrieben). Cloudflare-Header gelten nur, wenn jede Anfrage durch
+  Cloudflare muss: mit `ORIGIN_SECRET` oder auf Workers. Sonst gilt der letzte Eintrag in
+  `x-forwarded-for`, den der Proxy direkt vor der App anhängt, und alle `cf-*`-Header werden verworfen.
+  Better Auth liest nur diesen Header. Der Matcher der Middleware schließt Prefetch-Anfragen nicht mehr
+  aus, sonst ließe sich all das mit dem Prefetch-Header umgehen.
+- `ORIGIN_SECRET` (optional): Eine Transform Rule von Cloudflare fügt jeder Anfrage den Header
+  `x-aquisiteur-origin` hinzu, die Middleware lehnt Anfragen ohne ihn mit 403 ab (`/healthz` ausgenommen).
+  Für einen späteren Betrieb mit eigenem Cloudflare; heute leer.
+- Weil eine direkt angesprochene App ihre Adresse nicht sicher kennt, haben die schützenden Grenzen
+  zusätzlich eine Obergrenze ohne Adresse: höchstens 6 Anmeldelinks pro E-Mail-Adresse und Stunde,
+  höchstens 200 unbekannte Kurzlinks pro Workspace und Stunde. Danach lösen nur noch QR-Codes auf
+  (71 Bit Zufall); getippte Kurzlinks führen auf den Hinweis „zu viele Versuche“. Ein Angreifer kann so
+  höchstens die getippten Kurzlinks für eine Stunde stören, aber keine Exposés finden.
+- IPv6-Adressen zählen nach ihrem /64-Netz, weil ein Anschluss meist ein ganzes /64 besitzt.
+
+## ADR-0065 · Entwurfserkennung nur ja/nein, Live-Feed nur „ist gerade da“ (2026-10-21, ändert ADR-0023)
+
+Nach dem Security-Audit (Befund M3) hat der Owner entschieden, die Beobachtung der Besucher
+einzubremsen:
+
+- **Entwurfserkennung** erfasst nur noch, ob jemand im Chat angefangen hat zu schreiben (ja/nein,
+  Zeitpunkt). Kein Inhalt, keine Länge; die Einstellung `chat.storeDraftContent` ist entfernt. Das
+  Widget meldet nur den Wechsel leer ↔ nicht leer. Die Signale `draft_short` und `draft_long` werden zu
+  einem Signal `draft` mit Gewicht 0,5 (vorher 0,4 und 0,6), damit „wollte schreiben“ zusammen mit
+  Besuch und Lesen weiter die 50-%-Schwelle erreicht. `chat_drafts.length` und `max_length` enthalten
+  nur noch 0 oder 1, `content` bleibt leer; die Spalten bleiben, damit die vorige App-Version weiterläuft
+  (Migration 0019 bereinigt Altdaten und gespeicherte Signale).
+- **Live im Cockpit** steht nur noch, dass ein Kunde gerade im Exposé ist, eine Zeile pro Kunde. Keine
+  Abschnitte, keine Klicks, kein „Besucher tippt …“ im Chat. Timeline, Heatmap und Auswertung zeigen die
+  Details weiter im Nachhinein. Die Tippanzeige des Owners für den Besucher bleibt (ja/nein).
+- Die Datenschutzerklärung-Vorlage zählt alle Messwerte einzeln auf, nennt die Entwurfserkennung als
+  ja/nein, die Live-Anzeige „ist gerade da“ und den Session Storage des Chats.

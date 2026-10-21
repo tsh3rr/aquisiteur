@@ -132,8 +132,14 @@ Besucher kommen per IPv4 oder IPv6 zu Cloudflare, Cloudflare spricht per IPv6 mi
    hinterlegen.
 3. **SSL/TLS → Overview**: Modus **Full (strict)**.
 4. **Rules → Managed Transforms → Add visitor location headers** einschalten. Dann zeigt die Timeline die
-   Stadt eines Besuchs (`cf-ipcity`).
-5. In Coolify unter **Settings** die Instanz-Domain `https://coolify.aquisiteur.de` eintragen. Ab jetzt
+   Stadt eines Besuchs (`cf-ipcity`). Die App liest Cloudflare-Header nur mit Origin-Schutz (Schritt 5).
+5. **Rules → Transform Rules → Request Header Transform Rules → Create rule** (Name „Origin-Schutz“):
+   „All incoming requests“, **Set static** Header `x-aquisiteur-origin` mit dem Wert von `ORIGIN_SECRET`
+   aus `pnpm deploy:secrets`. Erst die Regel anlegen, dann die Variable in Schritt 8 setzen. Damit
+   antwortet die App nur noch auf Anfragen, die über Cloudflare kommen; wer den Server direkt über seine
+   IPv6 anspricht, bekommt 403 und kann die Adresse für die Rate Limits nicht fälschen
+   (`docs/SECURITY.md`, ADR-0064). `/healthz` bleibt für den Health Check von Coolify erreichbar.
+6. In Coolify unter **Settings** die Instanz-Domain `https://coolify.aquisiteur.de` eintragen. Ab jetzt
    braucht es den SSH-Tunnel nicht mehr.
 
 **Später eine neue Domain** (etwa für ein anderes Projekt): bei Cloudflare den AAAA-Eintrag mit oranger
@@ -235,6 +241,7 @@ Passwortmanager. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern.
 | `BETTER_AUTH_SECRET`          | aus `pnpm deploy:secrets`                                                          | ja     |
 | `INTEGRATIONS_ENCRYPTION_KEY` | aus `pnpm deploy:secrets`                                                          | ja     |
 | `CRON_SECRET`                 | aus `pnpm deploy:secrets`                                                          | ja     |
+| `ORIGIN_SECRET`               | aus `pnpm deploy:secrets`, derselbe Wert wie in der Transform Rule (Schritt 4)     | ja     |
 | `GEOCODER_CONTACT`            | deine E-Mail-Adresse (für die Karte, Nominatim)                                    |        |
 | `SENTRY_DSN`                  | optional, Sentry-Projekt in der Region EU; ohne Sentry die Variable ganz weglassen | ja     |
 
@@ -361,6 +368,8 @@ gedacht):
   holt die Zertifikate selbst über Let's Encrypt, Schritt 4 entfällt bis auf die Einträge. Mit oranger
   Wolke zeigt die Timeline zusätzlich die Stadt; dann SSL/TLS auf **Full (strict)**.
 - Firewall beim Anbieter: eingehend nur 22, 80, 443; Port 8000 nur vorübergehend für die eigene IP.
+- Mit grauer Wolke `ORIGIN_SECRET` leer lassen: Die App nimmt dann die Adresse, die Traefik in
+  `x-forwarded-for` anhängt, und ignoriert Cloudflare-Header (ADR-0064).
 - Das tägliche Platten-Backup des Anbieters sichert Datenbank-Dumps und ein Volume mit. Die Dateien
   können dann statt in R2 im Volume liegen: **Persistent Storage → Volume Mount** nach `/data/files`,
   `STORAGE_PROVIDER=local`, `LOCAL_STORAGE_DIR=/data/files` (ADR-0049).

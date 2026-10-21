@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { classifyHost } from "@/domain/hostname";
+import { applyClientIp, originSecretValid } from "@/lib/client-ip";
 import {
   buildContentSecurityPolicy,
   COCKPIT_SOURCES,
@@ -17,6 +18,12 @@ import {
  * - Every other host is rewritten to /sites/<host>/…, where the workspace is
  *   resolved from the database (platform subdomain or custom domain).
  * Also sets a per-request CSP nonce.
+ *
+ * With ORIGIN_SECRET set, every request must carry it in the header that a
+ * Cloudflare Transform Rule adds (src/lib/client-ip.ts). Requests that reach
+ * the server past Cloudflare are refused, so nobody can forge the client
+ * address the rate limits count by (§10, docs/SECURITY.md). Every request
+ * gets the trusted client address in one header (`applyClientIp`).
  */
 
 // /api/v1 authenticates with workspace API tokens, /api/jobs with CRON_SECRET,
@@ -36,6 +43,10 @@ export function middleware(request: NextRequest) {
   // Health checks call the container directly (Host: localhost), before any host routing.
   if (request.nextUrl.pathname === "/healthz") {
     return NextResponse.rewrite(new URL("/api/health", request.url));
+  }
+  const originSecret = process.env.ORIGIN_SECRET;
+  if (originSecret && !originSecretValid(request.headers, originSecret)) {
+    return new NextResponse("Forbidden", { status: 403 });
   }
   const appUrl = process.env.APP_URL;
   const platformDomain = process.env.PLATFORM_DOMAIN;
@@ -60,6 +71,11 @@ export function middleware(request: NextRequest) {
     }),
   });
   const requestHeaders = new Headers(request.headers);
+  // Cloudflare's headers count only where every request must pass Cloudflare.
+  applyClientIp(
+    requestHeaders,
+    Boolean(originSecret) || process.env.HOSTING_PROFILE === "cloudflare",
+  );
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
 
@@ -98,9 +114,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    {
-      source: "/((?!_next/static|_next/image|favicon.ico|icon.svg|icons/|fonts/).*)",
-      missing: [{ type: "header", key: "next-router-prefetch" }],
-    },
+    // Prefetches too: a client could otherwise skip the origin guard and the
+    // client address rewrite just by sending the prefetch header.
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|icons/|fonts/).*)",
   ],
 };

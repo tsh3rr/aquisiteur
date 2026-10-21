@@ -22,15 +22,14 @@ describe("generated legal texts", () => {
     expect(privacyMarkdown(settings, "X", "node", "pingen")).toContain("über Pingen");
   });
 
-  it("mention draft contents and recordings only when switched on", () => {
-    expect(privacyMarkdown(base, "X")).toContain("nur die Länge");
-    const on = workspaceSettingsSchema.parse({
-      chat: { storeDraftContent: true },
-      replay: { enabled: true },
-    });
-    const text = privacyMarkdown(on, "X");
-    expect(text).toContain("nicht gesendet haben");
-    expect(text).toContain("Aufzeichnung nur mit Ihrer Erlaubnis");
+  it("names draft detection as yes/no only and recordings only when switched on", () => {
+    const text = privacyMarkdown(base, "X");
+    expect(text).toContain("nur, dass Sie angefangen haben zu schreiben");
+    expect(text).toContain("Session Storage");
+    expect(text).toContain("nur, dass Sie gerade da sind");
+    expect(text).not.toContain("Aufzeichnung nur mit Ihrer Erlaubnis");
+    const on = workspaceSettingsSchema.parse({ replay: { enabled: true } });
+    expect(privacyMarkdown(on, "X")).toContain("Aufzeichnung nur mit Ihrer Erlaubnis");
   });
 
   it("prefer the workspace's own texts", () => {

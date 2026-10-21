@@ -89,23 +89,16 @@ const CHAT_OPENED_FROM: Record<string, string> = {
 /** Typed in the chat during a visit (§7.5 „Entwurfserkennung“). */
 export interface TimelineDraft {
   visitId: string;
-  /** Current, unsent length; 0 once sent or deleted. */
-  length: number;
-  maxLength: number;
+  /** The chat field still holds unsent text; only yes/no is recorded. */
+  hasText: boolean;
   /** Whether the visit has a chat thread (something was sent). */
   sent: boolean;
-  content: string | null;
   updatedAt: Date;
 }
 
 export function describeDraft(draft: TimelineDraft): string | null {
-  if (draft.length > 0) {
-    const text = `${draft.length} Zeichen in den Chat getippt, aber nicht gesendet`;
-    return draft.content ? `${text}: „${draft.content}“` : text;
-  }
-  if (!draft.sent && draft.maxLength > 0) {
-    return `Chat-Nachricht mit ${draft.maxLength} Zeichen angefangen und wieder gelöscht`;
-  }
+  if (draft.hasText) return "Im Chat angefangen zu schreiben, aber nicht gesendet";
+  if (!draft.sent) return "Im Chat angefangen zu schreiben und wieder gelöscht";
   return null;
 }
 

@@ -19,13 +19,9 @@ export interface ChatMessageView {
 export type RealtimeEvent =
   | { event: "chat.message"; payload: { message: ChatMessageView; prospectId: string } }
   | {
+      /** Only the owner's typing, shown to the visitor; visitors are never shown live (ADR-0065). */
       event: "chat.typing";
-      payload: {
-        threadId: string | null;
-        prospectId: string;
-        author: "visitor" | "owner";
-        length: number;
-      };
+      payload: { threadId: string; prospectId: string; author: "owner"; typing: boolean };
     }
   /** Contact details or status of a thread changed. */
   | { event: "chat.thread"; payload: { threadId: string; prospectId: string } }

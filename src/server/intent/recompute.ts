@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { Database, Transaction } from "@/db";
 import {
   callbackRequests,
@@ -122,7 +122,6 @@ export async function loadIntentInput(
     db
       .select({
         visitId: chatDrafts.visitId,
-        maxLength: chatDrafts.maxLength,
         updatedAt: chatDrafts.updatedAt,
       })
       .from(chatDrafts)
@@ -134,6 +133,7 @@ export async function loadIntentInput(
         and(
           eq(chatDrafts.workspaceId, workspaceId),
           eq(chatDrafts.prospectId, prospectId),
+          gt(chatDrafts.maxLength, 0),
           realVisit,
         ),
       ),

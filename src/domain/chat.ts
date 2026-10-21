@@ -7,7 +7,6 @@ import { knownPhoneRef } from "./expose/known-phones";
  * notice.
  */
 export const MAX_MESSAGE_LENGTH = 2000;
-export const MAX_DRAFT_LENGTH = 5000;
 /** Without an answer for this long, the visitor gets the automatic notice. */
 export const OFFLINE_AFTER_MS = 2 * 60 * 1000;
 /** A cockpit tab reports in every minute; three missed beats mean offline. */
@@ -29,13 +28,23 @@ export const visitorMessageSchema = z.object({
   body,
 });
 
-export const visitorTypingSchema = z.object({
-  token: visitToken,
-  chat: chatToken.optional(),
-  length: z.number().int().min(0).max(MAX_DRAFT_LENGTH),
-  /** Only sent when the workspace stores draft content and the widget says so. */
-  content: z.string().max(MAX_DRAFT_LENGTH).optional(),
-});
+/**
+ * Draft detection (§7.5): only whether the chat field holds text, never what
+ * or how much. `length` comes from widgets loaded before this change and is
+ * reduced to the same yes/no; any other field (e.g. old `content`) is dropped.
+ */
+export const visitorTypingSchema = z
+  .object({
+    token: visitToken,
+    chat: chatToken.optional(),
+    hasText: z.boolean().optional(),
+    length: z.number().int().min(0).optional(),
+  })
+  .transform(({ token, chat, hasText, length }) => ({
+    token,
+    chat,
+    hasText: hasText ?? (length ?? 0) > 0,
+  }));
 
 export const chatReadSchema = z.object({
   chat: chatToken,

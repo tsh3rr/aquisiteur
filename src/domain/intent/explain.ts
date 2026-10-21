@@ -68,9 +68,8 @@ function phrase(signal: Signal): string {
       return "Preise angesehen";
     case "chat_open":
       return "den Chat geöffnet";
-    case "draft_short":
-    case "draft_long":
-      return `im Chat ${signal.length ?? 0} Zeichen getippt, aber nicht gesendet`;
+    case "draft":
+      return "im Chat angefangen zu schreiben, aber nicht gesendet";
     case "callback_started":
       return "das Rückrufformular begonnen";
     case "contact_copied":
@@ -169,8 +168,7 @@ const CHANNEL_SIGNALS = new Set([
   "booking_open",
   "contact_copied",
   "callback_started",
-  "draft_short",
-  "draft_long",
+  "draft",
 ]);
 
 export function explain(input: {
@@ -199,7 +197,7 @@ export function explain(input: {
   const [lead, ...rest] = signals;
   const where = DEVICE_PHRASES[lead!.device];
   const earlier = rest
-    .filter((signal) => signal.id !== "visit" && signal.id !== "draft_short")
+    .filter((signal) => signal.id !== "visit")
     .slice(0, 3)
     .map(phrase);
   const detail =

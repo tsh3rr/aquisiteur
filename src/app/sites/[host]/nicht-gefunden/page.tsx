@@ -46,8 +46,8 @@ export default async function NotFoundCodePage({
           </h1>
           {tooMany ? (
             <p role="status" className="text-foreground-muted">
-              Es wurden gerade sehr viele unbekannte Links aufgerufen. Bitte versuchen Sie es in
-              zehn Minuten erneut.
+              Es wurden gerade sehr viele unbekannte Links aufgerufen. Bitte versuchen Sie es später
+              erneut oder scannen Sie den QR-Code im Brief.
             </p>
           ) : null}
           {code ? (

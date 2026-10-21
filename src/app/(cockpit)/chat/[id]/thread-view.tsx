@@ -12,33 +12,29 @@ import { isRealtimeEvent, type ChatMessageView } from "@/domain/realtime";
 import { markRead, ownerTyping, sendOwnerMessage } from "../actions";
 import { MessageList } from "@/components/chat/message-list";
 
-const TYPING_SHOWN_MS = 6000;
 const TYPING_THROTTLE_MS = 2500;
 
 /**
- * The owner's live chat (§7.5): messages appear as the visitor sends them,
- * with a typing indicator and the length of what they are typing but have
- * not sent (draft detection).
+ * The owner's live chat (§7.5): messages appear as the visitor sends them.
+ * Whether the visitor started a message without sending it shows as a quiet
+ * note, never live and never with its length or text (ADR-0065).
  */
 export function ThreadView({
   threadId,
-  prospectId,
   initialMessages,
-  initialDraft,
+  draftPending: initialDraftPending,
   canHandOver,
   visitorName,
 }: {
   threadId: string;
-  prospectId: string;
   initialMessages: ChatMessageView[];
-  initialDraft: { length: number; content: string | null } | null;
+  /** The visitor started a message without sending it (yes/no only). */
+  draftPending: boolean;
   canHandOver: boolean;
   visitorName: string | null;
 }) {
   const [messages, setMessages] = useState(initialMessages);
-  const [typing, setTyping] = useState<{ length: number; live: boolean } | null>(
-    initialDraft ? { length: initialDraft.length, live: false } : null,
-  );
+  const [draftPending, setDraftPending] = useState(initialDraftPending);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -60,18 +56,12 @@ export function ThreadView({
     if (isRealtimeEvent("chat.message", event, payload) && payload.message.threadId === threadId) {
       add(payload.message);
       if (payload.message.author === "visitor") {
-        setTyping(null);
+        setDraftPending(false);
         if (document.visibilityState === "visible") read();
       }
     } else if (isRealtimeEvent("chat.thread", event, payload) && payload.threadId === threadId) {
       // The visitor left a return channel: the side card shows it.
       router.refresh();
-    } else if (
-      isRealtimeEvent("chat.typing", event, payload) &&
-      payload.author === "visitor" &&
-      (payload.threadId === threadId || (!payload.threadId && payload.prospectId === prospectId))
-    ) {
-      setTyping(payload.length > 0 ? { length: payload.length, live: true } : null);
     }
   });
 
@@ -82,17 +72,6 @@ export function ThreadView({
     return () => document.removeEventListener("visibilitychange", onVisible);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per thread
   }, [threadId]);
-
-  // The live indicator fades; an older draft stays as a quiet note.
-  useEffect(() => {
-    if (!typing?.live) return;
-    const timer = window.setTimeout(
-      () => setTyping((current) => (current ? { ...current, live: false } : null)),
-      TYPING_SHOWN_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [typing]);
-  const typingNow = typing?.live ?? false;
 
   const send = (kind: "text" | "handover") => {
     setError(null);
@@ -112,7 +91,7 @@ export function ThreadView({
     const now = Date.now();
     if (now - lastTypingSent.current > TYPING_THROTTLE_MS) {
       lastTypingSent.current = now;
-      void ownerTyping(threadId, value.length).catch(() => {});
+      void ownerTyping(threadId, value.length > 0).catch(() => {});
     }
   };
 
@@ -124,16 +103,7 @@ export function ThreadView({
       <MessageList messages={messages} perspective="owner" otherName={visitorName ?? undefined} />
 
       <p aria-live="polite" className="min-h-5 text-sm text-foreground-muted">
-        {typingNow
-          ? `Schreibt gerade … (${typing!.length} Zeichen)`
-          : typing && typing.length > 0
-            ? `Hat ${typing.length} Zeichen getippt, aber noch nicht gesendet.`
-            : ""}
-        {!typingNow && initialDraft?.content ? (
-          <span className="mt-1 block rounded-md bg-surface-sunken p-2 text-foreground">
-            Entwurf: „{initialDraft.content}“
-          </span>
-        ) : null}
+        {draftPending ? "Hat angefangen zu schreiben, aber noch nicht gesendet." : ""}
       </p>
 
       <form

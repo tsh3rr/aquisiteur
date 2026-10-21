@@ -18,7 +18,6 @@ export interface ChatPanelProps {
   /** Text to put into the field, e.g. from the pricing nudge. */
   prefill: string | null;
   responseTime: string;
-  storeDraftContent: boolean;
   owner: { name: string; photo: string | null };
   whatsappHref: string | null;
   available: boolean;
@@ -29,7 +28,6 @@ interface Access {
   live: RealtimeSubscription;
 }
 
-const TYPING_EVERY_MS = 1500;
 const OWNER_TYPING_SHOWN_MS = 5000;
 
 const storageKey = (slug: string) => `aq-chat:${slug}`;
@@ -81,8 +79,7 @@ export function ChatPanel(props: ChatPanelProps) {
   const panel = useRef<HTMLElement>(null);
   const [usedPrefill, setUsedPrefill] = useState<string | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
-  const lastTyping = useRef(0);
-  const trailingTyping = useRef<number | undefined>(undefined);
+  const reportedHasText = useRef(false);
   const unread = useRef(0);
   const openRef = useRef(open);
 
@@ -124,7 +121,7 @@ export function ChatPanel(props: ChatPanelProps) {
             if (!openRef.current) props.onUnread(++unread.current);
           }
         } else if (isRealtimeEvent("chat.typing", event, payload) && payload.author === "owner") {
-          setOwnerTyping(payload.length > 0);
+          setOwnerTyping(payload.typing);
         }
       },
       onStatus(connected) {
@@ -185,32 +182,19 @@ export function ChatPanel(props: ChatPanelProps) {
     return () => window.clearTimeout(timer);
   }, [ownerTyping]);
 
-  const sendTyping = async (value: string) => {
-    lastTyping.current = Date.now();
-    const token = await visitToken();
-    if (!token) return;
-    void post("/t/chat/typing", {
-      token,
-      chat: access?.chat,
-      length: value.length,
-      ...(props.storeDraftContent ? { content: value } : {}),
+  // Draft detection (§7.5): only whether the field holds text, reported when that changes.
+  const reportTyping = (value: string) => {
+    const hasText = value.trim().length > 0;
+    if (hasText === reportedHasText.current) return;
+    reportedHasText.current = hasText;
+    void visitToken().then((token) => {
+      if (token) void post("/t/chat/typing", { token, chat: access?.chat, hasText });
     });
   };
-
-  // Throttled with a trailing report, so the owner always ends up with the latest length.
-  const reportTyping = (value: string, force = false) => {
-    window.clearTimeout(trailingTyping.current);
-    const wait = TYPING_EVERY_MS - (Date.now() - lastTyping.current);
-    if (force || wait <= 0) return void sendTyping(value);
-    trailingTyping.current = window.setTimeout(() => void sendTyping(value), wait);
-  };
-
-  useEffect(() => () => window.clearTimeout(trailingTyping.current), []);
 
   const send = async () => {
     const body = text.trim();
     if (!body || sending) return;
-    window.clearTimeout(trailingTyping.current);
     setSending(true);
     setError(null);
     const token = await visitToken();
@@ -234,6 +218,7 @@ export function ChatPanel(props: ChatPanelProps) {
       return;
     }
     setText("");
+    reportedHasText.current = false;
     add([data.message]);
     if (data.access) {
       setAccess(data.access);
@@ -315,11 +300,6 @@ export function ChatPanel(props: ChatPanelProps) {
         <label htmlFor="aq-chat-text" className="sr-only">
           Ihre Nachricht
         </label>
-        {props.storeDraftContent ? (
-          <p id="aq-chat-draft" className="text-xs text-foreground-muted">
-            Ihr Entwurf wird automatisch gespeichert, damit nichts verloren geht.
-          </p>
-        ) : null}
         <div className="flex items-end gap-2">
           <textarea
             id="aq-chat-text"
@@ -328,12 +308,10 @@ export function ChatPanel(props: ChatPanelProps) {
             value={text}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Ihre Nachricht"
-            aria-describedby={props.storeDraftContent ? "aq-chat-draft" : undefined}
             onChange={(event) => {
               setText(event.target.value);
               reportTyping(event.target.value);
             }}
-            onBlur={() => reportTyping(text, true)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();

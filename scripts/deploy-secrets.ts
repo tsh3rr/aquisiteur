@@ -16,6 +16,7 @@ const values = {
   BETTER_AUTH_SECRET: random(48),
   INTEGRATIONS_ENCRYPTION_KEY: random(32),
   CRON_SECRET: random(32),
+  ORIGIN_SECRET: random(32),
   VAPID_PUBLIC_KEY: b64url(new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey))),
   VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", pair.privateKey)).d,
 };
