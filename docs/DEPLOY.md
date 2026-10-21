@@ -132,7 +132,7 @@ Besucher kommen per IPv4 oder IPv6 zu Cloudflare, Cloudflare spricht per IPv6 mi
    hinterlegen.
 3. **SSL/TLS → Overview**: Modus **Full (strict)**.
 4. **Rules → Managed Transforms → Add visitor location headers** einschalten. Dann zeigt die Timeline die
-   Stadt eines Besuchs (`cf-ipcity`).
+   Stadt eines Besuchs (`cf-ipcity`). Die App liest Cloudflare-Header nur mit Origin-Schutz (Schritt 5).
 5. **Rules → Transform Rules → Request Header Transform Rules → Create rule** (Name „Origin-Schutz“):
    „All incoming requests“, **Set static** Header `x-aquisiteur-origin` mit dem Wert von `ORIGIN_SECRET`
    aus `pnpm deploy:secrets`. Erst die Regel anlegen, dann die Variable in Schritt 8 setzen. Damit
@@ -368,9 +368,8 @@ gedacht):
   holt die Zertifikate selbst über Let's Encrypt, Schritt 4 entfällt bis auf die Einträge. Mit oranger
   Wolke zeigt die Timeline zusätzlich die Stadt; dann SSL/TLS auf **Full (strict)**.
 - Firewall beim Anbieter: eingehend nur 22, 80, 443; Port 8000 nur vorübergehend für die eigene IP.
-- Mit grauer Wolke setzt Cloudflare keinen `cf-connecting-ip`; dann kann jeder Besucher diesen Header
-  selbst schicken und die Rate Limits umgehen. Für den Betrieb daher orange Wolke mit Origin-Schutz
-  (Schritt 4, `ORIGIN_SECRET`).
+- Mit grauer Wolke `ORIGIN_SECRET` leer lassen: Die App nimmt dann die Adresse, die Traefik in
+  `x-forwarded-for` anhängt, und ignoriert Cloudflare-Header (ADR-0062).
 - Das tägliche Platten-Backup des Anbieters sichert Datenbank-Dumps und ein Volume mit. Die Dateien
   können dann statt in R2 im Volume liegen: **Persistent Storage → Volume Mount** nach `/data/files`,
   `STORAGE_PROVIDER=local`, `LOCAL_STORAGE_DIR=/data/files` (ADR-0049).

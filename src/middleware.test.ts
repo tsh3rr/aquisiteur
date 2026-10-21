@@ -37,4 +37,19 @@ describe("middleware origin guard", () => {
     vi.stubEnv("ORIGIN_SECRET", "");
     expect(middleware(request()).status).toBe(200);
   });
+
+  it("hands the app the proxy's client address, never a forged one", () => {
+    vi.stubEnv("APP_URL", "https://app.example.test");
+    vi.stubEnv("PLATFORM_DOMAIN", "example.test");
+    vi.stubEnv("ORIGIN_SECRET", "");
+    const response = middleware(
+      request({
+        "cf-connecting-ip": "203.0.113.7",
+        "x-aquisiteur-client-ip": "10.0.0.1",
+        "x-forwarded-for": "203.0.113.7, 192.0.2.10",
+      }),
+    );
+    expect(response.headers.get("x-middleware-request-x-aquisiteur-client-ip")).toBe("192.0.2.10");
+    expect(response.headers.get("x-middleware-request-cf-connecting-ip")).toBeNull();
+  });
 });

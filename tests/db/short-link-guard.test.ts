@@ -7,6 +7,8 @@ import {
   MISS_LIMIT,
   recordMiss,
   shortLinksBlocked,
+  typedCodesBlocked,
+  WORKSPACE_MISS_LIMIT,
 } from "@/server/tracking/short-link-guard";
 
 /** §10: short links are rate-limited against enumeration, per client and workspace. */
@@ -24,8 +26,8 @@ afterAll(async () => {
 
 describe("short-link guard", () => {
   it("blocks a client after too many unknown codes, but not others", async () => {
-    const guesser = await clientKey(new Headers({ "cf-connecting-ip": "203.0.113.7" }));
-    const reader = await clientKey(new Headers({ "cf-connecting-ip": "198.51.100.2" }));
+    const guesser = await clientKey(new Headers({ "x-aquisiteur-client-ip": "203.0.113.7" }));
+    const reader = await clientKey(new Headers({ "x-aquisiteur-client-ip": "198.51.100.2" }));
     expect(guesser).not.toBe(reader);
     for (let i = 0; i < MISS_LIMIT.count; i++) {
       expect(await recordMiss(db, ws, guesser)).toBe(true);
@@ -36,9 +38,21 @@ describe("short-link guard", () => {
   });
 
   it("treats one IPv6 /64 network as one client", async () => {
-    const key = (ip: string) => clientKey(new Headers({ "cf-connecting-ip": ip }));
+    const key = (ip: string) => clientKey(new Headers({ "x-aquisiteur-client-ip": ip }));
     expect(await key("2001:db8:aa:1::1")).toBe(await key("2001:db8:aa:1:ffff:1234:5678:9abc"));
     expect(await key("2001:db8:aa:1::1")).not.toBe(await key("2001:db8:aa:2::1"));
+  });
+
+  it("blocks typed codes for the whole workspace after too many misses from any address", async () => {
+    const workspace = "00000000-0000-4000-8000-0000000000ab";
+    for (let i = 0; i < WORKSPACE_MISS_LIMIT.count; i++) {
+      const client = await clientKey(
+        new Headers({ "x-aquisiteur-client-ip": `198.51.100.${i % 250}` }),
+      );
+      await recordMiss(db, workspace, client);
+    }
+    expect(await typedCodesBlocked(db, workspace)).toBe(true);
+    expect(await typedCodesBlocked(db, ws)).toBe(false);
   });
 
   it("never stores the IP address", async () => {

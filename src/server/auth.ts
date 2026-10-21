@@ -10,9 +10,14 @@ import { serverEnv } from "@/config/env";
 import { getDb } from "@/db";
 import * as schema from "@/db/schema";
 import { getInfra } from "@/infra";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { sha256Hex } from "@/lib/crypto";
 import { magicLinkEmail } from "./emails/magic-link";
+import { hitRateLimit } from "./tracking/rate-limit";
 
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 3;
+/** Sign-in mails per address and hour, on top of Better Auth's per-IP limit. */
+const MAGIC_LINKS_PER_ADDRESS = 6;
 
 function isSignupAllowed(email: string): boolean {
   return serverEnv().SIGNUP_ALLOWLIST.includes(email.trim().toLowerCase());
@@ -64,7 +69,8 @@ function buildAuth() {
     advanced: {
       cookiePrefix: "aq",
       useSecureCookies: appUrl.protocol === "https:",
-      ipAddress: { ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"] },
+      // The one address the middleware trusts (src/lib/client-ip.ts).
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
     },
     databaseHooks: {
       user: {
@@ -97,6 +103,9 @@ function buildAuth() {
             .where(eq(schema.users.email, email.toLowerCase()))
             .limit(1);
           if (!existing && !isSignupAllowed(email)) return;
+          // Per address, whatever the client's IP: no mail flood with forged addresses.
+          const key = `magic:${(await sha256Hex(email.trim().toLowerCase())).slice(0, 24)}`;
+          if (!(await hitRateLimit(db, key, MAGIC_LINKS_PER_ADDRESS, 3600))) return;
           await getInfra().email.send({ to: email, ...magicLinkEmail({ url }) });
         },
       }),

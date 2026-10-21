@@ -1,17 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { clientIp, ORIGIN_HEADER, originSecretValid, rateLimitBucket } from "./client-ip";
+import {
+  applyClientIp,
+  CLIENT_IP_HEADER,
+  clientIp,
+  ORIGIN_HEADER,
+  originSecretValid,
+  rateLimitBucket,
+} from "./client-ip";
 
-describe("clientIp()", () => {
-  it("prefers Cloudflare's header over x-forwarded-for", () => {
-    const headers = new Headers({
+describe("applyClientIp()", () => {
+  const forged = () =>
+    new Headers({
       "cf-connecting-ip": "203.0.113.7",
-      "x-forwarded-for": "198.51.100.2, 10.0.0.1",
+      "cf-ipcity": "Berlin",
+      "x-forwarded-for": "198.51.100.2, 192.0.2.10",
+      [CLIENT_IP_HEADER]: "10.0.0.1",
     });
+
+  it("trusts Cloudflare only where every request must pass it", () => {
+    const headers = forged();
+    applyClientIp(headers, true);
     expect(clientIp(headers)).toBe("203.0.113.7");
-    expect(clientIp(new Headers({ "x-forwarded-for": "198.51.100.2, 10.0.0.1" }))).toBe(
-      "198.51.100.2",
-    );
-    expect(clientIp(new Headers())).toBeNull();
+    expect(headers.get("cf-ipcity")).toBe("Berlin");
+  });
+
+  it("otherwise takes the address the proxy in front appended and drops cf-* headers", () => {
+    const headers = forged();
+    applyClientIp(headers, false);
+    expect(clientIp(headers)).toBe("192.0.2.10");
+    expect(headers.get("cf-connecting-ip")).toBeNull();
+    expect(headers.get("cf-ipcity")).toBeNull();
+  });
+
+  it("never passes on a client's own CLIENT_IP_HEADER", () => {
+    const headers = new Headers({ [CLIENT_IP_HEADER]: "10.0.0.1" });
+    applyClientIp(headers, false);
+    expect(clientIp(headers)).toBeNull();
   });
 });
 

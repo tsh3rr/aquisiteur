@@ -34,9 +34,14 @@ diese Liste durch, bevor sie als fertig gelten.
 strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Options`,
       `Cross-Origin-Opener-Policy`, `Permissions-Policy`. Geprüft in `security-headers.test.ts`.
 - [x] `X-Robots-Tag: noindex, nofollow` überall.
-- [x] Origin-Schutz: Mit `ORIGIN_SECRET` antwortet die App nur auf Anfragen mit dem Header, den
-      Cloudflare per Transform Rule setzt; direkte Aufrufe des Servers bekommen 403, die Client-Adresse
-      (`cf-connecting-ip`) ist damit nicht fälschbar (`src/middleware.ts`, ADR-0062).
+- [x] Client-Adresse an einer Stelle: Die Middleware setzt `x-aquisiteur-client-ip` und überschreibt
+      einen mitgeschickten Wert. Cloudflare-Header (`cf-*`) gelten nur mit `ORIGIN_SECRET` oder auf
+      Workers, sonst zählt der letzte Eintrag in `x-forwarded-for` (vom Proxy davor) und `cf-*` wird
+      verworfen (`src/lib/client-ip.ts`, ADR-0062).
+- [x] Origin-Schutz für den Betrieb hinter eigenem Cloudflare: Mit `ORIGIN_SECRET` antwortet die App
+      nur auf Anfragen mit dem Header, den Cloudflare per Transform Rule setzt.
+- [x] Grenzen unabhängig von der Adresse: höchstens 6 Anmeldelinks pro E-Mail-Adresse und Stunde,
+      höchstens 200 unbekannte Kurzlinks pro Workspace und Stunde (danach lösen nur noch QR-Codes auf).
 - [x] Weiterleitung nach der Anmeldung nur auf Pfade im Cockpit (`safeNextPath`, auch gegen `/\host`).
 - [x] CSRF: Cockpit-Änderungen nur über Server Actions (Origin-Prüfung von Next.js). Öffentliche
       POST-Routen lehnen fremde `Origin` ab (`isCrossSite`).
@@ -98,10 +103,10 @@ Workflows) und Datenschutz. Schweregrade: kritisch, hoch, mittel, niedrig.
 
 ### Hoch
 
-| Nr. | Befund                                                                                                                                                                                                                                                                           | Stand                                                                                                                                           |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| H1  | Der Server ist über IPv6 direkt erreichbar, an Cloudflare vorbei. Wer ihn so aufruft, setzt `cf-connecting-ip` selbst: Kurzlink-Sperre und Rate Limit der Anmeldelinks greifen nicht mehr (Kurzlinks durchprobieren, Mailflut an die eigene Adresse), Ort der Besuche fälschbar. | Behoben im Code (`ORIGIN_SECRET`, ADR-0062). **Vor dem Go-live einrichten:** Transform Rule und Variable laut `docs/DEPLOY.md` Schritt 4 und 8. |
-| H2  | Kurzlink-Sperre zählte jede IPv6-Adresse einzeln. Ein Anschluss hat meist ein ganzes /64-Netz und kann für jede Anfrage eine neue Adresse nehmen, die Sperre lief damit ins Leere.                                                                                               | Behoben: Zählung pro /64 (`src/lib/client-ip.ts`), mit Tests.                                                                                   |
+| Nr. | Befund                                                                                                                                                                                                                                                                                                                                                                                                       | Stand                                                                                                                                                                                                                                                                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1  | Die App glaubte `cf-connecting-ip`, auch ohne dass Cloudflare garantiert davorsteht. Im heutigen Betrieb (Mikrus-Proxy, kein eigenes Cloudflare) und beim direkten Aufruf des Servers über IPv6 kann jeder Besucher diesen Header selbst schicken: Kurzlink-Sperre und Rate Limit der Anmeldelinks greifen dann nicht (Kurzlinks durchprobieren, Mailflut an die eigene Adresse), Ort der Besuche fälschbar. | Behoben: Cloudflare-Header nur noch mit `ORIGIN_SECRET` oder auf Workers, sonst der Eintrag des Proxys davor; zusätzlich Grenzen pro E-Mail-Adresse und pro Workspace, die keine Adresse brauchen (ADR-0062). Rest-Risiko: Wer den Server direkt anspricht, kann seine Adresse weiter wählen, kommt aber nicht über die festen Grenzen hinaus. |
+| H2  | Kurzlink-Sperre zählte jede IPv6-Adresse einzeln. Ein Anschluss hat meist ein ganzes /64-Netz und kann für jede Anfrage eine neue Adresse nehmen, die Sperre lief damit ins Leere.                                                                                                                                                                                                                           | Behoben: Zählung pro /64 (`src/lib/client-ip.ts`), mit Tests.                                                                                                                                                                                                                                                                                  |
 
 ### Mittel
 
@@ -135,12 +140,13 @@ Sitzungsdauer, Magic-Link-Allowlist, CSP mit Nonce, HSTS, Container läuft als `
 
 ### Go-live-Checkliste Sicherheit
 
-1. Transform Rule „Origin-Schutz“ bei Cloudflare anlegen, danach `ORIGIN_SECRET` setzen
-   (`docs/DEPLOY.md` Schritt 4 und 8). Prüfen: Aufruf der Server-IPv6 direkt ergibt 403.
+1. Heute (Mikrus-Proxy, Docker Compose): `ORIGIN_SECRET` leer lassen. Nur wer später ein eigenes
+   Cloudflare davorschaltet: erst die Transform Rule „Origin-Schutz“ anlegen, dann `ORIGIN_SECRET`
+   setzen (`docs/DEPLOY.md` Schritt 4 und 8); dann ergibt ein direkter Aufruf des Servers 403.
 2. `EMAIL_PROVIDER=resend`, `ALLOW_LOG_EMAIL` gelöscht.
 3. Alle Secrets frisch aus `pnpm deploy:secrets`, nicht vom Testserver übernommen; Staging und
    Produktion mit verschiedenen Secrets.
 4. `SIGNUP_ALLOWLIST` enthält nur die eigene Adresse.
 5. Kurz vor dem Go-live von außen prüfen: Header (securityheaders.com), TLS (SSL Labs), offene Ports
-   (nur 22, 80, 443), Coolify-Oberfläche nicht ohne Anmeldung erreichbar.
+   (nur SSH und der Port für den Mikrus-Proxy).
 6. Offene mittlere Befunde M2 und M3 haben einen Termin oder eine begründete Ausnahme.

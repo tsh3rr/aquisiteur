@@ -3,7 +3,11 @@ import { RESERVED_CODES } from "@/domain/tracking/short-links";
 import { workspaceForHostParam } from "@/server/sites";
 import { ownerDeviceFor } from "@/server/tracking/http";
 import { hitRateLimit } from "@/server/tracking/rate-limit";
-import { clientKey, shortLinksBlocked } from "@/server/tracking/short-link-guard";
+import {
+  clientKey,
+  shortLinksBlocked,
+  typedCodesBlocked,
+} from "@/server/tracking/short-link-guard";
 import { createVisit, resolveCode, ticketForVisit } from "@/server/tracking/visits";
 
 const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer" };
@@ -43,7 +47,15 @@ export async function GET(
       headers: { ...headers, location: "/nicht-gefunden?zuviele=1" },
     });
   }
-  const hit = code ? await resolveCode(db, workspace.id, code) : null;
+  // Too many unknown codes in the whole workspace: only unguessable QR tokens resolve.
+  const qrOnly = await typedCodesBlocked(db, workspace.id);
+  const hit = code ? await resolveCode(db, workspace.id, code, { qrOnly }) : null;
+  if (!hit && qrOnly) {
+    return new Response(null, {
+      status: 302,
+      headers: { ...headers, location: "/nicht-gefunden?zuviele=1" },
+    });
+  }
   if (!hit) {
     return new Response(null, {
       status: 302,

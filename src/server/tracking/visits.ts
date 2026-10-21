@@ -67,13 +67,17 @@ export interface ResolvedCode {
   source: "qr" | "typed" | "share";
 }
 
-/** A QR token (exact) or a short code (normalised) of an active touchpoint. */
+/**
+ * A QR token (exact) or a short code (normalised) of an active touchpoint.
+ * `qrOnly` while typed codes are blocked (short-link-guard.ts).
+ */
 export async function resolveCode(
   db: Database,
   workspaceId: string,
   raw: string,
+  options: { qrOnly?: boolean } = {},
 ): Promise<ResolvedCode | null> {
-  const typed = normalizeShortCode(raw);
+  const typed = options.qrOnly ? "" : normalizeShortCode(raw);
   const matches = [
     ...(isQrTokenShape(raw) ? [eq(touchpoints.qrToken, raw)] : []),
     ...(typed ? [eq(touchpoints.shortCode, typed)] : []),

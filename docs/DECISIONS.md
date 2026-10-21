@@ -747,21 +747,26 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
   Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
   mit einer Erweiterung der Palette um seitenbezogene Befehle.
 
-## ADR-0062 · Origin-Schutz per geteiltem Header und IPv6-Netze in Rate Limits (2026-10-21, schließt den offenen Punkt aus ADR-0052)
+## ADR-0062 · Vertrauenswürdige Client-Adresse, Origin-Schutz und Grenzen ohne Adresse (2026-10-21, schließt den offenen Punkt aus ADR-0052)
 
-Das Security-Audit vor dem Go-live (ZIELPROMPT §10, §14) hat den offenen Punkt aus ADR-0052 als hoch
-eingestuft: Der Server ist über IPv6 direkt erreichbar, an Cloudflare vorbei. Wer ihn so anspricht,
-setzt `cf-connecting-ip` selbst und umgeht damit die Kurzlink-Sperre und das Rate Limit der
-Anmeldelinks. Eine Firewall nur für die IP-Bereiche von Cloudflare lässt sich auf dem Mikrus nicht
-zuverlässig einrichten, Authenticated Origin Pulls bräuchte eine Client-Zertifikatsprüfung in Traefik.
+Das Security-Audit vor dem Go-live (ZIELPROMPT §10, §14) hat als hoch eingestuft, dass die App
+`cf-connecting-ip` immer glaubte. Der Server ist über IPv6 auch direkt erreichbar, und im heutigen
+Betrieb (Docker Compose hinter dem HTTPS-Proxy von Mikrus, ADR-0054, ohne eigenes Cloudflare) kann jeder
+Besucher den Header selbst schicken. Damit liefen Kurzlink-Sperre und Rate Limit der Anmeldelinks ins
+Leere. Ob Mikrus intern Cloudflare nutzt, ist für die App nicht erkennbar und nicht steuerbar.
 
-Stattdessen fügt eine Transform Rule von Cloudflare (Free-Plan) jeder Anfrage den Header
-`x-aquisiteur-origin` mit einem Geheimnis hinzu. Ist `ORIGIN_SECRET` gesetzt, lehnt `src/middleware.ts`
-jede Anfrage ohne passenden Header mit 403 ab (Vergleich in konstanter Zeit); nur `/healthz` bleibt für
-den Health Check im Container offen. Ohne Variable (lokal, Tests, Cloudflare-Workers-Variante) bleibt
-alles wie bisher. Der Ansatz ist anbieterneutral: jeder vorgeschaltete Proxy, der einen festen Header
-setzen kann, genügt.
-
-Außerdem zählt die Kurzlink-Sperre IPv6-Adressen nach ihrem /64-Netz (`src/lib/client-ip.ts`), weil ein
-Anschluss meist ein ganzes /64 besitzt und sonst für jede Anfrage eine neue Adresse nehmen könnte. Better
-Auth macht das für die Anmeldung bereits von sich aus.
+- Eine Stelle entscheidet: `src/middleware.ts` setzt pro Anfrage `x-aquisiteur-client-ip` (ein
+  mitgeschickter Wert wird überschrieben). Cloudflare-Header gelten nur, wenn jede Anfrage durch
+  Cloudflare muss: mit `ORIGIN_SECRET` oder auf Workers. Sonst gilt der letzte Eintrag in
+  `x-forwarded-for`, den der Proxy direkt vor der App anhängt, und alle `cf-*`-Header werden verworfen.
+  Better Auth liest nur diesen Header. Der Matcher der Middleware schließt Prefetch-Anfragen nicht mehr
+  aus, sonst ließe sich all das mit dem Prefetch-Header umgehen.
+- `ORIGIN_SECRET` (optional): Eine Transform Rule von Cloudflare fügt jeder Anfrage den Header
+  `x-aquisiteur-origin` hinzu, die Middleware lehnt Anfragen ohne ihn mit 403 ab (`/healthz` ausgenommen).
+  Für einen späteren Betrieb mit eigenem Cloudflare; heute leer.
+- Weil eine direkt angesprochene App ihre Adresse nicht sicher kennt, haben die schützenden Grenzen
+  zusätzlich eine Obergrenze ohne Adresse: höchstens 6 Anmeldelinks pro E-Mail-Adresse und Stunde,
+  höchstens 200 unbekannte Kurzlinks pro Workspace und Stunde. Danach lösen nur noch QR-Codes auf
+  (71 Bit Zufall); getippte Kurzlinks führen auf den Hinweis „zu viele Versuche“. Ein Angreifer kann so
+  höchstens die getippten Kurzlinks für eine Stunde stören, aber keine Exposés finden.
+- IPv6-Adressen zählen nach ihrem /64-Netz, weil ein Anschluss meist ein ganzes /64 besitzt.
