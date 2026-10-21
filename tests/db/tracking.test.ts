@@ -260,6 +260,13 @@ describe("visits", () => {
     expect(await hitRateLimit(db, "test:x", 2, 60)).toBe(false);
     expect(await hitRateLimit(db, "test:x", 2, 60, Date.now() + 61_000)).toBe(true);
   });
+
+  it("counts simultaneous first hits on a new key without failing", async () => {
+    const hits = await Promise.all(
+      Array.from({ length: 8 }, () => hitRateLimit(db, "test:burst", 10, 60)),
+    );
+    expect(hits).toEqual(Array(8).fill(true));
+  });
 });
 
 describe("customer list", () => {
