@@ -35,6 +35,12 @@ describe("short-link guard", () => {
     expect(await shortLinksBlocked(db, ws, reader)).toBe(false);
   });
 
+  it("treats one IPv6 /64 network as one client", async () => {
+    const key = (ip: string) => clientKey(new Headers({ "cf-connecting-ip": ip }));
+    expect(await key("2001:db8:aa:1::1")).toBe(await key("2001:db8:aa:1:ffff:1234:5678:9abc"));
+    expect(await key("2001:db8:aa:1::1")).not.toBe(await key("2001:db8:aa:2::1"));
+  });
+
   it("never stores the IP address", async () => {
     const rows = await db
       .select({ key: schema.rateLimits.key })

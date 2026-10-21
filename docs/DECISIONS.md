@@ -746,3 +746,22 @@ Wahl fällt beim Go-live, ein späterer Umzug braucht keine Code-Änderung.
 - Noch offen: Kürzel für Aktionen auf der Kundenseite (Notiz, Status ändern, Anrufen) und in der
   Kundenliste (Sammelaktionen). Sie brauchen Befehle, die vom Kontext der Seite abhängen; das kommt
   mit einer Erweiterung der Palette um seitenbezogene Befehle.
+
+## ADR-0062 · Origin-Schutz per geteiltem Header und IPv6-Netze in Rate Limits (2026-10-21, schließt den offenen Punkt aus ADR-0052)
+
+Das Security-Audit vor dem Go-live (ZIELPROMPT §10, §14) hat den offenen Punkt aus ADR-0052 als hoch
+eingestuft: Der Server ist über IPv6 direkt erreichbar, an Cloudflare vorbei. Wer ihn so anspricht,
+setzt `cf-connecting-ip` selbst und umgeht damit die Kurzlink-Sperre und das Rate Limit der
+Anmeldelinks. Eine Firewall nur für die IP-Bereiche von Cloudflare lässt sich auf dem Mikrus nicht
+zuverlässig einrichten, Authenticated Origin Pulls bräuchte eine Client-Zertifikatsprüfung in Traefik.
+
+Stattdessen fügt eine Transform Rule von Cloudflare (Free-Plan) jeder Anfrage den Header
+`x-aquisiteur-origin` mit einem Geheimnis hinzu. Ist `ORIGIN_SECRET` gesetzt, lehnt `src/middleware.ts`
+jede Anfrage ohne passenden Header mit 403 ab (Vergleich in konstanter Zeit); nur `/healthz` bleibt für
+den Health Check im Container offen. Ohne Variable (lokal, Tests, Cloudflare-Workers-Variante) bleibt
+alles wie bisher. Der Ansatz ist anbieterneutral: jeder vorgeschaltete Proxy, der einen festen Header
+setzen kann, genügt.
+
+Außerdem zählt die Kurzlink-Sperre IPv6-Adressen nach ihrem /64-Netz (`src/lib/client-ip.ts`), weil ein
+Anschluss meist ein ganzes /64 besitzt und sonst für jede Anfrage eine neue Adresse nehmen könnte. Better
+Auth macht das für die Anmeldung bereits von sich aus.

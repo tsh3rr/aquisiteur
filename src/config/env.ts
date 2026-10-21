@@ -96,6 +96,16 @@ const serverEnvSchema = z.object({
     .min(24)
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  /**
+   * Shared secret Cloudflare adds to every request (Transform Rule, header
+   * `x-aquisiteur-origin`). Set: requests without it are refused, so the
+   * server cannot be reached past Cloudflare (src/middleware.ts).
+   */
+  ORIGIN_SECRET: z
+    .string()
+    .min(24)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   /** base64-encoded 32-byte key for integration secrets (AES-256-GCM). */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().optional(),
 });
