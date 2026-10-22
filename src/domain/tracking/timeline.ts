@@ -1,4 +1,6 @@
 import type { ExposeOutline } from "../expose/outline";
+import { INVOICE_KINDS, INVOICE_KIND_LABELS, type InvoiceKind } from "../invoices/schema";
+import { formatCents } from "../offers/totals";
 import { isProspectStatus, STATUS_LABELS } from "../prospects/status";
 
 /**
@@ -39,7 +41,8 @@ export interface TimelineAudit {
   actorName: string | null;
 }
 
-export type TimelineKind = "visit" | "status" | "expose" | "touchpoint" | "letter" | "offer";
+export type TimelineKind =
+  "visit" | "status" | "expose" | "touchpoint" | "letter" | "offer" | "invoice";
 
 export interface TimelineEntry {
   key: string;
@@ -194,6 +197,9 @@ export function describeEvent(event: TimelineEvent, outline: ExposeOutline): str
   }
 }
 
+const isInvoiceKind = (value: unknown): value is InvoiceKind =>
+  (INVOICE_KINDS as readonly unknown[]).includes(value);
+
 function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
   const base = { key: `audit-${index}`, at: audit.createdAt, steps: [], muted: false, bot: false };
   switch (audit.action) {
@@ -292,6 +298,33 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
               ? `von ${audit.actorName}`
               : null;
       return { ...base, kind: "offer", title, detail };
+    }
+    case "invoice.issued":
+    case "invoice.cancelled":
+    case "invoice.paid": {
+      const number = typeof audit.meta.number === "string" ? audit.meta.number : "";
+      const kind = audit.meta.kind;
+      const cents = (key: string) =>
+        typeof audit.meta[key] === "number" ? formatCents(audit.meta[key]) : null;
+      const title =
+        audit.action === "invoice.issued"
+          ? `${isInvoiceKind(kind) ? INVOICE_KIND_LABELS[kind] : "Rechnung"} ${number} gestellt`
+          : audit.action === "invoice.cancelled"
+            ? `Rechnung ${number} storniert`
+            : `Zahlung zu Rechnung ${number} erfasst`;
+      const detail = [
+        audit.action === "invoice.issued"
+          ? cents("totalCents")
+          : audit.action === "invoice.paid"
+            ? cents("amountCents")
+            : typeof audit.meta.cancellation === "string"
+              ? `mit ${audit.meta.cancellation}`
+              : null,
+        audit.actorName ? `von ${audit.actorName}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return { ...base, kind: "invoice", title, detail: detail || null };
     }
     default:
       return null;

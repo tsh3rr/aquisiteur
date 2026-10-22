@@ -89,7 +89,8 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 
 - [x] 7a: Projekte pro Kunde, Leistungskatalog, Angebotseditor mit Varianten, Optionen, Tranchen und Wartung, Versionen mit Prüfsumme, Nummernkreis, öffentliche Angebotsseite mit Online-Annahme, Preise ins Exposé, Timeline und Benachrichtigungen (ADR-0067)
 - [ ] 7a, Rest: `offer.json` im Exposé-Ordner, Angebotsanfrage aus dem Exposé, mehrere Exposés pro Kunde
-- [ ] 7b: Rechnungsprofil am Kunden (Adresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel), Rechnungen nach österreichischem Recht (Kleinunternehmer und Regelbesteuerung), Rechnungs-PDF, Nummernkreis, Storno per Gutschrift
+- [x] 7b: Rechnungsprofil am Kunden (Adresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel), Rechnungen nach österreichischem Recht (Kleinunternehmer und Regelbesteuerung), Anzahlungs- und Schlussrechnungen aus Tranchen, Rechnungs-PDF mit EPC-QR, Nummernkreis, Storno, Zahlungen, CSV-Export (ADR-0070)
+- [ ] 7c (aus 7b verschoben): ZUGFeRD/Factur-X im PDF, ZIP mit PDFs für den Steuerberater, VIES-Prüfung und Zusammenfassende Meldung, Sperrvermerk statt Löschung
 - [ ] 7c: Wartungsverträge mit periodischer Abrechnung, Versand per E-Mail (Resend) mit Freigabe über die Aufgaben, Zahlungserinnerungen
 - [ ] Später: eigene Rechnungsvorlagen, E-Rechnung (ebInterface/ZUGFeRD), Bankabgleich
 

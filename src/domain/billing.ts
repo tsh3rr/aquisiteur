@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normaliseIban } from "./invoices/epc";
 
 /**
  * Tax and billing settings of a workspace (§7.10, ADR-0067). The owner is an
@@ -45,6 +46,49 @@ export const billingSettingsSchema = z.object({
     .trim()
     .max(4000)
     .default("Bei Fragen erreichen Sie mich jederzeit. Ich freue mich auf die Zusammenarbeit!"),
+  /** Bank details on invoices (§7.10, phase 7b); the IBAN also feeds the EPC QR code. */
+  iban: z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      if (!value) return undefined;
+      const iban = normaliseIban(value);
+      if (!iban) {
+        ctx.addIssue({ code: "custom", message: "Bitte eine gültige IBAN angeben." });
+        return z.NEVER;
+      }
+      return iban;
+    })
+    .optional(),
+  bic: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/\s/g, "").toUpperCase() || undefined)
+    .pipe(
+      z
+        .string()
+        .regex(/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/, "BIC mit 8 oder 11 Zeichen.")
+        .optional(),
+    )
+    .optional(),
+  bankName: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => value || undefined),
+  /** Days until an invoice is due, unless the customer's profile says otherwise. */
+  paymentTermsDays: z.number().int().min(0).max(120).default(14),
+  invoiceIntro: z
+    .string()
+    .trim()
+    .max(4000)
+    .default("vielen Dank für Ihren Auftrag. Ich stelle Ihnen folgende Leistungen in Rechnung:"),
+  invoiceOutro: z
+    .string()
+    .trim()
+    .max(4000)
+    .default("Bitte überweisen Sie den Betrag bis zum genannten Datum. Vielen Dank!"),
 });
 export type BillingSettings = z.output<typeof billingSettingsSchema>;
 

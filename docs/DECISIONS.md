@@ -1016,8 +1016,8 @@ aus ADR-0035/0037 gelten weiter, weil sie auch die Ladezeit im Cockpit verbesser
 
 ## ADR-0069 · Reiter auf der Kundenseite, kompakter Angebots-Editor (2026-10-22)
 
-Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (die Übersicht einspaltig: Kontaktabsicht, Aufgaben, Chat, Projekte, Timeline) (Übersicht, Besuche, Briefe und Links,
-Stammdaten) über `HashTabs` (`src/components/ui/tabs.tsx`): alle Panels werden auf dem Server gerendert
+Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (Übersicht, Besuche, Briefe und Links,
+Stammdaten; die Übersicht einspaltig: Kontaktabsicht, Aufgaben, Chat, Projekte, Timeline) über `HashTabs` (`src/components/ui/tabs.tsx`): alle Panels werden auf dem Server gerendert
 und nur ausgeblendet, der URL-Hash wählt den Reiter. Ein Hash, der auf ein Element in einem Panel zeigt
 (`#datenschutz`, `#chat`, `aufgabe-…`), öffnet dessen Reiter, sodass Links aus Benachrichtigungen
 unverändert funktionieren. Im Angebots-Editor stehen Positionen in zwei Zeilen (Leistung, dann Menge,
@@ -1025,3 +1025,49 @@ Einheit, Preis, Abrechnung und Zeilensumme); Beschreibung, Rabatt, USt-Satz, Opt
 liegen unter „Weitere Angaben“, offen, sobald etwas davon gesetzt ist. Die Varianten-Karte erscheint erst,
 wenn Varianten angeboten werden. Speichern und Fertigstellen stehen ab `xl` oben in der Seitenleiste,
 darunter in der schwebenden Leiste mit der Summe.
+
+## ADR-0070 · Rechnungen nach österreichischem Recht (2026-10-22)
+
+Phase 7b (ZIELPROMPT §7.10). Die Steuerregeln sind recherchiert, keine Steuerberatung; vor der ersten
+echten Rechnung mit dem Steuerberater abgleichen.
+
+- **Datenmodell**: `invoices` (Art: Rechnung, Anzahlung, Schluss, Storno; Status: Entwurf, ausgestellt,
+  storniert) und `invoice_payments`, beide mandantengetrennt mit RLS. Das Rechnungsprofil liegt als
+  `prospects.billing` (jsonb) am Kunden: Kundenart, Name, abweichende Adresse, Land, UID, E-Mail,
+  Zahlungsziel. Bank, Zahlungsziel und Texte stehen in `workspace_settings.billing`.
+- **Unveränderlich in der Datenbank**: Beim Ausstellen werden Nummer (`RE-YYYY-NNNN` aus
+  `number_series`, in derselben Transaktion), Datum, Fälligkeit, Dokument, Summen, Absender und Empfänger
+  eingefroren und eine SHA-256-Prüfsumme gespeichert. Der Trigger `app.invoices_immutable` lässt danach
+  nur den Wechsel „ausgestellt → storniert“ zu und verweigert das Löschen, außer der ganze Workspace wird
+  gelöscht. Die Fremdschlüssel auf Kunde, Projekt und Angebot sind NO ACTION: Ein Kunde oder Projekt mit
+  ausgestellter Rechnung bleibt sieben Jahre (§ 132 BAO); Entwürfe gehen mit.
+- **Storno** erzeugt sofort eine ausgestellte Stornorechnung mit eigener Nummer, Verweis und negativen
+  Beträgen (gleiche Positionen, Vorzeichen in `invoiceTotals`). Danach kann die Tranche neu abgerechnet
+  werden.
+- **Tranchen**: „Rechnungen aus Tranchen erstellen“ am angenommenen Angebot legt je offene Tranche einen
+  Entwurf an, aus der angenommenen Fassung und Auswahl. Anzahlungen tragen eine Zeile je Steuersatz im
+  Verhältnis der Bemessungsgrundlagen; die letzte Tranche wird zur Schlussrechnung mit allen Positionen
+  und zieht die ausgestellten, nicht stornierten Anzahlungen je Steuersatz ab (beim Laden des Entwurfs
+  neu berechnet, beim Ausstellen eingefroren). Ein Plan mit nur einer Tranche ergibt eine normale Rechnung.
+  Damit nichts doppelt abgerechnet wird: Die Schlussrechnung lässt sich erst ausstellen, wenn keine
+  Anzahlung des Angebots mehr Entwurf ist, und eine Anzahlung, die eine ausgestellte Schlussrechnung
+  abzieht, lässt sich erst nach dem Storno der Schlussrechnung stornieren.
+- **Steuer**: Behandlung je Rechnung, vorbelegt aus Steuermodus, Land, Kundenart und UID:
+  Kleinunternehmer, österreichische USt, Reverse Charge (EU-Unternehmen mit UID), nicht steuerbar
+  (Unternehmen im Drittland). Privatkunden im Ausland und EU-Unternehmen ohne UID werden als Rückfrage
+  markiert. Vor dem Ausstellen prüft `issueIssues` die Pflichtangaben nach § 11 UStG je Betrag (400 € und
+  10.000 € brutto; die eigene UID verlangt sie außer bei Kleinunternehmern). Der Grenzwächter summiert,
+  was mit Kleinunternehmer-Rechnungen im Jahr abgerechnet wurde (Schlussrechnungen ohne die schon
+  gezählten Anzahlungen, Stornos negativ), und warnt ab 80 % von 55.000 €. Eine Kleinunternehmer-Rechnung,
+  mit der die Toleranz von 60.500 € überschritten würde, lässt sich nicht mehr ausstellen, weil sie schon
+  Umsatzsteuer ausweisen muss. Privatkunden im Ausland bekommen bis zur Klärung mit dem Steuerberater
+  die Behandlung wie im Inland und eine Rückfrage, noch keinen eigenen Hinweistext.
+- **PDF** wie beim Angebot mit react-pdf im Browser (ADR-0035), mit EPC-QR-Code, sobald eine IBAN
+  hinterlegt ist; Editor und PDF-Dokument sind aus dem Server-Bundle aliasiert. **CSV** pro Monat mit
+  Semikolon, Dezimalkomma und BOM, Formeln entschärft.
+- Ausgestellt, storniert und bezahlt stehen in der Timeline des Kunden; Rechnungen und Zahlungen sind
+  im Daten- und Kundenexport.
+
+Verschoben nach 7c: eingebettetes ZUGFeRD/Factur-X, ZIP mit PDFs, VIES-Prüfung und Vormerkung für die
+Zusammenfassende Meldung, Sperrvermerk bei einer Datenschutz-Löschung (bis dahin wird das Löschen eines
+Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Versand per E-Mail.

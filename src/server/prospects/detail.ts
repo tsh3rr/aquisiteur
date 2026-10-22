@@ -138,7 +138,7 @@ export async function loadProspectDetail(
         or(
           and(eq(auditLog.targetType, "prospect"), eq(auditLog.targetId, prospectId)),
           and(
-            inArray(auditLog.targetType, ["letter", "offer"]),
+            inArray(auditLog.targetType, ["letter", "offer", "invoice"]),
             sql`${auditLog.meta} ->> 'prospectId' = ${prospectId}`,
           ),
           expose

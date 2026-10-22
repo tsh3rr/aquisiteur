@@ -154,4 +154,39 @@ describe("timeline wording", () => {
       "Im Chat angefangen zu schreiben, aber nicht gesendet",
     ]);
   });
+
+  it("names issued, cancelled and paid invoices", () => {
+    const at = (minute: number) => new Date(`2026-10-01T10:0${minute}:00Z`);
+    const entries = buildTimeline({
+      visits: [],
+      events: [],
+      audits: [
+        {
+          action: "invoice.issued",
+          meta: { number: "RE-2026-0001", kind: "deposit", totalCents: 120_000 },
+          createdAt: at(1),
+          actorName: "Jeremiasz",
+        },
+        {
+          action: "invoice.paid",
+          meta: { number: "RE-2026-0001", amountCents: 50_000 },
+          createdAt: at(2),
+          actorName: null,
+        },
+        {
+          action: "invoice.cancelled",
+          meta: { number: "RE-2026-0001", cancellation: "RE-2026-0002" },
+          createdAt: at(3),
+          actorName: null,
+        },
+      ],
+      outline,
+      showBots: false,
+    });
+    expect(entries.map((entry) => [entry.kind, entry.title, entry.detail])).toEqual([
+      ["invoice", "Rechnung RE-2026-0001 storniert", "mit RE-2026-0002"],
+      ["invoice", "Zahlung zu Rechnung RE-2026-0001 erfasst", "500,00 €"],
+      ["invoice", "Anzahlungsrechnung RE-2026-0001 gestellt", "1.200,00 € · von Jeremiasz"],
+    ]);
+  });
 });

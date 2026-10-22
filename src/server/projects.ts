@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { auditLog, exposes, offers, projects, prospects } from "@/db/schema";
+import { auditLog, exposes, invoices, offers, projects, prospects } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import { FIRST_PROJECT_NAME, type ProjectForm, type ProjectStatus } from "@/domain/projects";
 
@@ -127,7 +127,7 @@ export async function deleteProject(
     .from(projects)
     .where(and(eq(projects.workspaceId, actor.workspaceId), eq(projects.id, projectId)));
   if (!project) return { error: "not_found" };
-  const [[exposeCount], [sentCount]] = await Promise.all([
+  const [[exposeCount], [sentCount], [invoiceCount]] = await Promise.all([
     tx
       .select({ count: count() })
       .from(exposes)
@@ -142,8 +142,18 @@ export async function deleteProject(
           ne(offers.status, "draft"),
         ),
       ),
+    tx
+      .select({ count: count() })
+      .from(invoices)
+      .where(and(eq(invoices.workspaceId, actor.workspaceId), eq(invoices.projectId, projectId))),
   ]);
-  if ((exposeCount?.count ?? 0) > 0 || (sentCount?.count ?? 0) > 0) return { error: "in_use" };
+  if (
+    (exposeCount?.count ?? 0) > 0 ||
+    (sentCount?.count ?? 0) > 0 ||
+    (invoiceCount?.count ?? 0) > 0
+  ) {
+    return { error: "in_use" };
+  }
   await tx
     .delete(projects)
     .where(and(eq(projects.workspaceId, actor.workspaceId), eq(projects.id, projectId)));

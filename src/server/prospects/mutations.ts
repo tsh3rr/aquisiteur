@@ -5,6 +5,7 @@ import {
   auditLog,
   contacts,
   exposes,
+  invoices,
   letters,
   prospects,
   savedViews,
@@ -149,8 +150,26 @@ export async function setDoNotContact(tx: Transaction, actor: Actor, id: string,
 /**
  * Removes a prospect with everything that hangs off it (contacts, exposé,
  * links, visits, events). Data subject deletion (§9) uses the same path.
+ * Issued invoices must be kept for seven years (§ 132 BAO), so a prospect
+ * with one stays ("retained"); invoice drafts go with the prospect.
  */
-export async function deleteProspect(tx: Transaction, actor: Actor, id: string) {
+export async function deleteProspect(
+  tx: Transaction,
+  actor: Actor,
+  id: string,
+): Promise<boolean | "retained"> {
+  const [issued] = await tx
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.workspaceId, actor.workspaceId),
+        eq(invoices.prospectId, id),
+        ne(invoices.status, "draft"),
+      ),
+    )
+    .limit(1);
+  if (issued) return "retained";
   const replays = await tx
     .select({ id: sessionReplays.id })
     .from(sessionReplays)
@@ -167,6 +186,9 @@ export async function deleteProspect(tx: Transaction, actor: Actor, id: string) 
         eq(letters.status, "draft"),
       ),
     );
+  await tx
+    .delete(invoices)
+    .where(and(eq(invoices.workspaceId, actor.workspaceId), eq(invoices.prospectId, id)));
   const deleted = await tx
     .delete(prospects)
     .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
