@@ -10,6 +10,7 @@ import {
   invoices,
   letters,
   notifications,
+  outboundEmails,
   prospects,
   savedViews,
   sessionReplays,
@@ -277,6 +278,7 @@ export async function restrictProspect(
     notifications,
     intentScores,
     tasks,
+    outboundEmails,
     contacts,
   ]) {
     await tx.delete(table).where(and(eq(table.workspaceId, ws), eq(table.prospectId, id)));

@@ -17,11 +17,14 @@ import {
 } from "@/domain/invoices/schema";
 import { germanDate, servicePeriodLabel } from "@/domain/invoices/totals";
 import { formatCents, formatQuantity } from "@/domain/offers/totals";
+import { EMAIL_STATUS_LABELS, EMAIL_STATUS_TONES } from "@/domain/email";
 import { loadInvoice } from "@/server/invoices/manage";
+import { loadInvoiceDelivery } from "@/server/invoices/send";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteInvoiceDraftAction, deletePaymentAction, loadInvoicePdfAction } from "../actions";
 import { CancelInvoice, PaymentForm } from "./invoice-actions";
+import { SendInvoice } from "./invoice-send";
 import { InvoiceEditorLazy } from "./invoice-editor-lazy";
 
 type Params = Promise<{ id: string }>;
@@ -50,6 +53,10 @@ export default async function InvoicePage({ params }: { params: Params }) {
   const { workspace, actor, tenant } = await requireCockpit();
   const loaded = await tenant((tx) => loadInvoice(tx, workspace.id, id));
   if (!loaded) notFound();
+  const delivery =
+    loaded.invoice.status === "draft"
+      ? null
+      : await tenant((tx) => loadInvoiceDelivery(tx, workspace.id, id));
   const { invoice, document, prospect, totals, issuer, recipient } = loaded;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const draft = invoice.status === "draft";
@@ -359,6 +366,62 @@ export default async function InvoicePage({ params }: { params: Params }) {
             </Card>
           ) : null}
         </div>
+      ) : null}
+
+      {delivery ? (
+        <Card id="versand" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>Versand</CardTitle>
+            <CardDescription>
+              Per E-Mail mit dem PDF im Anhang und dem Link zur{" "}
+              <a
+                href={delivery.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent underline underline-offset-4"
+              >
+                Rechnungsseite
+              </a>
+              {delivery.firstViewedAt
+                ? `, vom Kunden geöffnet am ${germanDate(delivery.firstViewedAt.toISOString().slice(0, 10))}`
+                : ""}
+              . Zustellung ohne Lesebestätigung.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            {delivery.openApprovals > 0 ? (
+              <p className="text-sm" role="status">
+                Eine Aufgabe wartet auf die Freigabe dieser Rechnung; sie erledigt sich mit dem
+                Versand.
+              </p>
+            ) : null}
+            {delivery.emails.length > 0 ? (
+              <ul className="grid gap-2 text-sm" aria-label="Gesendete E-Mails">
+                {delivery.emails.map((mail) => (
+                  <li key={mail.id} className="flex flex-wrap items-center gap-2">
+                    <Badge tone={EMAIL_STATUS_TONES[mail.status]}>
+                      {EMAIL_STATUS_LABELS[mail.status]}
+                    </Badge>
+                    <span>
+                      {germanDate(mail.createdAt.toISOString().slice(0, 10))} an {mail.toAddress}
+                    </span>
+                    {mail.error ? (
+                      <span className="basis-full text-foreground-muted">{mail.error}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {canManage && !prospect.restrictedAt ? (
+              <SendInvoice
+                invoiceId={invoice.id}
+                filename={filename}
+                pdfStored={delivery.pdfStored}
+                draft={delivery.draft}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
       ) : null}
 
       {draft && canManage ? (

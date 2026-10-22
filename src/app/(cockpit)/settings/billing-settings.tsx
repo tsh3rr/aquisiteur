@@ -11,6 +11,11 @@ import {
   TAX_MODE_LABELS,
   type BillingSettings,
 } from "@/domain/billing";
+import {
+  INVOICE_EMAIL_PLACEHOLDERS,
+  INVOICE_SEND_MODES,
+  INVOICE_SEND_MODE_LABELS,
+} from "@/domain/invoices/email";
 import { BILLING_INTERVALS, BILLING_LABELS, UNITS, VAT_RATES } from "@/domain/offers/schema";
 import { formatCents } from "@/domain/offers/totals";
 import {
@@ -161,6 +166,42 @@ export function BillingSettingsForm({
             name="invoiceOutro"
             rows={2}
             defaultValue={billing.invoiceOutro}
+            maxLength={4000}
+          />
+        </Field>
+      </fieldset>
+
+      <fieldset className="grid gap-4" disabled={disabled}>
+        <legend className="mb-3 text-base font-semibold">Versand per E-Mail</legend>
+        <Field
+          label="Versand"
+          hint="Mit Freigabe legt der stündliche Job Rechnungsentwürfe (etwa für Wartung) mit einer Aufgabe „Rechnung freigeben“ an. Die Aufgabe erledigt sich, sobald Sie die Rechnung senden."
+          error={e("invoiceSendMode")}
+        >
+          <Select name="invoiceSendMode" defaultValue={billing.invoiceSendMode}>
+            {INVOICE_SEND_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {INVOICE_SEND_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Betreff" error={e("invoiceEmailSubject")}>
+          <Input
+            name="invoiceEmailSubject"
+            defaultValue={billing.invoiceEmailSubject}
+            maxLength={200}
+          />
+        </Field>
+        <Field
+          label="Text der E-Mail"
+          hint={`Platzhalter: ${INVOICE_EMAIL_PLACEHOLDERS.map((name) => `{${name}}`).join(", ")}. Das PDF hängt immer an.`}
+          error={e("invoiceEmailBody")}
+        >
+          <Textarea
+            name="invoiceEmailBody"
+            rows={8}
+            defaultValue={billing.invoiceEmailBody}
             maxLength={4000}
           />
         </Field>

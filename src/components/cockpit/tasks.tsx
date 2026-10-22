@@ -38,6 +38,8 @@ import { cn } from "@/lib/cn";
 export interface TaskItemView {
   id: string;
   prospectId: string;
+  /** „Rechnung freigeben“ links to its invoice (7c-2). */
+  invoiceId?: string | null;
   companyName: string;
   title: string;
   note: string | null;
@@ -186,6 +188,14 @@ function TaskItem({
               className="inline-flex min-h-6 items-center font-medium text-accent underline-offset-4 hover:underline"
             >
               {task.companyName}
+            </Link>
+          ) : null}
+          {task.invoiceId ? (
+            <Link
+              href={`/rechnungen/${task.invoiceId}#versand`}
+              className="inline-flex min-h-6 items-center font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Rechnung öffnen
             </Link>
           ) : null}
           {overdue ? (

@@ -43,6 +43,9 @@ export async function saveBillingSettings(
     paymentTermsDays: Number(text(formData, "paymentTermsDays")),
     invoiceIntro: text(formData, "invoiceIntro"),
     invoiceOutro: text(formData, "invoiceOutro"),
+    invoiceSendMode: text(formData, "invoiceSendMode") || undefined,
+    invoiceEmailSubject: text(formData, "invoiceEmailSubject") || undefined,
+    invoiceEmailBody: text(formData, "invoiceEmailBody") || undefined,
   });
   if (!parsed.success) {
     const errors = issuesByField(parsed.error);

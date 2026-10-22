@@ -45,6 +45,8 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.offerVersions,
   schema.invoices,
   schema.invoicePayments,
+  schema.invoiceShares,
+  schema.outboundEmails,
   schema.numberSeries,
   schema.intentScores,
   schema.notificationRules,
@@ -138,6 +140,11 @@ export async function exportProspect(
   tables.invoice_payments = await byParent(
     schema.invoicePayments,
     schema.invoicePayments.invoiceId,
+    ids("invoices"),
+  );
+  tables.invoice_shares = await byParent(
+    schema.invoiceShares,
+    schema.invoiceShares.invoiceId,
     ids("invoices"),
   );
   tables.audit_log = await byParent(schema.auditLog, schema.auditLog.targetId, [

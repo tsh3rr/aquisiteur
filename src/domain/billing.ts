@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { INVOICE_EMAIL_BODY, INVOICE_EMAIL_SUBJECT, INVOICE_SEND_MODES } from "./invoices/email";
 import { normaliseIban } from "./invoices/epc";
 
 /**
@@ -97,6 +98,14 @@ export const billingSettingsSchema = z.object({
     .trim()
     .max(4000)
     .default("Bitte überweisen Sie den Betrag bis zum genannten Datum. Vielen Dank!"),
+  /**
+   * How invoices leave (§7.10, 7c-2): sent by hand, after an approval task
+   * (default; the hourly job creates the task), or automatically for
+   * unchanged maintenance invoices, falling back to approval.
+   */
+  invoiceSendMode: z.enum(INVOICE_SEND_MODES).default("approval"),
+  invoiceEmailSubject: z.string().trim().min(3).max(200).default(INVOICE_EMAIL_SUBJECT),
+  invoiceEmailBody: z.string().trim().min(10).max(4000).default(INVOICE_EMAIL_BODY),
 });
 export type BillingSettings = z.output<typeof billingSettingsSchema>;
 

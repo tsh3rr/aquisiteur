@@ -61,6 +61,8 @@ const tenantTables = {
   offer_versions: schema.offerVersions,
   invoices: schema.invoices,
   invoice_payments: schema.invoicePayments,
+  invoice_shares: schema.invoiceShares,
+  outbound_emails: schema.outboundEmails,
   number_series: schema.numberSeries,
 } satisfies Record<string, PgTable>;
 
@@ -212,6 +214,20 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
   await db
     .insert(schema.invoicePayments)
     .values({ workspaceId, invoiceId: invoice!.id, amountCents: 100, paidOn: "2026-10-02" });
+  // Sent by mail: the customer's page and the mail log (7c-2).
+  await db
+    .insert(schema.invoiceShares)
+    .values({ workspaceId, invoiceId: invoice!.id, token: `token${tag}`.padEnd(22, "x") });
+  await db.insert(schema.outboundEmails).values({
+    workspaceId,
+    kind: "invoice",
+    prospectId: chat.prospectId,
+    invoiceId: invoice!.id,
+    toAddress: `kunde-${tag}@example.test`,
+    subject: `Rechnung RE-2026-${tag}`,
+    messageId: `<${tag}@mail.test>`,
+    status: "sent",
+  });
 }
 
 beforeAll(async () => {
