@@ -900,3 +900,26 @@ Owner hat die zwei Stufen gewählt:
 Folge: Wer ablehnt, liefert dem Score nur Besuch, Wiederkehr, Chat, Rückruf und Teilen. Offen für
 später: Klicks auf Kontaktwege über eine Server-Weiterleitung messen (dann Basis), automatisches Löschen
 von Kunden ohne Reaktion nach 12 Monaten.
+
+## ADR-0066 · Exposés nur über den Link: Crawlen erlaubt, Indexieren verboten, kein Referrer (2026-10-21)
+
+Prüfung vor dem Go-live, ob Exposés nur mit dem Link auffindbar sind (§6.1, §10). `noindex, nofollow`
+stand schon in Header und Markup, Adressen tragen 10 Zufallszeichen, es gibt keine Sitemap und keine
+Liste auf der Startseite eines Hosts. Geändert:
+
+- **robots.txt** sperrte alles (`Disallow: /`). Damit sieht eine Suchmaschine das `noindex` nie und kann
+  einen Link, den jemand anderswo veröffentlicht, trotzdem als nackte Adresse ohne Inhalt listen (so
+  dokumentiert es Google). Jetzt dürfen Suchmaschinen Seiten abrufen, außer den Tracking-Endpunkten
+  (`/t/`), und lesen dabei `noindex`. KI-Crawler (GPTBot, ClaudeBot, CCBot, Google-Extended …), die
+  `noindex` nicht verlässlich beachten, bleiben ganz draußen. Gleiche Regeln für Cockpit und
+  Exposé-Hosts (`src/lib/robots.ts`). Ein Crawler-Abruf zählt wie jede Link-Vorschau als Bot-Besuch.
+- **Referrer**: Die Exposé-Hosts schicken `Referrer-Policy: no-referrer` als Header (vorher nur als
+  Meta-Tag; der Header aus `next.config.ts` war `strict-origin-when-cross-origin`). Das Cockpit bleibt
+  bei `strict-origin-when-cross-origin`.
+- `sitemap.xml` ist ein reservierter Pfad (404) statt ein unbekannter Kurzlink mit „Meinten Sie …?“.
+- Das Exposé-PDF trägt `noindex, nofollow` wie alles andere.
+
+Bewusst so geblieben: Titel und Beschreibung des Exposés stehen im `<head>`, Open-Graph-Tags gibt es
+keine. Teilt der Empfänger den Link, zeigt die Vorschau also nur den Titel. Kurzlinks bleiben abtippbar
+(§6.2) und damit kürzer als die Exposé-Adresse; Schutz ist die Sperre gegen Durchprobieren. Lesbare
+Wunsch-Codes wie `cafe-mueller` sind leichter zu erraten als zufällige.

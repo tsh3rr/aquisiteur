@@ -99,6 +99,27 @@ test("the public exposé renders accessibly with working slider and price calcul
   expect(scripts.filter((src) => src.includes("(cockpit)"))).toEqual([]);
 });
 
+test("the public exposé is reachable only by its link", async ({ page, request }) => {
+  // §6.1, ADR-0066: noindex in header and markup, no referrer, no sitemap.
+  const response = await page.goto(publicUrl);
+  expect(response?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  expect(response?.headers()["referrer-policy"]).toBe("no-referrer");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex, nofollow/);
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
+  await expect(page.locator('meta[property^="og:"]')).toHaveCount(0);
+  expect(new URL(publicUrl).pathname).toMatch(/^\/x\/tischlerei-holzmann-[a-z0-9]{10}$/);
+
+  // Node cannot resolve *.localhost, so the host goes in the header.
+  const headers = { host: new URL(workspaceHost).host };
+  const robots = await request.get("/robots.txt", { headers });
+  expect(robots.status()).toBe(200);
+  const text = await robots.text();
+  expect(text).toContain("User-agent: *\nAllow: /\nDisallow: /t/");
+  expect(text).toContain("User-agent: GPTBot");
+  expect(text.toLowerCase()).not.toContain("sitemap");
+  expect((await request.get("/sitemap.xml", { headers, maxRedirects: 0 })).status()).toBe(404);
+});
+
 function pdfPages(file: string) {
   const pdf = readFileSync(file);
   expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");

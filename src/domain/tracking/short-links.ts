@@ -26,6 +26,7 @@ export const RESERVED_CODES = new Set([
   "impressum",
   "datenschutz",
   "robots.txt",
+  "sitemap.xml",
   "favicon.ico",
   "icon.svg",
   "owner-device",

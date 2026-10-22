@@ -109,6 +109,8 @@ export function middleware(request: NextRequest) {
   response.headers.set("content-security-policy", csp);
   // Neither the cockpit nor exposés may be indexed (§6.1).
   response.headers.set("x-robots-tag", "noindex, nofollow");
+  // An exposé's address is its only key: never hand it on to another site (ADR-0066).
+  if (target.kind !== "cockpit") response.headers.set("referrer-policy", "no-referrer");
   return response;
 }
 

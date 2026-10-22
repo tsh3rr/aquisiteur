@@ -34,6 +34,10 @@ diese Liste durch, bevor sie als fertig gelten.
 strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `X-Frame-Options`,
       `Cross-Origin-Opener-Policy`, `Permissions-Policy`. Geprüft in `security-headers.test.ts`.
 - [x] `X-Robots-Tag: noindex, nofollow` überall.
+- [x] robots.txt lässt Suchmaschinen abrufen, damit sie `noindex` sehen, und sperrt KI-Crawler ganz;
+      keine Sitemap (`src/lib/robots.ts`, ADR-0066).
+- [x] Exposé-Hosts: `Referrer-Policy: no-referrer` (Header und Meta-Tag), externe Links mit
+      `rel="noopener noreferrer"`; das Ticket `?v=` entfernt das Script sofort aus der Adresse.
 - [x] Client-Adresse an einer Stelle: Die Middleware setzt `x-aquisiteur-client-ip` und überschreibt
       einen mitgeschickten Wert. Cloudflare-Header (`cf-*`) gelten nur mit `ORIGIN_SECRET` oder auf
       Workers, sonst zählt der letzte Eintrag in `x-forwarded-for` (vom Proxy davor) und `cf-*` wird
@@ -157,3 +161,13 @@ Sitzungsdauer, Magic-Link-Allowlist, CSP mit Nonce, HSTS, Container läuft als `
 5. Kurz vor dem Go-live von außen prüfen: Header (securityheaders.com), TLS (SSL Labs), offene Ports
    (nur SSH und der Port für den Mikrus-Proxy).
 6. Der offene mittlere Befund M2 hat einen Termin oder eine begründete Ausnahme.
+7. Exposés nur über den Link (ADR-0066), von außen mit der echten Domain prüfen:
+   `curl -sI https://<exposé-domain>/x/<slug>` zeigt `x-robots-tag: noindex, nofollow` und
+   `referrer-policy: no-referrer`; `https://<exposé-domain>/robots.txt` zeigt `Allow: /` und die
+   KI-Crawler mit `Disallow: /`; `/sitemap.xml` ergibt 404.
+8. Bei Cloudflare vor der Exposé-Domain: „Always Online“ aus (schickt Adressen an das Internet
+   Archive), „Managed robots.txt“ und „Crawler Hints“ aus, damit die eigene robots.txt gilt.
+9. Testexposés mit echten Firmennamen vor dem Go-live depublizieren; Exposé-Links nie öffentlich posten
+   (Social Media, Foren, Screenshots mit lesbarer Adresse).
+10. Wenige Wochen nach den ersten Briefen in der Suche `site:<exposé-domain>` prüfen; erwartet: keine
+    Treffer. Taucht doch etwas auf: in der Google Search Console entfernen lassen.

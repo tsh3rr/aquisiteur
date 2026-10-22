@@ -84,6 +84,9 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
 - [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0060)
 - [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen und Folgebriefe) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
+- [ ] Vor dem Go-live: Exposés nur über den Link (ADR-0066, `docs/SECURITY.md` Go-live-Checkliste 7–10): Header, robots.txt und `/sitemap.xml` von außen auf der echten Domain prüfen; bei Cloudflare „Always Online“, „Crawler Hints“ und „Managed robots.txt“ aus; Testexposés mit echten Firmennamen depublizieren
+- [ ] Vor dem Go-live: lesbare Wunsch-Kurzlinks (z. B. `cafe-mueller`) nur, wo Erraten unkritisch ist, sonst den zufälligen Code (ADR-0066)
+- [ ] Nach den ersten Briefen: `site:<exposé-domain>` in der Suche prüfen, erwartet keine Treffer; sonst über die Google Search Console entfernen
 
 ## Später
 

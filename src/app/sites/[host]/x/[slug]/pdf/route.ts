@@ -17,6 +17,6 @@ export async function GET(
   const data = workspace ? await loadPublicExpose(getDb(), workspace.id, slug) : null;
   if (!data) return new Response(null, { status: 404 });
   return Response.json(printableExpose(data, { assetBase: "/assets", url: null }), {
-    headers: { "cache-control": "private, no-store", "x-robots-tag": "noindex" },
+    headers: { "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow" },
   });
 }
