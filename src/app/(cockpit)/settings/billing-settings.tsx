@@ -102,6 +102,62 @@ export function BillingSettingsForm({
         </Field>
       </fieldset>
 
+      <fieldset className="grid gap-4 sm:grid-cols-2" disabled={disabled}>
+        <legend className="mb-3 text-base font-semibold">Rechnungen</legend>
+        <Field
+          label="IBAN"
+          optional
+          hint="Steht auf jeder Rechnung und im QR-Code „Zahlen mit Code“."
+          error={e("iban")}
+        >
+          <Input name="iban" defaultValue={billing.iban ?? ""} maxLength={42} autoComplete="off" />
+        </Field>
+        <Field label="BIC" optional error={e("bic")}>
+          <Input name="bic" defaultValue={billing.bic ?? ""} maxLength={11} autoComplete="off" />
+        </Field>
+        <Field label="Bank" optional error={e("bankName")}>
+          <Input name="bankName" defaultValue={billing.bankName ?? ""} maxLength={120} />
+        </Field>
+        <Field
+          label="Zahlungsziel in Tagen"
+          hint="Ab dem Rechnungsdatum. Im Rechnungsprofil eines Kunden abweichend einstellbar."
+          error={e("paymentTermsDays")}
+        >
+          <Input
+            name="paymentTermsDays"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={120}
+            defaultValue={billing.paymentTermsDays}
+          />
+        </Field>
+        <Field
+          label="Einleitung neuer Rechnungen"
+          error={e("invoiceIntro")}
+          className="sm:col-span-2"
+        >
+          <Textarea
+            name="invoiceIntro"
+            rows={2}
+            defaultValue={billing.invoiceIntro}
+            maxLength={4000}
+          />
+        </Field>
+        <Field
+          label="Schlusstext neuer Rechnungen"
+          error={e("invoiceOutro")}
+          className="sm:col-span-2"
+        >
+          <Textarea
+            name="invoiceOutro"
+            rows={2}
+            defaultValue={billing.invoiceOutro}
+            maxLength={4000}
+          />
+        </Field>
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={disabled}>
           {pending ? "Wird gespeichert …" : "Speichern"}

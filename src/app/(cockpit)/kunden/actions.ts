@@ -126,7 +126,9 @@ export async function setDoNotContactAction(formData: FormData): Promise<void> {
 export async function deleteProspectAction(formData: FormData): Promise<void> {
   const { actor, tenant } = await manager();
   const id = z.uuid().parse(formData.get("id"));
-  await tenant((tx) => deleteProspect(tx, actor, id));
+  const deleted = await tenant((tx) => deleteProspect(tx, actor, id));
+  // Issued invoices are kept (§ 132 BAO); the page explains why the customer stays.
+  if (deleted === "retained") redirect(`/kunden/${id}#stammdaten`);
   revalidateCustomers();
   redirect("/kunden");
 }

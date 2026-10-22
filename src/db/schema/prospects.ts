@@ -5,6 +5,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -13,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { BillingProfile } from "../../domain/invoices/schema";
 import { workspaceIsolation } from "../rls";
 import { workspaces } from "./tenancy";
 
@@ -101,6 +103,8 @@ export const prospects = pgTable(
      */
     chatBlockedAt: timestamp("chat_blocked_at", { withTimezone: true }),
     estimatedValueCents: integer("estimated_value_cents"),
+    /** Billing profile once the prospect becomes a customer (§7.10, phase 7b). */
+    billing: jsonb("billing").$type<BillingProfile>(),
     /** Null: no campaign. Cleared by hand before a campaign is deleted. */
     campaignId: uuid("campaign_id"),
     /** For the map (§7.8), from the address; null until geocoded. */

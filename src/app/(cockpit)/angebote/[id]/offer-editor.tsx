@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
+import { EuroInput, QuantityInput } from "@/components/ui/money-input";
 import type { TaxMode } from "@/domain/billing";
 import { cn } from "@/lib/cn";
 import {
@@ -39,7 +40,6 @@ import {
   formatQuantity,
   lineFor,
   offerTotals,
-  parseEuroInput,
   paymentPlan,
 } from "@/domain/offers/totals";
 import {
@@ -78,60 +78,6 @@ function move<T>(list: T[], index: number, by: -1 | 1): T[] {
   const copy = [...list];
   [copy[index], copy[target]] = [copy[target]!, copy[index]!];
   return copy;
-}
-
-function parseQuantity(raw: string): number | null {
-  const value = Number(raw.trim().replace(",", "."));
-  return Number.isFinite(value) && value > 0 ? Math.round(value * 1000) / 1000 : null;
-}
-
-/** Euro amount typed freely ("1.234,50"), kept as cents once it parses. */
-function EuroInput({
-  cents,
-  onChange,
-  ...props
-}: { cents: number; onChange: (cents: number) => void } & Omit<
-  React.ComponentProps<"input">,
-  "onChange" | "value"
->) {
-  const [raw, setRaw] = useState(() => (cents / 100).toFixed(2).replace(".", ","));
-  return (
-    <Input
-      {...props}
-      inputMode="decimal"
-      value={raw}
-      onChange={(event) => {
-        setRaw(event.target.value);
-        const parsed = parseEuroInput(event.target.value);
-        if (parsed !== null) onChange(parsed);
-      }}
-      onBlur={() => setRaw((cents / 100).toFixed(2).replace(".", ","))}
-    />
-  );
-}
-
-function QuantityInput({
-  value,
-  onChange,
-  ...props
-}: { value: number; onChange: (value: number) => void } & Omit<
-  React.ComponentProps<"input">,
-  "onChange" | "value"
->) {
-  const [raw, setRaw] = useState(() => formatQuantity(value));
-  return (
-    <Input
-      {...props}
-      inputMode="decimal"
-      value={raw}
-      onChange={(event) => {
-        setRaw(event.target.value);
-        const parsed = parseQuantity(event.target.value);
-        if (parsed !== null) onChange(parsed);
-      }}
-      onBlur={() => setRaw(formatQuantity(value))}
-    />
-  );
 }
 
 export function OfferEditor({

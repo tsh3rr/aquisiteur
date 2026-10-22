@@ -162,6 +162,20 @@
       "when": 1792669990160,
       "tag": "0022_projects_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792686173465,
+      "tag": "0023_invoices",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792686184747,
+      "tag": "0024_invoices_grants",
+      "breakpoints": true
     }
   ]
 }

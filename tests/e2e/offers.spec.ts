@@ -5,6 +5,8 @@ import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace }
  * §7.10 Phase 7a: catalogue → project → offer with instalments and a
  * maintenance line → the customer picks an option and accepts online → the
  * customer counts as won and the timeline shows it.
+ * Phase 7b: invoices from the instalments → issue with a number → PDF →
+ * partial payment → storno.
  */
 
 const account = {
@@ -15,7 +17,7 @@ const account = {
 };
 
 test("an offer goes from the catalogue to an online acceptance", async ({ page, browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   await signInWithWorkspace(page, account);
   publishWithCli("exposes/cafe-mueller", await createApiToken(page, "Angebote"));
 
@@ -103,4 +105,62 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await page.getByRole("link", { name: "Café Müller" }).first().click();
   await expect(page.getByText("Gewonnen").first()).toBeVisible();
   await expect(page.getByText(/Angebot AN-\d{4}-0001 angenommen/)).toBeVisible();
+
+  // Invoices need the sender's address, an IBAN for the QR code and the customer's address.
+  await page.goto("/settings#briefe");
+  const letters = page.locator("#briefe");
+  await letters.getByLabel("Firma oder Name").fill("Olga Offerte Webdesign");
+  await letters.getByLabel("Straße und Hausnummer").fill("Hauptstraße 1");
+  await letters.getByLabel("PLZ").fill("1010");
+  await letters.getByLabel("Ort").fill("Wien");
+  await letters.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(letters.getByText("Gespeichert.")).toBeVisible();
+  await billing.getByLabel("IBAN").fill("AT61 1904 3002 3457 3201");
+  await billing.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(billing.getByText("Gespeichert.")).toBeVisible();
+
+  await page.goto("/kunden");
+  await page.getByRole("link", { name: "Café Müller" }).first().click();
+  await page.getByRole("tab", { name: "Stammdaten" }).click();
+  const profile = page.locator("#rechnungsprofil");
+  await profile.getByLabel("Straße und Hausnummer").fill("Markt 1");
+  await profile.getByLabel("PLZ").fill("8010");
+  await profile.getByLabel("Ort").fill("Graz");
+  await profile.getByRole("button", { name: "Rechnungsprofil speichern" }).click();
+  await expect(profile.getByText("Rechnungsprofil gespeichert.")).toBeVisible();
+  await expectAccessible(page, "customer billing profile");
+
+  // Accepted offer → one draft per instalment: a deposit and the final invoice.
+  await page.goto("/angebote");
+  await page.getByRole("link", { name: /Neue Website für das Café/ }).click();
+  await page.getByRole("button", { name: "Rechnungen aus Tranchen erstellen" }).click();
+  await expect(page.getByText("2 Rechnungsentwürfe angelegt.")).toBeVisible();
+  await page.getByRole("link", { name: /Entwurf · Anzahlungsrechnung · 1\.200,00 €/ }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: /Anzahlungsrechnung/ })).toBeVisible();
+  await expect(page.getByLabel("Umsatzsteuer")).toHaveValue("small_business");
+  await expectAccessible(page, "invoice editor");
+  await page.getByRole("button", { name: "Rechnung ausstellen" }).click();
+  // The editor gives way to the issued invoice with its number.
+  await expect(page.getByRole("heading", { level: 1, name: /RE-\d{4}-0001/ })).toBeVisible();
+  await expect(page.getByText("§ 6 Abs. 1 Z 27 UStG").first()).toBeVisible();
+  await expectAccessible(page, "issued invoice");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF herunterladen" }).click();
+  expect((await download).suggestedFilename()).toMatch(/^RE-\d{4}-0001.*\.pdf$/);
+
+  await page.getByLabel("Betrag in €").fill("500,00");
+  await page.getByRole("button", { name: "Zahlung erfassen" }).click();
+  await expect(page.getByText("Teilweise bezahlt").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Stornieren …" }).click();
+  await page.getByRole("button", { name: "Jetzt stornieren" }).click();
+  // The page reloads as cancelled and links the cancellation invoice.
+  await expect(page.getByRole("status").getByRole("link", { name: /RE-\d{4}-0002/ })).toBeVisible();
+  await expect(page.getByText("Storniert", { exact: true }).first()).toBeVisible();
+
+  await page.goto("/rechnungen");
+  await expect(page.getByRole("link", { name: /RE-\d{4}-0002/ })).toBeVisible();
+  await expectAccessible(page, "invoice list");
 });

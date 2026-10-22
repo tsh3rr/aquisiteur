@@ -14,6 +14,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { InvoiceDocument, InvoiceIssuer, InvoiceParty } from "../../domain/invoices/schema";
+import type { InvoiceTotals } from "../../domain/invoices/totals";
 import type { OfferAcceptance } from "../../domain/offers/acceptance";
 import type { OfferDocument } from "../../domain/offers/schema";
 import { workspaceIsolation } from "../rls";
@@ -212,6 +214,101 @@ export const numberSeries = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.workspaceId, t.kind, t.year] }),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+export const invoiceKind = pgEnum("invoice_kind", ["standard", "deposit", "final", "cancellation"]);
+export const invoiceStatus = pgEnum("invoice_status", ["draft", "issued", "cancelled"]);
+
+/**
+ * Invoices (§7.10, phase 7b, ADR-0070). Drafts are edited freely and have no
+ * number. Issuing assigns `RE-YYYY-NNNN` and freezes document, totals, issuer
+ * and recipient with a checksum; from then on a trigger refuses changes
+ * except the move to „cancelled“, and refuses deleting (retention § 132 BAO).
+ * Customer and project cannot be deleted while invoices point at them.
+ */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    prospectId: uuid("prospect_id").notNull(),
+    projectId: uuid("project_id"),
+    offerId: uuid("offer_id"),
+    /** The instalment of the offer's payment plan this invoice bills. */
+    milestoneId: text("milestone_id"),
+    kind: invoiceKind("kind").notNull().default("standard"),
+    status: invoiceStatus("status").notNull().default("draft"),
+    number: text("number"),
+    issueDate: date("issue_date", { mode: "string" }),
+    dueDate: date("due_date", { mode: "string" }),
+    document: jsonb("document").$type<InvoiceDocument>().notNull(),
+    /** Frozen at issue. */
+    totals: jsonb("totals").$type<InvoiceTotals>(),
+    issuer: jsonb("issuer").$type<InvoiceIssuer>(),
+    recipient: jsonb("recipient").$type<InvoiceParty>(),
+    /** The tax note printed on the invoice, frozen at issue. */
+    taxNote: text("tax_note"),
+    /** sha256 (hex) of the canonical JSON of number, dates, document, totals and parties. */
+    sha256: text("sha256"),
+    /** For a cancellation: the invoice it cancels. */
+    cancelsInvoiceId: uuid("cancels_invoice_id").references((): AnyPgColumn => invoices.id),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    issuedBy: text("issued_by").references(() => users.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: "invoices_prospect_fk",
+      columns: [t.workspaceId, t.prospectId],
+      foreignColumns: [prospects.workspaceId, prospects.id],
+    }),
+    foreignKey({
+      name: "invoices_project_fk",
+      columns: [t.workspaceId, t.projectId],
+      foreignColumns: [projects.workspaceId, projects.id],
+    }),
+    foreignKey({
+      name: "invoices_offer_fk",
+      columns: [t.workspaceId, t.offerId],
+      foreignColumns: [offers.workspaceId, offers.id],
+    }),
+    unique("invoices_workspace_id_id_key").on(t.workspaceId, t.id),
+    uniqueIndex("invoices_workspace_number_idx").on(t.workspaceId, t.number),
+    index("invoices_prospect_idx").on(t.workspaceId, t.prospectId),
+    index("invoices_project_idx").on(t.workspaceId, t.projectId),
+    index("invoices_offer_idx").on(t.workspaceId, t.offerId),
+    index("invoices_issue_date_idx").on(t.workspaceId, t.issueDate),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+/** Payments recorded by hand against an issued invoice, partial payments included. */
+export const invoicePayments = pgTable(
+  "invoice_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    invoiceId: uuid("invoice_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    paidOn: date("paid_on", { mode: "string" }).notNull(),
+    note: text("note"),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: "invoice_payments_invoice_fk",
+      columns: [t.workspaceId, t.invoiceId],
+      foreignColumns: [invoices.workspaceId, invoices.id],
+    }).onDelete("cascade"),
+    index("invoice_payments_invoice_idx").on(t.workspaceId, t.invoiceId),
     workspaceIsolation(t.workspaceId),
   ],
 ).enableRLS();

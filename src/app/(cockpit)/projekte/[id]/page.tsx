@@ -2,6 +2,7 @@ import { ArrowLeft, FileText, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InvoiceLinks } from "@/components/invoices/invoice-list";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,12 @@ import { can } from "@/domain/authz";
 import { BILLING_LABELS, OFFER_STATUS_LABELS, OFFER_STATUS_TONES } from "@/domain/offers/schema";
 import { formatCents } from "@/domain/offers/totals";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_TONES } from "@/domain/projects";
+import { listInvoices } from "@/server/invoices/manage";
 import { listCatalog, listOffers } from "@/server/offers/manage";
 import { loadProject } from "@/server/projects";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
+import { createInvoiceAction } from "../../rechnungen/actions";
 import { createOfferAction, deleteProjectAction } from "../actions";
 import { EditProjectForm } from "../project-forms";
 
@@ -46,15 +49,16 @@ export default async function ProjectPage({
       project,
       offers: await listOffers(tx, workspace.id, { projectId: id }),
       catalog: await listCatalog(tx, workspace.id),
+      invoices: await listInvoices(tx, workspace.id, { projectId: id }),
     };
   });
   if (!loaded) notFound();
-  const { project, offers, catalog } = loaded;
+  const { project, offers, catalog, invoices } = loaded;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
 
   return (
     <div className="grid gap-6">
-      <LiveRefresh events={["offer.changed"]} prospectId={project.prospectId} />
+      <LiveRefresh events={["offer.changed", "invoice.changed"]} prospectId={project.prospectId} />
       <Link
         href={`/kunden/${project.prospectId}`}
         className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-sm text-foreground-muted hover:text-foreground"
@@ -77,7 +81,8 @@ export default async function ProjectPage({
 
       {fehler === "in_use" ? (
         <Alert tone="warning">
-          Das Projekt hat ein Exposé oder ein versendetes Angebot und bleibt deshalb erhalten.
+          Das Projekt hat ein Exposé, ein versendetes Angebot oder eine Rechnung und bleibt deshalb
+          erhalten.
         </Alert>
       ) : null}
 
@@ -176,6 +181,33 @@ export default async function ProjectPage({
             </CardContent>
           </Card>
 
+          <Card aria-labelledby="project-invoices-heading">
+            <CardHeader>
+              <CardTitle id="project-invoices-heading">Rechnungen</CardTitle>
+              <CardDescription>
+                Aus einem angenommenen Angebot entstehen die Rechnungen nach Zahlungsplan. Für
+                Zusatzleistungen legen Sie eine freie Rechnung an.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {invoices.length > 0 ? (
+                <InvoiceLinks invoices={invoices} />
+              ) : (
+                <p className="text-sm text-foreground-muted">Noch keine Rechnung.</p>
+              )}
+              {canManage ? (
+                <form action={createInvoiceAction}>
+                  <input type="hidden" name="prospectId" value={project.prospectId} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <button type="submit" className={primary}>
+                    <Plus aria-hidden className="size-4" />
+                    Freie Rechnung anlegen
+                  </button>
+                </form>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Exposés</CardTitle>
@@ -220,8 +252,8 @@ export default async function ProjectPage({
                   <form action={deleteProjectAction} className="mt-3 grid gap-3">
                     <input type="hidden" name="id" value={project.id} />
                     <p className="text-sm">
-                      Nur möglich ohne Exposé und ohne versendetes Angebot. Entwürfe werden mit
-                      gelöscht.
+                      Nur möglich ohne Exposé, ohne versendetes Angebot und ohne Rechnung.
+                      Angebotsentwürfe werden mit gelöscht.
                     </p>
                     <button
                       type="submit"

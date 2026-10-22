@@ -3,6 +3,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
+import { invoiceDocumentSchema } from "@/domain/invoices/schema";
 import { WORKSPACE_TABLES } from "@/server/data-export";
 import { publishExpose } from "@/server/exposes/publish";
 import { createOffer, saveOfferDraft, sendOffer } from "@/server/offers/manage";
@@ -58,6 +59,8 @@ const tenantTables = {
   catalog_items: schema.catalogItems,
   offers: schema.offers,
   offer_versions: schema.offerVersions,
+  invoices: schema.invoices,
+  invoice_payments: schema.invoicePayments,
   number_series: schema.numberSeries,
 } satisfies Record<string, PgTable>;
 
@@ -194,6 +197,21 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     const sent = await sendOffer(tx, actor, offerId!);
     if (!sent.ok) throw new Error(`offer seed failed: ${sent.error}`);
   });
+  // An issued invoice with a payment: immutable, yet gone with its workspace.
+  const [invoice] = await db
+    .insert(schema.invoices)
+    .values({
+      workspaceId,
+      prospectId: chat.prospectId,
+      status: "issued",
+      number: `RE-2026-${tag}`,
+      issueDate: "2026-10-01",
+      document: invoiceDocumentSchema.parse({}),
+    })
+    .returning();
+  await db
+    .insert(schema.invoicePayments)
+    .values({ workspaceId, invoiceId: invoice!.id, amountCents: 100, paidOn: "2026-10-02" });
 }
 
 beforeAll(async () => {

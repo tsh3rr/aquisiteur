@@ -43,6 +43,8 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.catalogItems,
   schema.offers,
   schema.offerVersions,
+  schema.invoices,
+  schema.invoicePayments,
   schema.numberSeries,
   schema.intentScores,
   schema.notificationRules,
@@ -133,9 +135,15 @@ export async function exportProspect(
     schema.offerVersions.offerId,
     ids("offers"),
   );
+  tables.invoice_payments = await byParent(
+    schema.invoicePayments,
+    schema.invoicePayments.invoiceId,
+    ids("invoices"),
+  );
   tables.audit_log = await byParent(schema.auditLog, schema.auditLog.targetId, [
     prospectId,
     ...ids("offers"),
+    ...ids("invoices"),
   ]);
   const files = (tables.session_replays ?? []).map((row) =>
     replayFolder(workspaceId, row.id as string),

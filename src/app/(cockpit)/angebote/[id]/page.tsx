@@ -3,6 +3,7 @@ import { ArrowLeft, Copy, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InvoiceLinks } from "@/components/invoices/invoice-list";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { exposes, workspaces } from "@/db/schema";
@@ -11,10 +12,12 @@ import { taxNote } from "@/domain/billing";
 import { BILLING_LABELS, OFFER_STATUS_LABELS, OFFER_STATUS_TONES } from "@/domain/offers/schema";
 import { formatCents } from "@/domain/offers/totals";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { listInvoices } from "@/server/invoices/manage";
 import { listCatalog, loadOffer } from "@/server/offers/manage";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteOfferAction, duplicateOfferAction } from "../actions";
+import { CreateInvoicesButton } from "./create-invoices";
 import { OfferEditorLazy } from "./offer-editor-lazy";
 
 type Params = Promise<{ id: string }>;
@@ -51,17 +54,18 @@ export default async function OfferPage({ params }: { params: Params }) {
       origin: await workspacePublicOrigin(tx, ws),
       catalog: await listCatalog(tx, workspace.id),
       hasExpose: (exposeCount?.count ?? 0) > 0,
+      invoices: await listInvoices(tx, workspace.id, { offerId: id }),
     };
   });
   if (!loaded) notFound();
-  const { offer, origin, catalog, hasExpose } = loaded;
+  const { offer, origin, catalog, hasExpose, invoices } = loaded;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const editable = canManage && offer.status !== "accepted" && offer.status !== "withdrawn";
   const acceptance = offer.acceptance;
 
   return (
     <div className="grid gap-6">
-      <LiveRefresh events={["offer.changed"]} prospectId={offer.prospectId} />
+      <LiveRefresh events={["offer.changed", "invoice.changed"]} prospectId={offer.prospectId} />
       <Link
         href={`/projekte/${offer.projectId}`}
         className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-sm text-foreground-muted hover:text-foreground"
@@ -125,6 +129,18 @@ export default async function OfferPage({ params }: { params: Params }) {
               Prüfsumme der angenommenen Fassung:{" "}
               <code className="font-mono break-all">{acceptance.sha256}</code>
             </p>
+            <div className="grid gap-3 border-t border-border pt-4">
+              <h3 className="font-medium">Rechnungen</h3>
+              {invoices.length > 0 ? (
+                <InvoiceLinks invoices={invoices} />
+              ) : (
+                <p className="text-foreground-muted">
+                  Noch keine Rechnung. Pro Tranche des Zahlungsplans entsteht ein Entwurf, die
+                  letzte wird zur Schlussrechnung und zieht die Anzahlungen ab.
+                </p>
+              )}
+              {canManage ? <CreateInvoicesButton offerId={offer.id} /> : null}
+            </div>
           </CardContent>
         </Card>
       ) : null}

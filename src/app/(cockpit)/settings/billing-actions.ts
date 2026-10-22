@@ -36,11 +36,18 @@ export async function saveBillingSettings(
     offerValidDays: Number(text(formData, "offerValidDays")),
     offerIntro: text(formData, "offerIntro"),
     offerOutro: text(formData, "offerOutro"),
+    iban: text(formData, "iban"),
+    bic: text(formData, "bic"),
+    bankName: text(formData, "bankName"),
+    paymentTermsDays: Number(text(formData, "paymentTermsDays")),
+    invoiceIntro: text(formData, "invoiceIntro"),
+    invoiceOutro: text(formData, "invoiceOutro"),
   });
   if (!parsed.success) {
     const errors = issuesByField(parsed.error);
     if (errors.offerValidDays) errors.offerValidDays = "Bitte 1 bis 365 Tage angeben.";
     if (errors.smallBusinessNote) errors.smallBusinessNote = "Bitte mindestens 10 Zeichen angeben.";
+    if (errors.paymentTermsDays) errors.paymentTermsDays = "Bitte 0 bis 120 Tage angeben.";
     return { ok: false, message: "Bitte prüfen Sie die markierten Felder.", errors };
   }
   await tenant(async (tx) => {

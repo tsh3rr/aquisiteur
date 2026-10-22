@@ -23,6 +23,8 @@ import { listCampaigns } from "@/server/campaigns";
 import { loadIntent } from "@/server/intent/list";
 import { listLetters } from "@/server/letters/manage";
 import { listOffers } from "@/server/offers/manage";
+import { InvoiceLinks } from "@/components/invoices/invoice-list";
+import { billingProfileOf, hasIssuedInvoices, listInvoices } from "@/server/invoices/manage";
 import { listProjects } from "@/server/projects";
 import { loadProspectDetail } from "@/server/prospects/detail";
 import { formatRelative } from "@/lib/relative-time";
@@ -36,6 +38,7 @@ import { signOwnerLink } from "@/server/tracking/visits";
 import { deleteProspectAction, setDoNotContactAction, updateProspectAction } from "../actions";
 import { ProspectForm } from "../prospect-form";
 import { CreateProjectForm } from "../../projekte/project-forms";
+import { BillingProfileForm } from "./billing-profile";
 import { Contacts } from "./contacts";
 import { ProspectLetters } from "./letters";
 import { StatusSelect } from "./status-select";
@@ -95,6 +98,8 @@ export default async function CustomerPage({
       clock: await taskClock(tx, workspace.id),
       projects: await listProjects(tx, workspace.id, id),
       offers: await listOffers(tx, workspace.id, { prospectId: id }),
+      invoices: await listInvoices(tx, workspace.id, { prospectId: id }),
+      keepForRetention: await hasIssuedInvoices(tx, workspace.id, id),
     };
   });
   if (!loaded) notFound();
@@ -110,6 +115,8 @@ export default async function CustomerPage({
     clock,
     projects,
     offers,
+    invoices: invoiceRows,
+    keepForRetention,
   } = loaded;
   const optOutDays = settings.retention.optOutTrackingDays;
   const { prospect } = detail;
@@ -127,6 +134,7 @@ export default async function CustomerPage({
           "intent.updated",
           "task.changed",
           "offer.changed",
+          "invoice.changed",
         ]}
         prospectId={prospect.id}
       />
@@ -379,6 +387,17 @@ export default async function CustomerPage({
                   </CardContent>
                 </Card>
 
+                {invoiceRows.length > 0 ? (
+                  <Card id="rechnungen" aria-labelledby="invoices-heading">
+                    <CardHeader>
+                      <CardTitle id="invoices-heading">Rechnungen</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <InvoiceLinks invoices={invoiceRows} />
+                    </CardContent>
+                  </Card>
+                ) : null}
+
                 <Card>
                   <CardHeader className="flex flex-wrap items-center justify-between gap-2">
                     <CardTitle>Timeline</CardTitle>
@@ -580,6 +599,24 @@ export default async function CustomerPage({
                 </Card>
 
                 <div className="grid min-w-0 gap-6">
+                  <Card id="rechnungsprofil" className="scroll-mt-20">
+                    <CardHeader>
+                      <CardTitle>Rechnungsprofil</CardTitle>
+                      <CardDescription>
+                        Empfänger, UID und Zahlungsziel für Rechnungen an diesen Kunden.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <BillingProfileForm
+                        prospectId={prospect.id}
+                        profile={billingProfileOf(prospect)}
+                        companyName={prospect.companyName}
+                        defaultTermsDays={settings.billing.paymentTermsDays}
+                        canEdit={canManage}
+                      />
+                    </CardContent>
+                  </Card>
+
                   <Card>
                     <CardHeader>
                       <CardTitle>Ansprechpartner</CardTitle>
@@ -662,24 +699,32 @@ export default async function CustomerPage({
                           </button>
                         </form>
 
-                        <details>
-                          <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">
-                            Kunden löschen …
-                          </summary>
-                          <form action={deleteProspectAction} className="mt-3 grid gap-3">
-                            <input type="hidden" name="id" value={prospect.id} />
-                            <p className="text-sm">
-                              {prospect.companyName} mit Exposé, Links, Besuchen, Aufzeichnungen und
-                              Chats endgültig löschen? Das lässt sich nicht rückgängig machen.
-                            </p>
-                            <button
-                              type="submit"
-                              className="inline-flex h-11 items-center justify-self-start rounded-md bg-danger px-4 text-sm font-medium text-danger-foreground hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                            >
-                              Endgültig löschen
-                            </button>
-                          </form>
-                        </details>
+                        {keepForRetention ? (
+                          <p className="text-sm text-foreground-muted">
+                            Löschen ist nicht möglich: Für diesen Kunden gibt es ausgestellte
+                            Rechnungen, die 7 Jahre aufbewahrt werden müssen (§ 132 BAO). Ein
+                            Sperrvermerk verhindert weitere Briefe.
+                          </p>
+                        ) : (
+                          <details>
+                            <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">
+                              Kunden löschen …
+                            </summary>
+                            <form action={deleteProspectAction} className="mt-3 grid gap-3">
+                              <input type="hidden" name="id" value={prospect.id} />
+                              <p className="text-sm">
+                                {prospect.companyName} mit Exposé, Links, Besuchen, Aufzeichnungen
+                                und Chats endgültig löschen? Das lässt sich nicht rückgängig machen.
+                              </p>
+                              <button
+                                type="submit"
+                                className="inline-flex h-11 items-center justify-self-start rounded-md bg-danger px-4 text-sm font-medium text-danger-foreground hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                              >
+                                Endgültig löschen
+                              </button>
+                            </form>
+                          </details>
+                        )}
                       </CardContent>
                     </Card>
                   ) : null}

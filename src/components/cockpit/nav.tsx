@@ -9,6 +9,7 @@ import {
   Mail,
   MessageCircle,
   Palette,
+  Receipt,
   Settings,
   Sun,
   Users,
@@ -32,6 +33,7 @@ const items: { href: Route; label: string; icon: typeof Sun; mobile: boolean }[]
   { href: "/chat", label: "Chat", icon: MessageCircle, mobile: true },
   { href: "/exposes", label: "Exposés", icon: FileText, mobile: true },
   { href: "/angebote", label: "Angebote", icon: FileSignature, mobile: false },
+  { href: "/rechnungen", label: "Rechnungen", icon: Receipt, mobile: false },
   { href: "/settings", label: "Einstellungen", icon: Settings, mobile: true },
   { href: "/design", label: "Design-System", icon: Palette, mobile: false },
 ];

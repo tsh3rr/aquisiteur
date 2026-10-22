@@ -286,7 +286,7 @@ export async function saveOfferDraft(
 export async function nextNumber(
   tx: Transaction,
   workspaceId: string,
-  kind: "offer",
+  kind: "offer" | "invoice",
   year: number,
 ): Promise<number> {
   const [row] = await tx
