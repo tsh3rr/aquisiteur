@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, ne } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import type { Database, Transaction } from "@/db";
 import {
@@ -363,7 +363,8 @@ export async function sendInvoiceEmail(
       action: "invoice.sent",
       targetType: "invoice",
       targetId: input.invoiceId,
-      meta: { prospectId: prepared.prospectId, number: prepared.number, to: input.to },
+      // No address in the audit log: it outlives a Sperrvermerk, the mail row does not.
+      meta: { prospectId: prepared.prospectId, number: prepared.number },
     });
   });
   await publish([workspaceTopic(actor.workspaceId)], "invoice.changed", {
@@ -426,14 +427,21 @@ export async function recordEmailEvents(
   db: Database,
   events: EmailEvent[],
   now = new Date(),
-): Promise<number> {
+): Promise<{ changed: number; retry: boolean }> {
   let changed = 0;
+  let retry = false;
   for (const event of events) {
     const [mail] = await db
       .select()
       .from(outboundEmails)
       .where(eq(outboundEmails.providerId, event.providerId));
-    if (!mail) continue;
+    if (!mail) {
+      // A fast event can beat the commit of the provider id; ask the provider to
+      // retry while a fresh mail still waits for its id. Other mails (sign-in
+      // links, digests) have no row and are dropped.
+      retry ||= await awaitingProviderId(db, now);
+      continue;
+    }
     const next = nextEmailStatus(mail.status, event.status as EmailStatus);
     if (!next) continue;
     await db.transaction(async (tx) => {
@@ -466,7 +474,6 @@ export async function recordEmailEvents(
         meta: {
           prospectId: mail.prospectId,
           number: invoice?.number ?? null,
-          to: mail.toAddress,
           status: next,
         },
       });
@@ -479,7 +486,24 @@ export async function recordEmailEvents(
       });
     }
   }
-  return changed;
+  return { changed, retry };
+}
+
+const PENDING_WINDOW_MS = 10 * 60 * 1000;
+
+async function awaitingProviderId(db: Database, now: Date): Promise<boolean> {
+  const [pending] = await db
+    .select({ id: outboundEmails.id })
+    .from(outboundEmails)
+    .where(
+      and(
+        eq(outboundEmails.status, "sending"),
+        isNull(outboundEmails.providerId),
+        gt(outboundEmails.createdAt, new Date(now.getTime() - PENDING_WINDOW_MS)),
+      ),
+    )
+    .limit(1);
+  return Boolean(pending);
 }
 
 export interface PublicInvoice {

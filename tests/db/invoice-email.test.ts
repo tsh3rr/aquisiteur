@@ -14,6 +14,7 @@ import {
   requestInvoiceApproval,
   sendInvoiceEmail,
 } from "@/server/invoices/send";
+import { restrictProspect } from "@/server/prospects/mutations";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
 
@@ -205,7 +206,31 @@ describe("invoices by e-mail", () => {
         ],
         now,
       ),
-    ).toBe(2);
+    ).toEqual({ changed: 2, retry: false });
+    // A problem is final: nothing later moves it or opens a second task.
+    expect(await recordEmailEvents(db, [event("re_second", "delivered")], now)).toEqual({
+      changed: 0,
+      retry: false,
+    });
+    // An unknown id is retried while a fresh mail still waits for its provider id.
+    const [pending] = await db
+      .insert(schema.outboundEmails)
+      .values({
+        workspaceId: ws,
+        kind: "invoice",
+        prospectId,
+        invoiceId,
+        toAddress: "spaet@baeckerei.test",
+        subject: "Rechnung",
+        messageId: "<pending@mail.test>",
+        createdAt: now,
+      })
+      .returning();
+    expect(await recordEmailEvents(db, [event("re_late", "delivered")], now)).toEqual({
+      changed: 0,
+      retry: true,
+    });
+    await db.delete(schema.outboundEmails).where(eq(schema.outboundEmails.id, pending!.id));
     const status = async (providerId: string) =>
       (
         await db
@@ -273,5 +298,24 @@ describe("invoices by e-mail", () => {
     if (!other.ok) throw new Error("setup failed");
     expect(await loadPublicInvoice(db, other.workspace.id, share!.token, now)).toBeNull();
     expect(await loadPublicInvoice(db, ws, "x".repeat(22), now)).toBeNull();
+  });
+
+  it("hides the customer's page once the customer is restricted", async () => {
+    const [share] = await db
+      .select()
+      .from(schema.invoiceShares)
+      .where(eq(schema.invoiceShares.invoiceId, invoiceId));
+    expect(await asMira((tx) => restrictProspect(tx, actor, prospectId, now))).toBe(true);
+    expect(await loadPublicInvoice(db, ws, share!.token, now)).toBeNull();
+    const mails = await db
+      .select()
+      .from(schema.outboundEmails)
+      .where(eq(schema.outboundEmails.prospectId, prospectId));
+    expect(mails).toEqual([]);
+    const audit = await db
+      .select({ meta: schema.auditLog.meta })
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.workspaceId, ws), eq(schema.auditLog.action, "invoice.sent")));
+    expect(JSON.stringify(audit)).not.toContain("@baeckerei.test");
   });
 });

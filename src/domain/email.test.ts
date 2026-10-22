@@ -9,6 +9,7 @@ describe("outgoing mail", () => {
     expect(nextEmailStatus("delivered", "delivered")).toBeNull();
     expect(nextEmailStatus("delivered", "bounced")).toBe("bounced");
     expect(nextEmailStatus("bounced", "delivered")).toBeNull();
+    expect(nextEmailStatus("bounced", "failed")).toBeNull();
   });
 
   it("names the agency as sender on the platform's address", () => {
