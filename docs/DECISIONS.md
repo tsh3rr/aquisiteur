@@ -1013,3 +1013,15 @@ Wunsch des Owners warnt der CI-Job „Cloudflare bundle“ über 2900 KiB nur no
 9800 KiB fehl (Workers Paid erlaubt 10 MB). Der Build selbst muss weiter durchlaufen. Wer über 2900 KiB
 geht, kann auf Cloudflare nur noch im bezahlten Plan (rund 5 $ im Monat) deployen. Die Lazy-Loading-Regeln
 aus ADR-0035/0037 gelten weiter, weil sie auch die Ladezeit im Cockpit verbessern.
+
+## ADR-0069 · Reiter auf der Kundenseite, kompakter Angebots-Editor (2026-10-22)
+
+Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (Übersicht, Besuche, Briefe und Links,
+Stammdaten) über `HashTabs` (`src/components/ui/tabs.tsx`): alle Panels werden auf dem Server gerendert
+und nur ausgeblendet, der URL-Hash wählt den Reiter. Ein Hash, der auf ein Element in einem Panel zeigt
+(`#datenschutz`, `#chat`, `aufgabe-…`), öffnet dessen Reiter, sodass Links aus Benachrichtigungen
+unverändert funktionieren. Im Angebots-Editor stehen Positionen in zwei Zeilen (Leistung, dann Menge,
+Einheit, Preis, Abrechnung und Zeilensumme); Beschreibung, Rabatt, USt-Satz, Optional und Varianten
+liegen unter „Weitere Angaben“, offen, sobald etwas davon gesetzt ist. Die Varianten-Karte erscheint erst,
+wenn Varianten angeboten werden. Speichern und Fertigstellen stehen ab `xl` oben in der Seitenleiste,
+darunter in der schwebenden Leiste mit der Summe.

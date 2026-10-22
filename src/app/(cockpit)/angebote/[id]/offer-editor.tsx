@@ -1,13 +1,23 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Copy, ExternalLink, Plus, Send, Trash2 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Plus,
+  Send,
+  Trash2,
+} from "lucide-react";
+import { useId, useMemo, useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import type { TaxMode } from "@/domain/billing";
+import { cn } from "@/lib/cn";
 import {
   BILLING_INTERVALS,
   BILLING_LABELS,
@@ -27,6 +37,7 @@ import {
   defaultSelection,
   formatCents,
   formatQuantity,
+  lineFor,
   offerTotals,
   parseEuroInput,
   paymentPlan,
@@ -151,6 +162,23 @@ export function OfferEditor({
   const [pending, startTransition] = useTransition();
   const [catalogPick, setCatalogPick] = useState("");
   const [copied, setCopied] = useState(false);
+  const formId = useId();
+  // Lines with extra details start open, so nothing set is hidden.
+  const [expanded, setExpanded] = useState(
+    () =>
+      new Set(
+        initial.items
+          .filter((item) => item.description || item.discountPercent > 0 || item.optional)
+          .map((item) => item.id),
+      ),
+  );
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const update = (change: (current: OfferDocument) => OfferDocument) => {
     setDraft((current) => change(current));
@@ -205,9 +233,26 @@ export function OfferEditor({
       ],
     }));
 
+  // Below xl these sit in a bar at the bottom of the form, from xl at the top of the sidebar.
+  const actions = (
+    <>
+      <Button type="submit" form={formId} variant="secondary" disabled={pending || !dirty}>
+        {pending ? "Speichert …" : "Entwurf speichern"}
+      </Button>
+      <Button disabled={pending} onClick={() => run(() => sendOfferAction(offerId, draft))}>
+        <Send aria-hidden />
+        {sent || publicUrl ? "Neue Version senden" : "Angebot fertigstellen"}
+      </Button>
+      <span className="text-sm text-foreground-muted">
+        {dirty ? "Ungespeicherte Änderungen" : "Alles gespeichert"}
+      </span>
+    </>
+  );
+
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <form
+        id={formId}
         className="grid min-w-0 gap-6"
         onSubmit={(event) => {
           event.preventDefault();
@@ -237,177 +282,113 @@ export function OfferEditor({
                   onChange={(event) => update((c) => ({ ...c, intro: event.target.value }))}
                 />
               </Field>
-              <Field
-                label="Gültig nach dem Senden"
-                hint="In Tagen, danach lässt es sich nicht mehr annehmen."
-              >
-                <Input
-                  type="number"
-                  min={1}
-                  max={365}
-                  className="max-w-32"
-                  value={draft.validDays}
-                  onChange={(event) =>
-                    update((c) => ({
-                      ...c,
-                      validDays: Math.max(1, Number(event.target.value) || 1),
-                    }))
-                  }
-                />
-              </Field>
-              <Field
-                label="Gesamtrabatt in %"
-                hint="Auf alle einmaligen Positionen, laufende Leistungen bleiben unverändert."
-              >
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={100}
-                  step="0.5"
-                  className="max-w-32"
-                  value={draft.discountPercent}
-                  onChange={(event) =>
-                    update((c) => ({
-                      ...c,
-                      discountPercent: Math.min(100, Math.max(0, Number(event.target.value) || 0)),
-                    }))
-                  }
-                />
-              </Field>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Varianten</CardTitle>
-              <CardDescription>
-                Zum Beispiel „Starter“ und „Pro“. Der Kunde wählt online eine; Positionen gelten für
-                alle Varianten oder nur für ausgewählte.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className={section}>
-              {draft.variants.length === 0 ? (
-                <Button
-                  variant="secondary"
-                  className="justify-self-start"
-                  onClick={() =>
-                    update((c) => ({
-                      ...c,
-                      variants: [
-                        {
-                          id: "v-basis",
-                          title: "Basis",
-                          description: undefined,
-                          recommended: false,
-                        },
-                        { id: "v-plus", title: "Plus", description: undefined, recommended: true },
-                      ],
-                    }))
-                  }
-                >
-                  <Plus aria-hidden />
-                  Varianten anbieten
-                </Button>
-              ) : (
-                <>
-                  <ul className="grid gap-3">
-                    {draft.variants.map((variant, index) => (
-                      <li
-                        key={variant.id}
-                        className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
-                      >
-                        <Field
-                          label={`Variante ${index + 1}`}
-                          error={issueFor(`variants.${index}.title`)}
-                        >
-                          <Input
-                            value={variant.title}
-                            maxLength={80}
-                            onChange={(event) =>
-                              update((c) => ({
-                                ...c,
-                                variants: c.variants.map((v, i) =>
-                                  i === index ? { ...v, title: event.target.value } : v,
-                                ),
-                              }))
-                            }
-                          />
-                        </Field>
-                        <label className="flex min-h-11 items-center gap-2 text-sm">
-                          <input
-                            type="radio"
-                            name="recommended"
-                            className="size-5 accent-accent"
-                            checked={variant.recommended}
-                            onChange={() =>
-                              update((c) => ({
-                                ...c,
-                                variants: c.variants.map((v, i) => ({
-                                  ...v,
-                                  recommended: i === index,
-                                })),
-                              }))
-                            }
-                          />
-                          Empfohlen
-                        </label>
-                        <button
-                          type="button"
-                          className={iconButton}
-                          aria-label={`Variante ${variant.title || index + 1} entfernen`}
-                          onClick={() =>
-                            update((c) => {
-                              const variants = c.variants.filter((_, i) => i !== index);
-                              const keep = variants.length >= 2;
-                              return {
-                                ...c,
-                                variants: keep ? variants : [],
-                                items: c.items.map((item) => ({
-                                  ...item,
-                                  variantIds: keep
-                                    ? item.variantIds.filter((v) => v !== variant.id)
-                                    : [],
-                                })),
-                              };
-                            })
-                          }
-                        >
-                          <Trash2 aria-hidden className="size-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  {draft.variants.length < 4 ? (
-                    <Button
-                      variant="secondary"
-                      className="justify-self-start"
-                      onClick={() =>
-                        update((c) => ({
-                          ...c,
-                          variants: [
-                            ...c.variants,
-                            {
-                              id: nextId("v", c.variants),
-                              title: "",
-                              description: undefined,
-                              recommended: false,
-                            },
-                          ],
-                        }))
-                      }
+          {draft.variants.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Varianten</CardTitle>
+                <CardDescription>
+                  Zum Beispiel „Starter“ und „Pro“. Der Kunde wählt online eine; Positionen gelten
+                  für alle Varianten oder nur für ausgewählte.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className={section}>
+                <ul className="grid gap-3">
+                  {draft.variants.map((variant, index) => (
+                    <li
+                      key={variant.id}
+                      className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
                     >
-                      <Plus aria-hidden />
-                      Weitere Variante
-                    </Button>
-                  ) : null}
-                  {issueFor("variants") ? (
-                    <Alert tone="danger">{issueFor("variants")}</Alert>
-                  ) : null}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      <Field
+                        label={`Variante ${index + 1}`}
+                        error={issueFor(`variants.${index}.title`)}
+                      >
+                        <Input
+                          value={variant.title}
+                          maxLength={80}
+                          onChange={(event) =>
+                            update((c) => ({
+                              ...c,
+                              variants: c.variants.map((v, i) =>
+                                i === index ? { ...v, title: event.target.value } : v,
+                              ),
+                            }))
+                          }
+                        />
+                      </Field>
+                      <label className="flex min-h-11 items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name="recommended"
+                          className="size-5 accent-accent"
+                          checked={variant.recommended}
+                          onChange={() =>
+                            update((c) => ({
+                              ...c,
+                              variants: c.variants.map((v, i) => ({
+                                ...v,
+                                recommended: i === index,
+                              })),
+                            }))
+                          }
+                        />
+                        Empfohlen
+                      </label>
+                      <button
+                        type="button"
+                        className={iconButton}
+                        aria-label={`Variante ${variant.title || index + 1} entfernen`}
+                        onClick={() =>
+                          update((c) => {
+                            const variants = c.variants.filter((_, i) => i !== index);
+                            const keep = variants.length >= 2;
+                            return {
+                              ...c,
+                              variants: keep ? variants : [],
+                              items: c.items.map((item) => ({
+                                ...item,
+                                variantIds: keep
+                                  ? item.variantIds.filter((v) => v !== variant.id)
+                                  : [],
+                              })),
+                            };
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden className="size-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {draft.variants.length < 4 ? (
+                  <Button
+                    variant="secondary"
+                    className="justify-self-start"
+                    onClick={() =>
+                      update((c) => ({
+                        ...c,
+                        variants: [
+                          ...c.variants,
+                          {
+                            id: nextId("v", c.variants),
+                            title: "",
+                            description: undefined,
+                            recommended: false,
+                          },
+                        ],
+                      }))
+                    }
+                  >
+                    <Plus aria-hidden />
+                    Weitere Variante
+                  </Button>
+                ) : null}
+                {issueFor("variants") ? <Alert tone="danger">{issueFor("variants")}</Alert> : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
@@ -426,71 +407,85 @@ export function OfferEditor({
                   hinzu.
                 </p>
               ) : (
-                <ol className="grid gap-4">
+                <ol className="grid gap-3">
                   {draft.items.map((item, index) => {
                     const label = item.title || `Position ${index + 1}`;
+                    const open = expanded.has(item.id);
+                    const line = lineFor(item);
+                    const extras = [
+                      item.description ? "Beschreibung" : null,
+                      item.discountPercent > 0
+                        ? `${formatQuantity(item.discountPercent)} % Rabatt`
+                        : null,
+                      taxMode === "standard" && item.vatRate !== 20
+                        ? `${item.vatRate} % USt`
+                        : null,
+                      item.optional
+                        ? item.selected
+                          ? "optional, vorausgewählt"
+                          : "optional"
+                        : null,
+                      draft.variants.length > 0 && item.variantIds.length > 0
+                        ? `nur ${draft.variants
+                            .filter((v) => item.variantIds.includes(v.id))
+                            .map((v) => v.title || "Ohne Namen")
+                            .join(", ")}`
+                        : null,
+                    ].filter(Boolean);
                     return (
-                      <li key={item.id} className="grid gap-3 rounded-lg border border-border p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="pt-2.5 text-sm font-semibold">
-                            {index + 1}. {label}
-                          </h3>
-                          <div className="flex">
-                            <button
-                              type="button"
-                              className={iconButton}
-                              aria-label={`${label} nach oben`}
-                              disabled={index === 0}
-                              onClick={() =>
-                                update((c) => ({ ...c, items: move(c.items, index, -1) }))
-                              }
-                            >
-                              <ArrowUp aria-hidden className="size-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className={iconButton}
-                              aria-label={`${label} nach unten`}
-                              disabled={index === draft.items.length - 1}
-                              onClick={() =>
-                                update((c) => ({ ...c, items: move(c.items, index, 1) }))
-                              }
-                            >
-                              <ArrowDown aria-hidden className="size-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className={iconButton}
-                              aria-label={`${label} entfernen`}
-                              onClick={() =>
-                                update((c) => ({
-                                  ...c,
-                                  items: c.items.filter((_, i) => i !== index),
-                                }))
-                              }
-                            >
-                              <Trash2 aria-hidden className="size-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <Field label="Leistung" error={issueFor(`items.${index}.title`)}>
-                          <Input
-                            value={item.title}
-                            maxLength={160}
-                            onChange={(event) => updateItem(index, { title: event.target.value })}
-                          />
-                        </Field>
-                        <Field label="Beschreibung" optional>
-                          <Textarea
-                            rows={2}
-                            maxLength={1000}
-                            value={item.description ?? ""}
-                            onChange={(event) =>
-                              updateItem(index, { description: event.target.value })
+                      <li
+                        key={item.id}
+                        className="@container grid gap-3 rounded-lg border border-border p-3"
+                      >
+                        <div className="flex items-end gap-1">
+                          <Field
+                            label={`Position ${index + 1}`}
+                            className="min-w-0 flex-1"
+                            error={issueFor(`items.${index}.title`)}
+                          >
+                            <Input
+                              value={item.title}
+                              maxLength={160}
+                              onChange={(event) => updateItem(index, { title: event.target.value })}
+                            />
+                          </Field>
+                          <button
+                            type="button"
+                            className={iconButton}
+                            aria-label={`${label} nach oben`}
+                            disabled={index === 0}
+                            onClick={() =>
+                              update((c) => ({ ...c, items: move(c.items, index, -1) }))
                             }
-                          />
-                        </Field>
-                        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                          >
+                            <ArrowUp aria-hidden className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className={iconButton}
+                            aria-label={`${label} nach unten`}
+                            disabled={index === draft.items.length - 1}
+                            onClick={() =>
+                              update((c) => ({ ...c, items: move(c.items, index, 1) }))
+                            }
+                          >
+                            <ArrowDown aria-hidden className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            className={iconButton}
+                            aria-label={`${label} entfernen`}
+                            onClick={() =>
+                              update((c) => ({
+                                ...c,
+                                items: c.items.filter((_, i) => i !== index),
+                              }))
+                            }
+                          >
+                            <Trash2 aria-hidden className="size-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 @lg:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                           <Field label="Menge" error={issueFor(`items.${index}.quantity`)}>
                             <QuantityInput
                               value={item.quantity}
@@ -518,23 +513,6 @@ export function OfferEditor({
                               onChange={(unitPriceCents) => updateItem(index, { unitPriceCents })}
                             />
                           </Field>
-                          <Field label="Rabatt in %">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="any"
-                              value={item.discountPercent}
-                              onChange={(event) =>
-                                updateItem(index, {
-                                  discountPercent: Math.min(
-                                    100,
-                                    Math.max(0, Number(event.target.value) || 0),
-                                  ),
-                                })
-                              }
-                            />
-                          </Field>
                           <Field label="Abrechnung">
                             <Select
                               value={item.billing}
@@ -551,87 +529,155 @@ export function OfferEditor({
                               ))}
                             </Select>
                           </Field>
-                          {taxMode === "standard" ? (
-                            <Field label="USt-Satz">
-                              <Select
-                                value={item.vatRate}
-                                onChange={(event) =>
-                                  updateItem(index, {
-                                    vatRate: Number(event.target.value) as VatRate,
-                                  })
-                                }
-                              >
-                                {VAT_RATES.map((rate) => (
-                                  <option key={rate} value={rate}>
-                                    {rate} %
-                                  </option>
-                                ))}
-                              </Select>
-                            </Field>
-                          ) : null}
                         </div>
-                        <div className="flex flex-wrap gap-x-6">
-                          <label className="flex min-h-11 items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              className="size-5 accent-accent"
-                              checked={item.optional}
+                        <div className="flex flex-wrap items-center justify-between gap-x-4">
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-controls={`${item.id}-details`}
+                            onClick={() => toggle(item.id)}
+                            className="inline-flex min-h-11 min-w-0 items-center gap-1.5 text-left text-sm text-foreground-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                          >
+                            <ChevronDown
+                              aria-hidden
+                              className={cn(
+                                "size-4 shrink-0 transition-transform motion-reduce:transition-none",
+                                open && "rotate-180",
+                              )}
+                            />
+                            <span>
+                              Weitere Angaben
+                              {extras.length > 0 ? (
+                                <span className="text-foreground"> · {extras.join(" · ")}</span>
+                              ) : null}
+                              <span className="sr-only"> zu {label}</span>
+                            </span>
+                          </button>
+                          <span className="ml-auto text-sm font-medium tabular-nums">
+                            {formatCents(line.netCents)}
+                            {item.billing === "once" ? null : (
+                              <span className="font-normal text-foreground-muted">
+                                {" "}
+                                {PER_INTERVAL[item.billing]}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div
+                          id={`${item.id}-details`}
+                          hidden={!open}
+                          className="grid gap-3 border-t border-border pt-3"
+                        >
+                          <Field label="Beschreibung" optional>
+                            <Textarea
+                              rows={2}
+                              maxLength={1000}
+                              value={item.description ?? ""}
                               onChange={(event) =>
-                                updateItem(index, { optional: event.target.checked })
+                                updateItem(index, { description: event.target.value })
                               }
                             />
-                            Optional (Kunde kann abwählen)
-                          </label>
-                          {item.optional ? (
+                          </Field>
+                          <div className="grid grid-cols-2 gap-3 @lg:grid-cols-4">
+                            <Field label="Rabatt in %">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step="any"
+                                value={item.discountPercent}
+                                onChange={(event) =>
+                                  updateItem(index, {
+                                    discountPercent: Math.min(
+                                      100,
+                                      Math.max(0, Number(event.target.value) || 0),
+                                    ),
+                                  })
+                                }
+                              />
+                            </Field>
+                            {taxMode === "standard" ? (
+                              <Field label="USt-Satz">
+                                <Select
+                                  value={item.vatRate}
+                                  onChange={(event) =>
+                                    updateItem(index, {
+                                      vatRate: Number(event.target.value) as VatRate,
+                                    })
+                                  }
+                                >
+                                  {VAT_RATES.map((rate) => (
+                                    <option key={rate} value={rate}>
+                                      {rate} %
+                                    </option>
+                                  ))}
+                                </Select>
+                              </Field>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-x-6">
                             <label className="flex min-h-11 items-center gap-2 text-sm">
                               <input
                                 type="checkbox"
                                 className="size-5 accent-accent"
-                                checked={item.selected}
+                                checked={item.optional}
                                 onChange={(event) =>
-                                  updateItem(index, { selected: event.target.checked })
+                                  updateItem(index, { optional: event.target.checked })
                                 }
                               />
-                              Vorausgewählt
+                              Optional (Kunde kann abwählen)
                             </label>
+                            {item.optional ? (
+                              <label className="flex min-h-11 items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="size-5 accent-accent"
+                                  checked={item.selected}
+                                  onChange={(event) =>
+                                    updateItem(index, { selected: event.target.checked })
+                                  }
+                                />
+                                Vorausgewählt
+                              </label>
+                            ) : null}
+                          </div>
+                          {draft.variants.length > 0 ? (
+                            <fieldset className="grid gap-1">
+                              <legend className="text-sm font-medium">Gilt für</legend>
+                              <div className="flex flex-wrap gap-x-6">
+                                {draft.variants.map((variant) => (
+                                  <label
+                                    key={variant.id}
+                                    className="flex min-h-11 items-center gap-2 text-sm"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="size-5 accent-accent"
+                                      checked={
+                                        item.variantIds.length === 0 ||
+                                        item.variantIds.includes(variant.id)
+                                      }
+                                      onChange={(event) => {
+                                        const current =
+                                          item.variantIds.length === 0
+                                            ? draft.variants.map((v) => v.id)
+                                            : item.variantIds;
+                                        const next = event.target.checked
+                                          ? [...current, variant.id]
+                                          : current.filter((v) => v !== variant.id);
+                                        updateItem(index, {
+                                          variantIds:
+                                            next.length === draft.variants.length ? [] : next,
+                                        });
+                                      }}
+                                    />
+                                    {variant.title || "Ohne Namen"}
+                                  </label>
+                                ))}
+                              </div>
+                            </fieldset>
                           ) : null}
                         </div>
-                        {draft.variants.length > 0 ? (
-                          <fieldset className="grid gap-1">
-                            <legend className="text-sm font-medium">Gilt für</legend>
-                            <div className="flex flex-wrap gap-x-6">
-                              {draft.variants.map((variant) => (
-                                <label
-                                  key={variant.id}
-                                  className="flex min-h-11 items-center gap-2 text-sm"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="size-5 accent-accent"
-                                    checked={
-                                      item.variantIds.length === 0 ||
-                                      item.variantIds.includes(variant.id)
-                                    }
-                                    onChange={(event) => {
-                                      const current =
-                                        item.variantIds.length === 0
-                                          ? draft.variants.map((v) => v.id)
-                                          : item.variantIds;
-                                      const next = event.target.checked
-                                        ? [...current, variant.id]
-                                        : current.filter((v) => v !== variant.id);
-                                      updateItem(index, {
-                                        variantIds:
-                                          next.length === draft.variants.length ? [] : next,
-                                      });
-                                    }}
-                                  />
-                                  {variant.title || "Ohne Namen"}
-                                </label>
-                              ))}
-                            </div>
-                          </fieldset>
-                        ) : null}
                       </li>
                     );
                   })}
@@ -675,7 +721,54 @@ export function OfferEditor({
                   <Plus aria-hidden />
                   Leere Position
                 </Button>
+                {draft.variants.length === 0 ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      update((c) => ({
+                        ...c,
+                        variants: [
+                          {
+                            id: "v-basis",
+                            title: "Basis",
+                            description: undefined,
+                            recommended: false,
+                          },
+                          {
+                            id: "v-plus",
+                            title: "Plus",
+                            description: undefined,
+                            recommended: true,
+                          },
+                        ],
+                      }))
+                    }
+                  >
+                    <Plus aria-hidden />
+                    Varianten anbieten
+                  </Button>
+                ) : null}
               </div>
+              <Field
+                label="Gesamtrabatt in %"
+                hint="Auf alle einmaligen Positionen, laufende Leistungen bleiben unverändert."
+              >
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  className="max-w-32"
+                  value={draft.discountPercent}
+                  onChange={(event) =>
+                    update((c) => ({
+                      ...c,
+                      discountPercent: Math.min(100, Math.max(0, Number(event.target.value) || 0)),
+                    }))
+                  }
+                />
+              </Field>
             </CardContent>
           </Card>
 
@@ -707,7 +800,7 @@ export function OfferEditor({
                   return (
                     <li
                       key={milestone.id}
-                      className="grid gap-3 rounded-lg border border-border p-3"
+                      className="@container grid gap-2 rounded-lg border border-border p-3"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-sm font-semibold">
@@ -728,10 +821,10 @@ export function OfferEditor({
                           <Trash2 aria-hidden className="size-4" />
                         </button>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                      <div className="grid grid-cols-2 gap-3 @md:grid-cols-3 @3xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
                         <Field
                           label="Bezeichnung"
-                          className="lg:col-span-2"
+                          className="col-span-2 @md:col-span-3 @3xl:col-span-1"
                           error={issueFor(`paymentPlan.${index}.title`)}
                         >
                           <Input
@@ -988,7 +1081,7 @@ export function OfferEditor({
             <CardHeader>
               <CardTitle>Abschluss</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className={section}>
               <Field label="Text unter dem Angebot" optional>
                 <Textarea
                   rows={3}
@@ -997,27 +1090,46 @@ export function OfferEditor({
                   onChange={(event) => update((c) => ({ ...c, outro: event.target.value }))}
                 />
               </Field>
+              <Field
+                label="Gültig nach dem Senden"
+                hint="In Tagen, danach lässt es sich nicht mehr annehmen."
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  className="max-w-32"
+                  value={draft.validDays}
+                  onChange={(event) =>
+                    update((c) => ({
+                      ...c,
+                      validDays: Math.max(1, Number(event.target.value) || 1),
+                    }))
+                  }
+                />
+              </Field>
             </CardContent>
           </Card>
         </fieldset>
 
         {editable ? (
-          <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface/95 p-3 shadow-lg backdrop-blur lg:bottom-4">
-            <Button type="submit" variant="secondary" disabled={pending || !dirty}>
-              {pending ? "Speichert …" : "Entwurf speichern"}
-            </Button>
-            <Button disabled={pending} onClick={() => run(() => sendOfferAction(offerId, draft))}>
-              <Send aria-hidden />
-              {sent || publicUrl ? "Neue Version senden" : "Angebot fertigstellen"}
-            </Button>
-            <span className="text-sm text-foreground-muted">
-              {dirty ? "Ungespeicherte Änderungen" : "Alles gespeichert"}
-            </span>
+          <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface/95 p-3 shadow-lg backdrop-blur lg:bottom-4 xl:hidden">
+            {actions}
+            {totals.buckets.once ? (
+              <span className="ml-auto text-sm font-medium tabular-nums">
+                Einmalig {formatCents(totals.buckets.once.totalCents)}
+              </span>
+            ) : null}
           </div>
         ) : null}
       </form>
 
       <aside className="grid gap-4 xl:sticky xl:top-20" aria-label="Zusammenfassung">
+        {editable ? (
+          <div className="hidden flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm xl:flex">
+            {actions}
+          </div>
+        ) : null}
         <div id="offer-status" aria-live="polite">
           {result ? <Alert tone={result.ok ? "success" : "danger"}>{result.message}</Alert> : null}
         </div>
