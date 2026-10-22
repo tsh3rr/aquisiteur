@@ -25,9 +25,14 @@ export const MISS_LIMIT = { count: 20, windowSeconds: 600 } as const;
  */
 export const WORKSPACE_MISS_LIMIT = { count: 200, windowSeconds: 3600 } as const;
 
-export async function clientKey(headers: Headers): Promise<string> {
+/**
+ * The client as rate limits see it: a keyed hash of its network, so the
+ * address itself never reaches the database. `purpose` keeps the hashes of
+ * different guards apart.
+ */
+export async function clientKey(headers: Headers, purpose = "short-link"): Promise<string> {
   const ip = rateLimitBucket(clientIp(headers));
-  return (await sha256Hex(`${serverEnv().BETTER_AUTH_SECRET}|short-link|${ip}`)).slice(0, 24);
+  return (await sha256Hex(`${serverEnv().BETTER_AUTH_SECRET}|${purpose}|${ip}`)).slice(0, 24);
 }
 
 const missKey = (workspaceId: string, client: string) => `miss:${workspaceId}:${client}`;

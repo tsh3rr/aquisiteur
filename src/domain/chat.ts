@@ -26,6 +26,10 @@ export const visitorMessageSchema = z.object({
   /** Present once the thread exists. */
   chat: chatToken.optional(),
   body,
+  /** Honeypot: humans never see or fill it. */
+  website: z.string().max(0).optional(),
+  /** Proof of work (ADR-0066); required for the message that opens a thread. */
+  proof: z.unknown().optional(),
 });
 
 /**
@@ -119,6 +123,8 @@ export const callbackRequestSchema = z
       .transform((value) => value || undefined),
     /** Honeypot: humans never see or fill it. */
     website: z.string().max(0).optional(),
+    /** Proof of work for the exposé (ADR-0066), checked on the server. */
+    proof: z.unknown().optional(),
   })
   .refine((value) => value.phone || value.phoneRef, {
     path: ["phone"],

@@ -5,10 +5,12 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { can } from "@/domain/authz";
 import { telHref, whatsappHref } from "@/domain/expose/contact-links";
 import { loadThread } from "@/server/chat/owner";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { requireCockpit } from "@/server/session";
+import { ChatBlockButton } from "./block-button";
 import { ThreadStatusButton } from "./status-button";
 import { ThreadView } from "./thread-view";
 
@@ -19,7 +21,8 @@ const channelLabel = { email: "E-Mail", phone: "Telefon", whatsapp: "WhatsApp" }
 export default async function ChatThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const { workspace, tenant } = await requireCockpit();
+  const { workspace, actor, tenant } = await requireCockpit();
+  const canBlock = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const [detail, settings] = await tenant(async (tx) =>
     Promise.all([loadThread(tx, workspace.id, id), loadWorkspaceSettings(tx, workspace.id)]),
   );
@@ -47,14 +50,24 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
             <p className="text-sm text-foreground-muted">
               <Link
                 href={`/kunden/${prospect.id}`}
-                className="text-accent underline-offset-4 hover:underline"
+                className="text-accent underline underline-offset-4 hover:no-underline"
               >
                 {prospect.companyName}
               </Link>{" "}
-              · Ref {detail.refCode} {thread.status === "closed" ? <Badge>Erledigt</Badge> : null}
+              · Ref {detail.refCode} {thread.status === "closed" ? <Badge>Erledigt</Badge> : null}{" "}
+              {prospect.chatBlockedAt ? <Badge tone="danger">Gesperrt</Badge> : null}
             </p>
           </div>
-          <ThreadStatusButton threadId={thread.id} status={thread.status} />
+          <div className="flex flex-wrap gap-2">
+            {canBlock ? (
+              <ChatBlockButton
+                threadId={thread.id}
+                prospectId={prospect.id}
+                blocked={prospect.chatBlockedAt !== null}
+              />
+            ) : null}
+            <ThreadStatusButton threadId={thread.id} status={thread.status} />
+          </div>
         </header>
       </div>
 

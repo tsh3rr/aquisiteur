@@ -4,9 +4,12 @@ import { SendHorizontal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MessageList } from "@/components/chat/message-list";
 import { MAX_MESSAGE_LENGTH, OFFLINE_AFTER_MS } from "@/domain/chat";
+import { MESSAGE_PROBLEM_TEXT, type MessageProblem } from "@/domain/chat-guard";
+import type { PowSolution } from "@/domain/proof-of-work";
 import { isRealtimeEvent, type ChatMessageView } from "@/domain/realtime";
 import { subscribeRealtime, type RealtimeSubscription } from "@/infra/realtime-client";
 import { clsx as cn } from "clsx";
+import { solveChallenge } from "./proof-client";
 import { statisticsAllowed, visitToken } from "./tracking-client";
 
 export interface ChatPanelProps {
@@ -29,6 +32,9 @@ interface Access {
 }
 
 const OWNER_TYPING_SHOWN_MS = 5000;
+
+const BLOCKED_TEXT =
+  "Über diesen Chat können keine Nachrichten mehr gesendet werden. Bitte nutzen Sie einen anderen Kontaktweg.";
 
 const storageKey = (slug: string) => `aq-chat:${slug}`;
 function remember(slug: string, chat: string) {
@@ -73,6 +79,10 @@ export function ChatPanel(props: ChatPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [ownerTyping, setOwnerTyping] = useState(false);
   const [asked, setAsked] = useState<"no" | "ask" | "done">("no");
+  const [blocked, setBlocked] = useState(false);
+  /** Proof of work for the first message (ADR-0066), solved while the visitor types. */
+  const proof = useRef<Promise<PowSolution | null> | null>(null);
+  const honeypot = useRef<HTMLInputElement>(null);
   /** From the server when a conversation is restored; the page's value otherwise. */
   const [restoredAvailable, setRestoredAvailable] = useState<boolean | null>(null);
   const available = restoredAvailable ?? props.available;
@@ -99,11 +109,13 @@ export function ChatPanel(props: ChatPanelProps) {
       access: Access;
       contact: { channel: string | null };
       available: boolean;
+      blocked?: boolean;
     }>("/t/chat/read", { chat }).then(({ data }) => {
       if (!data) return;
       setAccess(data.access);
       add(data.messages);
       setRestoredAvailable(data.available);
+      setBlocked(data.blocked === true);
       setAsked(data.contact.channel ? "done" : "ask");
     });
   }, [slug]);
@@ -133,6 +145,15 @@ export function ChatPanel(props: ChatPanelProps) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one subscription per thread
   }, [access]);
+
+  // The first message needs a solved challenge; start on open so it is ready when the visitor is.
+  const prepareProof = () => {
+    proof.current ??= visitToken().then((token) => (token ? solveChallenge({ token }) : null));
+    return proof.current;
+  };
+  useEffect(() => {
+    if (open && !access) void prepareProof();
+  }, [open, access]);
 
   useEffect(() => {
     openRef.current = open;
@@ -196,7 +217,7 @@ export function ChatPanel(props: ChatPanelProps) {
 
   const send = async () => {
     const body = text.trim();
-    if (!body || sending) return;
+    if (!body || sending || blocked) return;
     setSending(true);
     setError(null);
     const token = await visitToken();
@@ -205,17 +226,33 @@ export function ChatPanel(props: ChatPanelProps) {
       setError("Der Chat ist gerade nicht erreichbar. Bitte nutzen Sie einen anderen Kontaktweg.");
       return;
     }
-    const { status, data } = await post<{ message: ChatMessageView; access?: Access }>("/t/chat", {
-      token,
-      chat: access?.chat,
-      body,
-    });
+    type Sent = { message: ChatMessageView; access?: Access; problem?: MessageProblem };
+    const attempt = async () =>
+      post<Sent>("/t/chat", {
+        token,
+        chat: access?.chat,
+        body,
+        website: honeypot.current?.value || undefined,
+        proof: access ? undefined : await prepareProof(),
+      });
+    let { status, data } = await attempt();
+    if (status === 428) {
+      // The challenge expired (e.g. the tab stayed open for a long time): solve a fresh one.
+      proof.current = null;
+      ({ status, data } = await attempt());
+    }
     setSending(false);
-    if (!data) {
+    if (status === 403) {
+      setBlocked(true);
+      return;
+    }
+    if (!data?.message) {
       setError(
-        status === 429
-          ? "Bitte warten Sie einen Moment, bevor Sie weitere Nachrichten senden."
-          : "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es noch einmal.",
+        data?.problem
+          ? MESSAGE_PROBLEM_TEXT[data.problem]
+          : status === 429
+            ? "Bitte warten Sie einen Moment, bevor Sie weitere Nachrichten senden."
+            : "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es noch einmal.",
       );
       return;
     }
@@ -284,7 +321,12 @@ export function ChatPanel(props: ChatPanelProps) {
           whatsappHref={props.whatsappHref}
           otherName={props.owner.name}
         />
-        {asked === "ask" ? (
+        {blocked ? (
+          <p role="status" className="mt-4 rounded-2xl bg-surface-sunken px-3.5 py-2.5 text-sm">
+            {BLOCKED_TEXT}
+          </p>
+        ) : null}
+        {asked === "ask" && !blocked ? (
           <ReturnChannel chat={access?.chat ?? null} onDone={() => setAsked("done")} />
         ) : null}
       </div>
@@ -299,6 +341,16 @@ export function ChatPanel(props: ChatPanelProps) {
         <p aria-live="polite" className="min-h-5 text-xs text-foreground-muted">
           {ownerTyping ? `${props.owner.name} schreibt …` : ""}
         </p>
+        {/* Honeypot for bots; hidden from people and assistive technology. */}
+        <input
+          ref={honeypot}
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden
+          className="hidden"
+        />
         <label htmlFor="aq-chat-text" className="sr-only">
           Ihre Nachricht
         </label>
@@ -308,6 +360,7 @@ export function ChatPanel(props: ChatPanelProps) {
             ref={field}
             rows={2}
             value={text}
+            disabled={blocked}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Ihre Nachricht"
             onChange={(event) => {
@@ -324,7 +377,7 @@ export function ChatPanel(props: ChatPanelProps) {
           />
           <button
             type="submit"
-            disabled={sending || !text.trim()}
+            disabled={sending || blocked || !text.trim()}
             className="grid size-11 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-50"
           >
             <SendHorizontal aria-hidden className="size-5" />

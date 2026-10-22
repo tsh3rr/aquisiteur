@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, count, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import {
+  auditLog,
   callbackRequests,
   chatDrafts,
   chatMessages,
@@ -110,7 +111,7 @@ export async function chatInboxCount(tx: Transaction, workspaceId: string): Prom
 
 export interface ThreadDetail {
   thread: typeof chatThreads.$inferSelect;
-  prospect: { id: string; companyName: string };
+  prospect: { id: string; companyName: string; chatBlockedAt: Date | null };
   exposeSlug: string;
   refCode: string;
   messages: ChatMessageView[];
@@ -126,7 +127,11 @@ export async function loadThread(
   const [row] = await tx
     .select({
       thread: chatThreads,
-      prospect: { id: prospects.id, companyName: prospects.companyName },
+      prospect: {
+        id: prospects.id,
+        companyName: prospects.companyName,
+        chatBlockedAt: prospects.chatBlockedAt,
+      },
       exposeSlug: exposes.slug,
       refCode: exposes.refCode,
     })
@@ -332,4 +337,29 @@ export async function unsentDrafts(tx: Transaction, workspaceId: string, prospec
       ),
     )
     .orderBy(desc(chatDrafts.updatedAt));
+}
+
+/**
+ * Blocks or unblocks a prospect's chat and callback form against abuse
+ * (ADR-0066): while blocked, the exposé refuses new messages, return
+ * channels and callbacks and says so. Earlier messages stay readable.
+ */
+export async function setChatBlocked(
+  tx: Transaction,
+  input: { workspaceId: string; userId: string; prospectId: string; blocked: boolean },
+): Promise<boolean> {
+  const updated = await tx
+    .update(prospects)
+    .set({ chatBlockedAt: input.blocked ? new Date() : null })
+    .where(and(eq(prospects.workspaceId, input.workspaceId), eq(prospects.id, input.prospectId)))
+    .returning({ id: prospects.id });
+  if (updated.length === 0) return false;
+  await tx.insert(auditLog).values({
+    workspaceId: input.workspaceId,
+    actorUserId: input.userId,
+    action: input.blocked ? "chat.blocked" : "chat.unblocked",
+    targetType: "prospect",
+    targetId: input.prospectId,
+  });
+  return true;
 }

@@ -141,6 +141,13 @@
       "when": 1792573638603,
       "tag": "0019_draft_yes_no",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792611182523,
+      "tag": "0020_chat_block",
+      "breakpoints": true
     }
   ]
 }

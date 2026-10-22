@@ -900,3 +900,47 @@ Owner hat die zwei Stufen gewählt:
 Folge: Wer ablehnt, liefert dem Score nur Besuch, Wiederkehr, Chat, Rückruf und Teilen. Offen für
 später: Klicks auf Kontaktwege über eine Server-Weiterleitung messen (dann Basis), automatisches Löschen
 von Kunden ohne Reaktion nach 12 Monaten.
+
+## ADR-0066 · Bot- und Missbrauchsschutz für Chat und Rückruf (2026-10-21, baut auf dem Security-Audit auf)
+
+Der Owner wollte für den Chat etablierte Absicherungen gegen Bots und Missbrauch. Bis dahin gab es ein
+Rate Limit pro Besuch (30 Nachrichten in 10 Minuten), die Längengrenze und ein Honeypot nur im
+Rückrufformular; Befund M2 des Audits (Flut pro Exposé) war offen. Entschieden, in Schichten, die
+zusammen wirken und einzeln nicht perfekt sein müssen:
+
+- **Proof of Work statt CAPTCHA.** Vor der ersten Nachricht einer Unterhaltung und vor jedem
+  Rückrufwunsch löst der Browser unsichtbar eine kleine Rechenaufgabe nach dem ALTCHA-Prinzip: Der Server
+  signiert (HMAC, 15 Minuten) den SHA-256 aus Salz und einer geheimen Zahl unter 50.000, der Browser
+  probiert Zahlen, bis der Hash passt (im Mittel 25.000 Hashes, auf dem Laptop rund eine halbe Sekunde,
+  beginnt beim Öffnen von Chat bzw. Formular). Gebunden an den Besuch (Chat) bzw. an das Exposé (Rückruf
+  ohne Besuchs-Token). Selbst gebaut mit WebCrypto, ohne Abhängigkeit, ohne Cookie, ohne gespeicherten
+  Zustand. Verworfen: **Cloudflare Turnstile**, **reCAPTCHA**, **hCaptcha**: übermitteln IP und
+  Gerätesignale an Dritte (teils USA), bräuchten nach § 25 TDDDG eine Einwilligung oder zumindest eine
+  zusätzliche Abwägung und Auftragsverarbeitung, und der heutige Betrieb hat kein eigenes Cloudflare.
+  **Friendly Captcha** (EU) wäre möglich, kostet aber Geld und bringt einen weiteren Dienstleister; das
+  Prinzip ist dasselbe. Der Proof of Work hält keinen entschlossenen Angreifer auf, macht aber Massen
+  teuer; die Grenzen darunter decken den Rest.
+- **Honeypot** jetzt auch im Chat (Feld `website`, für Menschen und Screenreader unsichtbar).
+- **Rate Limits in Ebenen** (`CHAT_LIMITS`): pro Besuch 8 pro Minute und 30 pro 10 Minuten, pro
+  Client-Netz 60 pro 10 Minuten (Hash aus Secret und IP, IPv6 als /64, wie ADR-0064), pro Exposé 120
+  Nachrichten und 10 neue Unterhaltungen pro Stunde, pro Workspace 1.500 pro Stunde (schützt das Handy des
+  Owners vor einer Push-Flut). Rückruf: 5 pro Client, 10 pro Exposé, 100 pro Workspace und Stunde. Exposé
+  und Workspace zählen ohne Adresse, halten also auch, wenn ein Client seine Adresse wechselt. Gezählt
+  wird von eng nach weit und beim ersten vollen Zähler abgebrochen; sonst könnte ein einzelner Client,
+  den seine eigene Grenze längst abweist, die geteilten Zähler füllen und Chat oder Rückruf für alle
+  sperren. Eine gelöste Rückruf-Aufgabe gilt nur einmal (Marker in `rate_limits`), weil sie an das
+  Exposé statt an einen Besuch gebunden ist.
+- **Inhaltsregeln** (`src/domain/chat-guard.ts`): Unicode NFC, unsichtbare Zeichen und
+  Bidi-Steuerzeichen entfernt (sonst kann eine Nachricht im Cockpit anders aussehen, als sie ist), höchstens
+  drei Links und 40 Zeilen, dieselbe Nachricht innerhalb von zwei Minuten abgelehnt. Kein Wortfilter:
+  Interessenten schreiben frei, und ein falsch abgelehnter Kunde kostet mehr als eine Spam-Nachricht.
+- **Sperren durch den Owner**: „Chat sperren“ auf der Chat-Seite setzt `prospects.chat_blocked_at`. Das
+  Exposé nimmt dann keine Nachrichten, Rückkanäle, Rückrufe und Rechenaufgaben (`/t/challenge`) mehr an und zeigt
+  einen sachlichen Hinweis auf andere Kontaktwege. Pro Kunde statt pro IP, weil jeder Kunde sein eigenes
+  Exposé hat und so keine Adresse gespeichert werden muss. Aufhebbar, im Audit-Log.
+- Antworten der Routen: 403 gesperrt, 422 Inhaltsregel (mit Grund), 428 Aufgabe fehlt oder abgelaufen
+  (das Widget löst dann einmal neu), 429 Grenze erreicht.
+
+Folge: Die Datenschutzerklärung-Vorlage nennt die Rechenaufgabe und den Hash der IP auch für Chat und
+Rückruf. Offen für später: Besuchsstarts pro Client begrenzen (Rest von M2), bei echtem Spam-Aufkommen
+eine Quarantäne statt Ablehnung.
