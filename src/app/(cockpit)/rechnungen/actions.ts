@@ -145,7 +145,9 @@ export async function cancelInvoiceAction(invoiceId: string): Promise<InvoiceAct
       message:
         result.error === "locked"
           ? "Nur ausgestellte Rechnungen lassen sich stornieren."
-          : "Rechnung nicht gefunden.",
+          : result.error === "deducted"
+            ? `Die Schlussrechnung ${result.by ?? ""} zieht diese Anzahlung ab. Stornieren Sie zuerst die Schlussrechnung.`
+            : "Rechnung nicht gefunden.",
     };
   }
   revalidateInvoice(parsed.data);

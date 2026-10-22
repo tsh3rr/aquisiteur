@@ -298,20 +298,42 @@ export async function loadInvoice(
   const totals = invoice.totals ?? invoiceTotals(document, invoice.kind);
   const paidCents = payments.reduce((total, payment) => total + payment.amountCents, 0);
   const input = treatmentInput(settings, prospect);
-  const issues =
-    invoice.status === "draft"
-      ? issueIssues({
-          kind: invoice.kind,
-          treatment: document.treatment,
-          totals,
-          hasLines: document.lines.length > 0,
-          hasServicePeriod: Boolean(document.servicePeriod),
-          issuer,
-          recipient,
-          customerType: input.customerType,
-          review: needsReview(input),
-        })
-      : [];
+  const draft = invoice.status === "draft";
+  const pendingDeposits =
+    draft && invoice.kind === "final" && invoice.offerId
+      ? (
+          await tx
+            .select({ id: invoices.id })
+            .from(invoices)
+            .where(
+              and(
+                eq(invoices.workspaceId, workspaceId),
+                eq(invoices.offerId, invoice.offerId),
+                eq(invoices.kind, "deposit"),
+                eq(invoices.status, "draft"),
+              ),
+            )
+        ).length
+      : 0;
+  const smallBusinessRevenueCents =
+    draft && document.treatment === "small_business"
+      ? (await smallBusinessRevenue(tx, workspaceId, Number(today.slice(0, 4)))).revenueCents
+      : undefined;
+  const issues = draft
+    ? issueIssues({
+        kind: invoice.kind,
+        treatment: document.treatment,
+        totals,
+        hasLines: document.lines.length > 0,
+        hasServicePeriod: Boolean(document.servicePeriod),
+        issuer,
+        recipient,
+        customerType: input.customerType,
+        review: needsReview(input),
+        pendingDeposits,
+        smallBusinessRevenueCents,
+      })
+    : [];
   return {
     invoice,
     document,
@@ -674,7 +696,8 @@ export async function cancelInvoice(
   invoiceId: string,
   now = new Date(),
 ): Promise<
-  { ok: true; number: string; id: string } | { ok: false; error: "not_found" | "locked" }
+  | { ok: true; number: string; id: string }
+  | { ok: false; error: "not_found" | "locked" | "deducted"; by?: string }
 > {
   const [original] = await tx
     .select()
@@ -684,6 +707,23 @@ export async function cancelInvoice(
   if (!original) return { ok: false, error: "not_found" };
   if (original.status !== "issued" || original.kind === "cancellation") {
     return { ok: false, error: "locked" };
+  }
+  if (original.kind === "deposit" && original.offerId) {
+    // An issued final invoice already subtracts this deposit; cancel that one first.
+    const [final] = await tx
+      .select({ number: invoices.number })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.workspaceId, actor.workspaceId),
+          eq(invoices.offerId, original.offerId),
+          eq(invoices.kind, "final"),
+          eq(invoices.status, "issued"),
+          sql`${invoices.document} -> 'deductions' @> ${JSON.stringify([{ invoiceId: original.id }])}::jsonb`,
+        ),
+      )
+      .limit(1);
+    if (final) return { ok: false, error: "deducted", by: final.number ?? undefined };
   }
   const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
   const issueDate = localDateString(now, settings.notifications.timezone);
@@ -840,7 +880,10 @@ export async function smallBusinessRevenue(
 ): Promise<{ revenueCents: number; guard: ReturnType<typeof smallBusinessGuard> }> {
   const [row] = await tx
     .select({
-      total: sum(sql<number>`(${invoices.totals} ->> 'totalCents')::bigint`),
+      // What was billed: a final invoice's total minus the deposits counted on their own.
+      total: sum(
+        sql<number>`(${invoices.totals} ->> 'totalCents')::bigint - coalesce((${invoices.totals} ->> 'deductedCents')::bigint, 0)`,
+      ),
     })
     .from(invoices)
     .where(

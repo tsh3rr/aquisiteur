@@ -97,6 +97,10 @@ export interface IssueCheckInput {
   recipient: InvoiceParty;
   customerType: "business" | "consumer";
   review: string | null;
+  /** Deposit drafts of the same offer; a final invoice issued first would bill them twice. */
+  pendingDeposits?: number;
+  /** Small-business revenue of the year so far, gross, without this invoice. */
+  smallBusinessRevenueCents?: number;
 }
 
 function hasAddress(party: InvoiceParty): boolean {
@@ -131,8 +135,9 @@ export function issueIssues(input: IssueCheckInput): IssueIssue[] {
   if (gross > SMALL_AMOUNT_CENTS && !hasAddress(input.recipient)) {
     error("Über 400 € brutto braucht die Rechnung Name und Anschrift des Kunden.", "recipient");
   }
-  const vatShown = input.treatment === "domestic" || input.treatment === "reverse_charge";
-  if (vatShown && gross > SMALL_AMOUNT_CENTS && !input.issuer.vatId) {
+  // Full invoices name the issuer's UID; a small business without one is exempt.
+  const needsIssuerVatId = input.treatment !== "small_business";
+  if (needsIssuerVatId && gross > SMALL_AMOUNT_CENTS && !input.issuer.vatId) {
     error("Ihre UID fehlt (Einstellungen → Angebote und Rechnungen).", "issuer.vatId");
   }
   if (
@@ -150,6 +155,22 @@ export function issueIssues(input: IssueCheckInput): IssueIssue[] {
     if (input.recipient.country === "AT" || !EU_COUNTRIES.has(input.recipient.country)) {
       error("Reverse Charge gilt nur für Unternehmen in einem anderen EU-Land.", "treatment");
     }
+  }
+  if (input.kind === "final" && input.pendingDeposits) {
+    error(
+      "Erst die Anzahlungsrechnungen dieses Angebots ausstellen oder löschen: Die Schlussrechnung zieht nur ausgestellte Anzahlungen ab.",
+    );
+  }
+  if (
+    input.treatment === "small_business" &&
+    input.kind !== "cancellation" &&
+    input.smallBusinessRevenueCents !== undefined &&
+    input.smallBusinessRevenueCents + input.totals.totalCents > SMALL_BUSINESS_TOLERANCE_CENTS
+  ) {
+    error(
+      "Mit dieser Rechnung wird die Toleranz von 60.500 € überschritten: Sie muss schon Umsatzsteuer ausweisen. Stellen Sie auf Regelbesteuerung um und sprechen Sie mit Ihrem Steuerberater.",
+      "treatment",
+    );
   }
   if (!input.issuer.iban) {
     warning("Ohne IBAN fehlen Bankverbindung und QR-Code zum Bezahlen.", "issuer.iban");

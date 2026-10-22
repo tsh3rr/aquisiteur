@@ -1049,12 +1049,19 @@ echten Rechnung mit dem Steuerberater abgleichen.
   Verhältnis der Bemessungsgrundlagen; die letzte Tranche wird zur Schlussrechnung mit allen Positionen
   und zieht die ausgestellten, nicht stornierten Anzahlungen je Steuersatz ab (beim Laden des Entwurfs
   neu berechnet, beim Ausstellen eingefroren). Ein Plan mit nur einer Tranche ergibt eine normale Rechnung.
+  Damit nichts doppelt abgerechnet wird: Die Schlussrechnung lässt sich erst ausstellen, wenn keine
+  Anzahlung des Angebots mehr Entwurf ist, und eine Anzahlung, die eine ausgestellte Schlussrechnung
+  abzieht, lässt sich erst nach dem Storno der Schlussrechnung stornieren.
 - **Steuer**: Behandlung je Rechnung, vorbelegt aus Steuermodus, Land, Kundenart und UID:
   Kleinunternehmer, österreichische USt, Reverse Charge (EU-Unternehmen mit UID), nicht steuerbar
   (Unternehmen im Drittland). Privatkunden im Ausland und EU-Unternehmen ohne UID werden als Rückfrage
   markiert. Vor dem Ausstellen prüft `issueIssues` die Pflichtangaben nach § 11 UStG je Betrag (400 € und
-  10.000 € brutto). Der Grenzwächter summiert ausgestellte Kleinunternehmer-Rechnungen des Jahres
-  (Stornos negativ) und warnt ab 80 % von 55.000 €.
+  10.000 € brutto; die eigene UID verlangt sie außer bei Kleinunternehmern). Der Grenzwächter summiert,
+  was mit Kleinunternehmer-Rechnungen im Jahr abgerechnet wurde (Schlussrechnungen ohne die schon
+  gezählten Anzahlungen, Stornos negativ), und warnt ab 80 % von 55.000 €. Eine Kleinunternehmer-Rechnung,
+  mit der die Toleranz von 60.500 € überschritten würde, lässt sich nicht mehr ausstellen, weil sie schon
+  Umsatzsteuer ausweisen muss. Privatkunden im Ausland bekommen bis zur Klärung mit dem Steuerberater
+  die Behandlung wie im Inland und eine Rückfrage, noch keinen eigenen Hinweistext.
 - **PDF** wie beim Angebot mit react-pdf im Browser (ADR-0035), mit EPC-QR-Code, sobald eine IBAN
   hinterlegt ist; Editor und PDF-Dokument sind aus dem Server-Bundle aliasiert. **CSV** pro Monat mit
   Semikolon, Dezimalkomma und BOM, Formeln entschärft.

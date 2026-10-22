@@ -255,6 +255,36 @@ describe("issueIssues (§ 11 UStG)", () => {
     ).toEqual([]);
   });
 
+  it("blocks a final invoice while deposit drafts are open", () => {
+    expect(errors(input(1_000, { kind: "final", pendingDeposits: 1 }))).toEqual([undefined]);
+    expect(errors(input(1_000, { kind: "final", pendingDeposits: 0 }))).toEqual([]);
+  });
+
+  it("refuses the small-business invoice that crosses the tolerance", () => {
+    const totals = invoiceTotals(
+      doc({ treatment: "small_business", lines: [line("ab", 200_000)] }),
+    );
+    const small = { treatment: "small_business" as const, totals };
+    expect(errors(input(0, { ...small, smallBusinessRevenueCents: 5_800_000 }))).toEqual([]);
+    expect(errors(input(0, { ...small, smallBusinessRevenueCents: 5_900_000 }))).toEqual([
+      "treatment",
+    ]);
+  });
+
+  it("needs the issuer's UID on a non-taxable invoice, not as a small business", () => {
+    const noVatId = { ...issuer, vatId: null };
+    const nonTaxable = invoiceTotals(
+      doc({ treatment: "non_taxable", lines: [line("ab", 50_000)] }),
+    );
+    expect(
+      errors(input(0, { treatment: "non_taxable", totals: nonTaxable, issuer: noVatId })),
+    ).toEqual(["issuer.vatId"]);
+    const small = invoiceTotals(doc({ treatment: "small_business", lines: [line("ab", 50_000)] }));
+    expect(
+      errors(input(0, { treatment: "small_business", totals: small, issuer: noVatId })),
+    ).toEqual([]);
+  });
+
   it("blocks empty and over-deducted invoices, warns without IBAN", () => {
     expect(errors(input(0, { hasLines: false }))).toContain("lines");
     const overDeducted = { ...input(100).totals, dueCents: -1 };

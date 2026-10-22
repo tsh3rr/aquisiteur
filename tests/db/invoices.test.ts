@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createDatabase, withTenant, type Transaction } from "@/db/client";
 import * as schema from "@/db/schema";
 import type { Actor } from "@/domain/authz";
+import { invoiceDocumentSchema } from "@/domain/invoices/schema";
 import type { OfferDocument } from "@/domain/offers/schema";
 import { getInfra } from "@/infra";
 import { exportProspect } from "@/server/data-export";
@@ -18,6 +19,7 @@ import {
   loadInvoice,
   monthCsvRows,
   saveInvoiceDraft,
+  smallBusinessRevenue,
 } from "@/server/invoices/manage";
 import { createOffer, saveOfferDraft, sendOffer } from "@/server/offers/manage";
 import { answerOffer } from "@/server/offers/public";
@@ -35,7 +37,7 @@ process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 
 const { db, close } = createDatabase(process.env.TEST_DATABASE_URL ?? "", { max: 2 });
 
-const ida = { id: "user-ida", email: "ida@i.test", name: "Ida" };
+const ida = { id: "user-irma", email: "irma@rechnung.test", name: "Irma" };
 const now = new Date("2026-10-22T10:00:00Z");
 let ws = "";
 let actor: Actor;
@@ -200,6 +202,12 @@ describe("invoices", () => {
     const [deposit, final] = await invoicesOfOffer();
     const before = await asIda((tx) => loadInvoice(tx, ws, final!.id, now));
     expect(before!.document.deductions).toEqual([]);
+    // Issued first, the final invoice would bill the deposit a second time.
+    expect(await asIda((tx) => issueInvoice(tx, actor, final!.id, now))).toMatchObject({
+      ok: false,
+      error: "invalid",
+      issues: [expect.objectContaining({ message: expect.stringMatching(/Anzahlungsrechnungen/) })],
+    });
 
     expect(await asIda((tx) => issueInvoice(tx, actor, deposit!.id, now))).toEqual({
       ok: true,
@@ -283,18 +291,32 @@ describe("invoices", () => {
   });
 
   it("corrects only by storno: a cancellation with its own number and negative amounts", async () => {
-    const [deposit] = await invoicesOfOffer();
-    const result = await asIda((tx) => cancelInvoice(tx, actor, deposit!.id, now));
-    expect(result).toMatchObject({ ok: true, number: "RE-2026-0003" });
+    const [deposit, final] = await invoicesOfOffer();
+    // The issued final invoice subtracts the deposit, so it has to go first.
+    expect(await asIda((tx) => cancelInvoice(tx, actor, deposit!.id, now))).toEqual({
+      ok: false,
+      error: "deducted",
+      by: "RE-2026-0002",
+    });
+    expect(await asIda((tx) => cancelInvoice(tx, actor, final!.id, now))).toMatchObject({
+      ok: true,
+      number: "RE-2026-0003",
+    });
+    expect(await asIda((tx) => cancelInvoice(tx, actor, deposit!.id, now))).toMatchObject({
+      ok: true,
+      number: "RE-2026-0004",
+    });
     expect(await asIda((tx) => cancelInvoice(tx, actor, deposit!.id, now))).toEqual({
       ok: false,
       error: "locked",
     });
     const rows = await invoicesOfOffer();
     const original = rows.find((row) => row.id === deposit!.id)!;
-    const cancellation = rows.find((row) => row.kind === "cancellation")!;
+    const cancellation = rows.find(
+      (row) => row.kind === "cancellation" && row.cancelsInvoiceId === deposit!.id,
+    )!;
     expect(original.status).toBe("cancelled");
-    expect(cancellation).toMatchObject({ status: "issued", cancelsInvoiceId: deposit!.id });
+    expect(cancellation.status).toBe("issued");
     expect(cancellation.totals!.totalCents).toBe(-144_000);
     expect(cancellation.document.title).toBe("Storno zu RE-2026-0001");
 
@@ -302,24 +324,81 @@ describe("invoices", () => {
     expect(csv.map((row) => [row.number, row.totalCents, row.cancels])).toEqual([
       ["RE-2026-0001", 144_000, null],
       ["RE-2026-0002", 360_000, null],
-      ["RE-2026-0003", -144_000, "RE-2026-0001"],
+      ["RE-2026-0003", -360_000, "RE-2026-0002"],
+      ["RE-2026-0004", -144_000, "RE-2026-0001"],
     ]);
   });
 
-  it("can bill a cancelled instalment again", async () => {
+  it("can bill cancelled instalments again", async () => {
     expect(await asIda((tx) => createInvoicesFromOffer(tx, actor, offerId, now))).toEqual({
-      created: 1,
+      created: 2,
     });
-    const again = (await invoicesOfOffer()).filter(
-      (row) => row.status === "draft" && row.kind === "deposit",
-    );
-    expect(again).toHaveLength(1);
-    await asIda((tx) => deleteInvoiceDraft(tx, actor, again[0]!.id));
+    const again = (await invoicesOfOffer()).filter((row) => row.status === "draft");
+    expect(again.map((row) => row.kind)).toEqual(["deposit", "final"]);
+    for (const row of again) await asIda((tx) => deleteInvoiceDraft(tx, actor, row.id));
+  });
+
+  it("counts what was billed against the small-business limit, net of deposits and stornos", async () => {
+    const base = {
+      workspaceId: ws,
+      prospectId,
+      status: "issued" as const,
+      document: invoiceDocumentSchema.parse({ treatment: "small_business" }),
+    };
+    const totals = (totalCents: number, deductedCents = 0) =>
+      ({ totalCents, deductedCents }) as never;
+    await db.insert(schema.invoices).values([
+      {
+        ...base,
+        kind: "deposit",
+        number: "RE-2027-0001",
+        issueDate: "2027-01-10",
+        totals: totals(100_000),
+      },
+      {
+        ...base,
+        kind: "final",
+        number: "RE-2027-0002",
+        issueDate: "2027-02-10",
+        totals: totals(300_000, 100_000),
+      },
+      {
+        ...base,
+        kind: "standard",
+        number: "RE-2027-0003",
+        issueDate: "2027-03-10",
+        totals: totals(50_000),
+      },
+      {
+        ...base,
+        kind: "cancellation",
+        number: "RE-2027-0004",
+        issueDate: "2027-03-11",
+        totals: totals(-50_000),
+      },
+      {
+        ...base,
+        kind: "standard",
+        number: "RE-2028-0001",
+        issueDate: "2028-01-02",
+        totals: totals(70_000),
+      },
+      {
+        ...base,
+        document: invoiceDocumentSchema.parse({ treatment: "domestic" }),
+        number: "RE-2027-0005",
+        issueDate: "2027-04-01",
+        totals: totals(90_000),
+      },
+    ]);
+    const revenue = await asIda((tx) => smallBusinessRevenue(tx, ws, 2027));
+    expect(revenue.revenueCents).toBe(300_000);
+    expect(revenue.guard.level).toBe("ok");
   });
 
   it("exports invoices and payments with the customer (Art. 15)", async () => {
     const data = await asIda((tx) => exportProspect(tx, ws, prospectId));
-    expect(data!.tables.invoices).toHaveLength(3);
+    expect(data!.tables.invoices).toHaveLength(10);
     expect(data!.tables.invoice_payments).toHaveLength(2);
     expect(data!.tables.audit_log!.map((row) => row.action)).toEqual(
       expect.arrayContaining(["invoice.issued", "invoice.paid", "invoice.cancelled"]),
