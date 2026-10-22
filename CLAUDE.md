@@ -72,7 +72,8 @@ Local Postgres: see `.env.example`. Cloud sessions are prepared by `.claude/hook
 - Pure logic in `src/domain` (unit-tested, no I/O). Server-only services in `src/server`.
 - Browser-only libraries (react-pdf, Leaflet, rrweb) load via dynamic `import()` on the client and are
   aliased out of the server bundle in `next.config.ts`; keep it that way or the Worker outgrows the free
-  plan (ADR-0035, ADR-0037). The CI job "Cloudflare bundle" checks the size.
+  plan (ADR-0035, ADR-0037). The CI job "Cloudflare bundle" warns above 2900 KiB and fails above
+  9800 KiB (paid plan, ADR-0068); stay under the warning where it is cheap.
 - Bodies from outside (public routes, API) are read with `readBodyLimited` / `readTextLimited`
   (`src/lib/body.ts`), never `request.json()` unbounded. Security checklist: `docs/SECURITY.md`.
 - Host routing: `src/middleware.ts` (Edge; see ADR-0006). Public workspace pages live under

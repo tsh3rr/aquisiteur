@@ -1004,3 +1004,12 @@ Zahlungsziel), erst mit den Rechnungen nötig; Rechnungen aus angenommenen Angeb
 Freigabe über die Aufgabenliste, Wartungsläufe, Mahnwesen; `offer.json` im Exposé-Ordner, Angebotsanfrage
 aus dem Exposé. Das Löschen eines Kunden löscht seine Angebote mit; ab 7b muss es bei Rechnungen
 verweigert werden.
+
+## ADR-0068 · Worker-Größe nur noch als Warnung (2026-10-22)
+
+Betrieben wird mit Docker Compose auf Mikrus (ADR-0054); Cloudflare ist nur ein baubarer Rückfall. Die
+harte CI-Grenze von 2900 KiB (Free-Plan, ADR-0035) hat bei Phase 7a mehr Zeit gekostet als sie nützt. Auf
+Wunsch des Owners warnt der CI-Job „Cloudflare bundle“ über 2900 KiB nur noch und schlägt erst über
+9800 KiB fehl (Workers Paid erlaubt 10 MB). Der Build selbst muss weiter durchlaufen. Wer über 2900 KiB
+geht, kann auf Cloudflare nur noch im bezahlten Plan (rund 5 $ im Monat) deployen. Die Lazy-Loading-Regeln
+aus ADR-0035/0037 gelten weiter, weil sie auch die Ladezeit im Cockpit verbessern.
