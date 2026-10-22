@@ -1024,6 +1024,4 @@ unverändert funktionieren. Im Angebots-Editor stehen Positionen in zwei Zeilen 
 Einheit, Preis, Abrechnung und Zeilensumme); Beschreibung, Rabatt, USt-Satz, Optional und Varianten
 liegen unter „Weitere Angaben“, offen, sobald etwas davon gesetzt ist. Die Varianten-Karte erscheint erst,
 wenn Varianten angeboten werden. Speichern und Fertigstellen stehen ab `xl` oben in der Seitenleiste,
-darunter in der schwebenden Leiste mit der Summe. Ab `xl` ragt die Seitenleiste in den freien Rand rechts der 72rem-Inhaltsspalte (negativer Außenabstand,
-per `clamp()` auf den vorhandenen Platz begrenzt), damit das Formular auf breiten Bildschirmen die volle
-Breite behält; geprüft ohne seitliches Scrollen von 1280 bis 2560 px.
+darunter in der schwebenden Leiste mit der Summe.

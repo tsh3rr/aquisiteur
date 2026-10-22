@@ -249,10 +249,8 @@ export function OfferEditor({
     </>
   );
 
-  // From xl the sidebar hangs into the free margin right of the 72rem content column, so the form
-  // keeps the full width on wide screens (16rem nav; 0.5rem leaves room for a scrollbar).
   return (
-    <div className="grid items-start gap-6 xl:mr-[calc(-1*clamp(0px,(100vw_-_88rem)/2_+_0.5rem,21.5rem))] xl:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <form
         id={formId}
         className="grid min-w-0 gap-6"
