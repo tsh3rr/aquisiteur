@@ -3,7 +3,9 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDatabase, withTenant } from "@/db/client";
 import * as schema from "@/db/schema";
+import { WORKSPACE_TABLES } from "@/server/data-export";
 import { publishExpose } from "@/server/exposes/publish";
+import { createOffer, saveOfferDraft, sendOffer } from "@/server/offers/manage";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
 
@@ -52,6 +54,11 @@ const tenantTables = {
   consents: schema.consents,
   session_replays: schema.sessionReplays,
   tasks: schema.tasks,
+  projects: schema.projects,
+  catalog_items: schema.catalogItems,
+  offers: schema.offers,
+  offer_versions: schema.offerVersions,
+  number_series: schema.numberSeries,
 } satisfies Record<string, PgTable>;
 
 async function seedWorkspaceData(workspaceId: string, tag: string, userId: string) {
@@ -172,6 +179,21 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     title: `Anrufen ${tag}`,
     dueDate: "2026-10-23",
   });
+  // Publishing put the exposé into an „Erstakquise“ project; send one offer in it.
+  const [catalogItem] = await db
+    .insert(schema.catalogItems)
+    .values({ workspaceId, name: `Website ${tag}`, unitPriceCents: 250_000 })
+    .returning();
+  const actor = { userId, role: "owner" as const, workspaceId };
+  await withTenant(db, { userId, workspaceId }, async (tx) => {
+    const offerId = await createOffer(tx, actor, expose!.projectId!, {
+      catalogItemIds: [catalogItem!.id],
+    });
+    const [offer] = await tx.select().from(schema.offers).where(eq(schema.offers.id, offerId!));
+    await saveOfferDraft(tx, actor, offerId!, offer!.draft);
+    const sent = await sendOffer(tx, actor, offerId!);
+    if (!sent.ok) throw new Error(`offer seed failed: ${sent.error}`);
+  });
 }
 
 beforeAll(async () => {
@@ -226,6 +248,14 @@ describe("tenant isolation", () => {
       }
       expect(await tx.select({ id: schema.workspaces.id }).from(schema.workspaces)).toEqual([]);
     });
+  });
+
+  it("exports every table that holds workspace data (§9a)", () => {
+    const exported = new Set(WORKSPACE_TABLES);
+    const missing = Object.entries(tenantTables)
+      .filter(([, table]) => !exported.has(table))
+      .map(([name]) => name);
+    expect(missing).toEqual([]);
   });
 
   it("refuses writes into a foreign workspace", async () => {

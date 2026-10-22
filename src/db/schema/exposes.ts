@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
+import { projects } from "./projects";
 import { prospects } from "./prospects";
 import { apiTokens, workspaces } from "./tenancy";
 
@@ -78,6 +79,11 @@ export const exposes = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     prospectId: uuid("prospect_id").notNull(),
+    /**
+     * Project the exposé belongs to (§7.10). Publishing attaches new exposés
+     * to the prospect's first project; migration 0022 backfilled the rest.
+     */
+    projectId: uuid("project_id"),
     /** Public path segment: /x/<slug>. Readable prefix plus a random, unguessable part (§10). */
     slug: text("slug").notNull(),
     /** Short reference for prefilled messages ("Ref K7M2", §7.4). */
@@ -104,6 +110,12 @@ export const exposes = pgTable(
       columns: [t.workspaceId, t.prospectId],
       foreignColumns: [prospects.workspaceId, prospects.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "exposes_project_fk",
+      columns: [t.workspaceId, t.projectId],
+      foreignColumns: [projects.workspaceId, projects.id],
+    }),
+    index("exposes_project_idx").on(t.workspaceId, t.projectId),
     workspaceIsolation(t.workspaceId),
   ],
 ).enableRLS();

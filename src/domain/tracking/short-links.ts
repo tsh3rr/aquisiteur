@@ -21,6 +21,7 @@ export function generateShortCode(length = 4): string {
 /** First path segments of a workspace host that are routes, not codes. */
 export const RESERVED_CODES = new Set([
   "x",
+  "a",
   "t",
   "assets",
   "impressum",

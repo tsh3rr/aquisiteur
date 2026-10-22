@@ -32,6 +32,8 @@ export type RealtimeEvent =
   | { event: "notification.created"; payload: { id: string; title: string; url: string } }
   /** A task was added, edited, done or deleted (§7.8). */
   | { event: "task.changed"; payload: { prospectId: string } }
+  /** An offer was sent, viewed or answered (§7.10). */
+  | { event: "offer.changed"; payload: { offerId: string; prospectId: string } }
   /** Live feed on „Heute“: what a prospect is doing right now. */
   | {
       event: "visit.activity";

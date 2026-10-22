@@ -944,3 +944,57 @@ zusammen wirken und einzeln nicht perfekt sein müssen:
 Folge: Die Datenschutzerklärung-Vorlage nennt die Rechenaufgabe und den Hash der IP auch für Chat und
 Rückruf. Offen für später: Besuchsstarts pro Client begrenzen (Rest von M2), bei echtem Spam-Aufkommen
 eine Quarantäne statt Ablehnung.
+
+## ADR-0067 · Projekte, Angebote und Online-Annahme (2026-10-22, Phase 7a)
+
+Kontext: Der Owner will Angebote, die das Exposé mit Preisen füllen, in Tranchen zahlbar sind und
+Wartungsverträge abbilden; später Rechnungen nach österreichischem Recht (ZIELPROMPT §7.10).
+Entschieden für Phase 7a:
+
+- **Kunde → Projekt → Exposé und Angebot.** Neue Tabelle `projects`; `exposes.project_id` ist nullable,
+  die Migration `0022` legt für jeden Kunden mit Exposé ein Projekt „Erstakquise“ an, und das
+  Veröffentlichen ordnet neue Exposés dem ältesten Projekt des Kunden zu. Mehrere Exposés pro Kunde
+  bleiben für später: `exposes_workspace_prospect_idx` ist eindeutig und viele Stellen setzen ein
+  Exposé pro Kunde voraus.
+- **Entwurf als JSONB, jede Sendung als unveränderliche Version.** `offers.draft` hält das Dokument
+  (Zod-Schema `src/domain/offers/schema.ts`), „Angebot fertigstellen“ friert es in `offer_versions` ein:
+  mit Steuermodus und Steuerhinweis zum Zeitpunkt der Sendung, Gültigkeit und SHA-256 über das
+  kanonische JSON. Der öffentliche Link `/a/<token>` (22 Zeichen base62) bleibt über alle Versionen
+  gleich und zeigt die neueste. Eine Annahme gilt nur für die Version, die der Kunde gesehen hat
+  (sonst 409, neu laden). Verworfen: Positionen als eigene Tabellen; das Angebot ist ein Dokument, das
+  als Ganzes versioniert und später in die Rechnung kopiert wird.
+- **Nummernkreis** `AN-JJJJ-NNNN` pro Workspace und Jahr in `number_series` (Upsert mit Zähler, in der
+  Transaktion der Sendung, also lückenlos für versendete Angebote). Dieselbe Tabelle trägt in 7b die
+  Rechnungsnummern.
+- **Geld in ganzen Cent**, jede Zeile kaufmännisch gerundet, USt je Satz auf die Summe der Zeilen
+  (20/13/10/0 %). Getrennte Summen für einmalig und je Intervall (monatlich bis jährlich). Der
+  Gesamtrabatt gilt nur für die einmaligen Positionen und mindert jede USt-Basis anteilig; im Exposé
+  steckt er in den einmaligen Preisen. Tranchen in Prozent oder Festbetrag, die letzte nimmt den Rest;
+  Tranchen davor werden auf den verbleibenden Betrag gekappt, damit keine negativ wird, wenn der Kunde
+  Optionen abwählt, und ein schon in der Standardauswahl überbuchter Plan lässt sich nicht senden.
+- **Kleinunternehmer als Standard** (`workspace_settings.billing`): keine USt, Hinweis nach § 6 Abs. 1
+  Z 27 UStG 1994, umschaltbar auf Regelbesteuerung. Keine Steuerberatung; der Spec-Abschnitt nennt die
+  Grenzen.
+- **Online-Annahme als einfache elektronische Erklärung**: Name, optional Funktion, Pflicht-Häkchen mit
+  den gewählten Beträgen im Text. Gespeichert werden Zeitpunkt, Version, Prüfsumme, gewählte Variante,
+  Optionen und Summen, **keine IP-Adresse** (passt zu ADR-0064; für Werkverträge dieser Größe reicht die
+  formfreie Annahme). Die Version wird in der sperrenden Transaktion noch einmal geprüft, sodass eine
+  inzwischen ersetzte Fassung nicht angenommen werden kann. Rate Limit 10 pro Stunde und Angebot, Honeypot wie ADR-0066. Annahme setzt den
+  Kunden auf „Gewonnen“ (außer vom eigenen Gerät) und das Projekt auf „Beauftragt“.
+- **Benachrichtigungen ohne Regel-Backfill**: Die neuen Trigger `offer_viewed` und `offer_answered`
+  gehen über Fallback-Kanäle (`OFFER_FALLBACK`), bis der Owner eigene Regeln anlegt. Ein Backfill wie in
+  `0015` scheitert, weil ein neuer Enum-Wert nicht in derselben Migrations-Transaktion benutzt werden darf.
+- **Exposé-Anbindung**: Ein Preisblock mit `"source": "offer"` wird beim Veröffentlichen aus dem
+  angenommenen, sonst dem zuletzt geänderten versendeten Angebot des Projekts gefüllt (in der versendeten
+  Fassung; Entwürfe werden nie von selbst öffentlich); „Ins Exposé übernehmen“ erzeugt
+  eine neue Exposé-Version mit diesen Preisen. Laufende Beträge in längeren Intervallen erscheinen im
+  Exposé als Monatswert mit Hinweis auf die Abrechnung.
+- Die Angebotsseite läuft wie das Exposé über die System-Verbindung, auf den Workspace des Hosts
+  beschränkt (ADR-0012), ohne `Intl` und ohne Cockpit-Code (ADR-0048). Ansichten von Bots und vom
+  eigenen Gerät zählen nicht.
+
+Offen für 7b/7c: das Rechnungsprofil am Kunden (Rechnungsadresse, Land, UID, Rechnungs-E-Mail,
+Zahlungsziel), erst mit den Rechnungen nötig; Rechnungen aus angenommenen Angeboten und Tranchen, PDF, Versand per Resend mit
+Freigabe über die Aufgabenliste, Wartungsläufe, Mahnwesen; `offer.json` im Exposé-Ordner, Angebotsanfrage
+aus dem Exposé. Das Löschen eines Kunden löscht seine Angebote mit; ab 7b muss es bei Rechnungen
+verweigert werden.

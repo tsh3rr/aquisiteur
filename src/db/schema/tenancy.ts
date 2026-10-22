@@ -104,6 +104,7 @@ export const workspaceSettings = pgTable(
     notifications: jsonb("notifications").notNull().default({}),
     replay: jsonb("replay").notNull().default({}),
     letter: jsonb("letter").notNull().default({}),
+    billing: jsonb("billing").notNull().default({}),
     ...timestamps,
   },
   (t) => [workspaceIsolation(t.workspaceId)],

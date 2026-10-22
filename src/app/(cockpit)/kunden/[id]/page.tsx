@@ -11,6 +11,9 @@ import { ScrollRegion } from "@/components/ui/misc";
 import { workspaces } from "@/db/schema";
 import { can } from "@/domain/authz";
 import { PROSPECT_ANCHORS } from "@/domain/notifications";
+import { OFFER_STATUS_LABELS, OFFER_STATUS_TONES } from "@/domain/offers/schema";
+import { formatCents } from "@/domain/offers/totals";
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_TONES } from "@/domain/projects";
 import { STATUS_LABELS, STATUS_TONES } from "@/domain/prospects/status";
 import { formatDuration } from "@/domain/tracking/timeline";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
@@ -18,6 +21,8 @@ import { SIGNAL_LABELS } from "@/domain/intent/score";
 import { listCampaigns } from "@/server/campaigns";
 import { loadIntent } from "@/server/intent/list";
 import { listLetters } from "@/server/letters/manage";
+import { listOffers } from "@/server/offers/manage";
+import { listProjects } from "@/server/projects";
 import { loadProspectDetail } from "@/server/prospects/detail";
 import { formatRelative } from "@/lib/relative-time";
 import { CallbackList } from "../../chat/callbacks";
@@ -29,6 +34,7 @@ import { touchpointUrls } from "@/server/tracking/touchpoints";
 import { signOwnerLink } from "@/server/tracking/visits";
 import { deleteProspectAction, setDoNotContactAction, updateProspectAction } from "../actions";
 import { ProspectForm } from "../prospect-form";
+import { CreateProjectForm } from "../../projekte/project-forms";
 import { Contacts } from "./contacts";
 import { ProspectLetters } from "./letters";
 import { StatusSelect } from "./status-select";
@@ -86,11 +92,24 @@ export default async function CustomerPage({
       openTasks: await listOpenTasks(tx, workspace.id, { prospectId: id }),
       doneTasks: await listDoneTasks(tx, workspace.id, { prospectId: id, limit: 20 }),
       clock: await taskClock(tx, workspace.id),
+      projects: await listProjects(tx, workspace.id, id),
+      offers: await listOffers(tx, workspace.id, { prospectId: id }),
     };
   });
   if (!loaded) notFound();
-  const { detail, origin, intent, campaigns, letters, settings, openTasks, doneTasks, clock } =
-    loaded;
+  const {
+    detail,
+    origin,
+    intent,
+    campaigns,
+    letters,
+    settings,
+    openTasks,
+    doneTasks,
+    clock,
+    projects,
+    offers,
+  } = loaded;
   const optOutDays = settings.retention.optOutTrackingDays;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
@@ -106,6 +125,7 @@ export default async function CustomerPage({
           "chat.thread",
           "intent.updated",
           "task.changed",
+          "offer.changed",
         ]}
         prospectId={prospect.id}
       />
@@ -377,6 +397,73 @@ export default async function CustomerPage({
               </CardContent>
             </Card>
           ) : null}
+
+          <Card id="projekte" aria-labelledby="projects-heading">
+            <CardHeader>
+              <CardTitle id="projects-heading">Projekte und Angebote</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {projects.length === 0 ? (
+                <p className="text-sm text-foreground-muted">
+                  Noch kein Projekt. Ein Projekt bündelt Exposé, Angebot und später die Rechnungen.
+                </p>
+              ) : (
+                <ul className="grid gap-3">
+                  {projects.map((project) => {
+                    const projectOffers = offers.filter((offer) => offer.projectId === project.id);
+                    return (
+                      <li
+                        key={project.id}
+                        className="grid gap-2 rounded-lg border border-border p-3"
+                      >
+                        <Link
+                          href={`/projekte/${project.id}`}
+                          className="flex min-h-11 flex-wrap items-center justify-between gap-2 font-medium hover:text-accent"
+                        >
+                          {project.name}
+                          <Badge tone={PROJECT_STATUS_TONES[project.status]}>
+                            {PROJECT_STATUS_LABELS[project.status]}
+                          </Badge>
+                        </Link>
+                        {projectOffers.length > 0 ? (
+                          <ul className="grid gap-1 text-sm">
+                            {projectOffers.map((offer) => (
+                              <li key={offer.id}>
+                                <Link
+                                  href={`/angebote/${offer.id}`}
+                                  className="flex min-h-11 flex-wrap items-center justify-between gap-2 hover:text-accent"
+                                >
+                                  <span>
+                                    {offer.number ?? "Entwurf"}
+                                    {offer.onceCents > 0 ? (
+                                      <span className="text-foreground-muted">
+                                        {" "}
+                                        · {formatCents(offer.onceCents)}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  <Badge tone={OFFER_STATUS_TONES[offer.status]}>
+                                    {OFFER_STATUS_LABELS[offer.status]}
+                                  </Badge>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-foreground-muted">
+                            {project.exposes.length > 0
+                              ? `${project.exposes.length === 1 ? "1 Exposé" : `${project.exposes.length} Exposés`}, noch kein Angebot.`
+                              : "Noch kein Angebot."}
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {canManage ? <CreateProjectForm prospectId={prospect.id} /> : null}
+            </CardContent>
+          </Card>
 
           <Card id="briefe">
             <CardHeader>

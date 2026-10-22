@@ -278,6 +278,12 @@ const pricingBlock = z
     intro: optionalText(800),
     currency: z.literal("EUR").default("EUR"),
     vatNote: text(120).default("Alle Preise netto zzgl. gesetzlicher USt."),
+    source: z
+      .literal("offer")
+      .optional()
+      .describe(
+        "'offer': on publish, options and tax line are replaced by the lines of the current offer in the exposé's project (recommended variant). Keep placeholder options in the file; they are used while there is no offer.",
+      ),
     options: z
       .array(
         z

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { billingSettingsSchema } from "./billing";
 import { scoreWeightsSchema } from "./intent/score";
 
 /**
@@ -194,6 +195,7 @@ export const workspaceSettingsSchema = z.object({
   letter: letterSettingsSchema.prefault({}),
   replay: replaySettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 180, replaysDays: 30, optOutTrackingDays: 30 }),
+  billing: billingSettingsSchema.prefault({}),
 });
 
 export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;

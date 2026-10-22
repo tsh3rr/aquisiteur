@@ -20,7 +20,9 @@ import { getInfra } from "@/infra";
 import { listPushDevices, listRules } from "@/server/notifications/manage";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { loadPingenSettings } from "@/server/letters/providers";
+import { listCatalog } from "@/server/offers/manage";
 import { ApiTokens } from "./api-tokens";
+import { BillingSettingsForm, CatalogSettings } from "./billing-settings";
 import { ContactSettingsForm } from "./contact-settings";
 import { RetentionForm, WorkspaceDataActions } from "./data-settings";
 import { LegalSettingsForm } from "./legal-settings";
@@ -55,6 +57,7 @@ export default async function SettingsPage() {
   const settings = await tenant((tx) => loadWorkspaceSettings(tx, workspace.id));
   const brandImages = await tenant((tx) => loadBrandImages(tx, workspace.id, settings));
   const pingen = await tenant((tx) => loadPingenSettings(tx, workspace.id));
+  const catalog = await tenant((tx) => listCatalog(tx, workspace.id));
   const canManageIntegrations = can(actor, "integrations.manage", { workspaceId: workspace.id });
   const [rules, devices] = await tenant((tx) =>
     Promise.all([listRules(tx, workspace.id), listPushDevices(tx, workspace.id, user.id)]),
@@ -94,7 +97,7 @@ export default async function SettingsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Einstellungen"
-        description="Workspace, Kontaktwege, Benachrichtigungen, Anmeldung, Domains und API-Zugang."
+        description="Workspace, Kontaktwege, Angebote, Benachrichtigungen, Anmeldung, Domains und API-Zugang."
       />
 
       <Card>
@@ -198,6 +201,44 @@ export default async function SettingsPage() {
             pingen={pingen}
             webhookUrl={`${serverEnv().APP_URL.replace(/\/$/, "")}/api/webhooks/pingen/${workspace.id}`}
             canEdit={canManageIntegrations}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="angebote">
+        <CardHeader>
+          <CardTitle>Angebote und Rechnungen</CardTitle>
+          <CardDescription>
+            Umsatzsteuer nach österreichischem Recht, Gültigkeit und Standardtexte für neue
+            Angebote.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BillingSettingsForm billing={settings.billing} canEdit={canEditSettings} />
+        </CardContent>
+      </Card>
+
+      <Card id="leistungen">
+        <CardHeader>
+          <CardTitle>Leistungskatalog</CardTitle>
+          <CardDescription>
+            Leistungen mit Preis, die Sie in neue Angebote übernehmen. Änderungen wirken nicht auf
+            bestehende Angebote.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CatalogSettings
+            items={catalog.map((item) => ({
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              unit: item.unit,
+              unitPriceCents: item.unitPriceCents,
+              billing: item.billing,
+              vatRate: item.vatRate,
+            }))}
+            canEdit={canEditSettings}
+            showVat={settings.billing.taxMode === "standard"}
           />
         </CardContent>
       </Card>

@@ -39,6 +39,11 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.chatDrafts,
   schema.callbackRequests,
   schema.tasks,
+  schema.projects,
+  schema.catalogItems,
+  schema.offers,
+  schema.offerVersions,
+  schema.numberSeries,
   schema.intentScores,
   schema.notificationRules,
   schema.notifications,
@@ -123,7 +128,15 @@ export async function exportProspect(
     schema.exposeVersions.exposeId,
     ids("exposes"),
   );
-  tables.audit_log = await byParent(schema.auditLog, schema.auditLog.targetId, [prospectId]);
+  tables.offer_versions = await byParent(
+    schema.offerVersions,
+    schema.offerVersions.offerId,
+    ids("offers"),
+  );
+  tables.audit_log = await byParent(schema.auditLog, schema.auditLog.targetId, [
+    prospectId,
+    ...ids("offers"),
+  ]);
   const files = (tables.session_replays ?? []).map((row) =>
     replayFolder(workspaceId, row.id as string),
   );

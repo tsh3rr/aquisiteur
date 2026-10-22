@@ -85,6 +85,14 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0060)
 - [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen und Folgebriefe) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
 
+## Phase 7 · Projekte, Angebote, Rechnungen (ZIELPROMPT §7.10)
+
+- [x] 7a: Projekte pro Kunde, Leistungskatalog, Angebotseditor mit Varianten, Optionen, Tranchen und Wartung, Versionen mit Prüfsumme, Nummernkreis, öffentliche Angebotsseite mit Online-Annahme, Preise ins Exposé, Timeline und Benachrichtigungen (ADR-0067)
+- [ ] 7a, Rest: `offer.json` im Exposé-Ordner, Angebotsanfrage aus dem Exposé, mehrere Exposés pro Kunde
+- [ ] 7b: Rechnungsprofil am Kunden (Adresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel), Rechnungen nach österreichischem Recht (Kleinunternehmer und Regelbesteuerung), Rechnungs-PDF, Nummernkreis, Storno per Gutschrift
+- [ ] 7c: Wartungsverträge mit periodischer Abrechnung, Versand per E-Mail (Resend) mit Freigabe über die Aufgaben, Zahlungserinnerungen
+- [ ] Später: eigene Rechnungsvorlagen, E-Rechnung (ebInterface/ZUGFeRD), Bankabgleich
+
 ## Später
 
 - [ ] Exposés vorrendern (ISR mit OpenNext-Cache), falls Aquisiteur zurück auf den Cloudflare-Free-Plan zieht (ADR-0046)

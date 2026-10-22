@@ -1072,6 +1072,11 @@
                 "minLength": 1,
                 "maxLength": 120
               },
+              "source": {
+                "description": "'offer': on publish, options and tax line are replaced by the lines of the current offer in the exposé's project (recommended variant). Keep placeholder options in the file; they are used while there is no offer.",
+                "type": "string",
+                "const": "offer"
+              },
               "options": {
                 "minItems": 1,
                 "maxItems": 12,

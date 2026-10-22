@@ -14,6 +14,8 @@ export const NOTIFICATION_TRIGGERS = [
   "opt_out",
   "daily_digest",
   "task_due",
+  "offer_viewed",
+  "offer_answered",
 ] as const;
 export type NotificationTrigger = (typeof NOTIFICATION_TRIGGERS)[number];
 export type NotificationChannel = "push" | "email";
@@ -27,6 +29,8 @@ export const TRIGGER_LABELS: Record<NotificationTrigger, string> = {
   opt_out: "„Kein Interesse“ geklickt",
   daily_digest: "Tägliche Zusammenfassung",
   task_due: "Erinnerung an Aufgabe",
+  offer_viewed: "Angebot angesehen",
+  offer_answered: "Angebot angenommen oder abgelehnt",
 };
 
 export const CHANNEL_LABELS: Record<NotificationChannel, string> = {
@@ -51,6 +55,15 @@ export interface NotificationRule {
  * a task_due rule only changes the channels, quiet hours or turns them off.
  */
 export const TASK_REMINDER_FALLBACK: NotificationChannel[] = ["push", "email"];
+
+/**
+ * Offers (§7.10) notify without a rule too: the first view by push, the answer
+ * by push and e-mail. A rule for the trigger changes channels or turns it off.
+ */
+export const OFFER_FALLBACK: Record<"offer_viewed" | "offer_answered", NotificationChannel[]> = {
+  offer_viewed: ["push"],
+  offer_answered: ["push", "email"],
+};
 
 /** Inserted for every new workspace (and by migrations 0010 and 0015 for old ones). */
 export const DEFAULT_RULES: Omit<NotificationRule, "id">[] = [
@@ -255,7 +268,15 @@ export type NotificationCopyInput =
     }
   | { trigger: "score_threshold"; company: string; headline: string; recommendation: string }
   | { trigger: "opt_out"; company: string }
-  | { trigger: "task_due"; company: string; task: string; due: string };
+  | { trigger: "task_due"; company: string; task: string; due: string }
+  | { trigger: "offer_viewed"; company: string; offer: string }
+  | {
+      trigger: "offer_answered";
+      company: string;
+      offer: string;
+      accepted: boolean;
+      detail: string;
+    };
 
 /**
  * Title and body of a push, an e-mail and the cockpit list (§7.7). Tight on
@@ -288,6 +309,13 @@ export function notificationCopy(input: NotificationCopyInput): { title: string;
       return { title: title("kein Interesse"), body: "Bitte nicht mehr anschreiben." };
     case "task_due":
       return { title: title(clip(input.task, 80)), body: `Fällig ${input.due}` };
+    case "offer_viewed":
+      return { title: title("Angebot geöffnet"), body: clip(input.offer, 120) };
+    case "offer_answered":
+      return {
+        title: title(input.accepted ? "Angebot angenommen" : "Angebot abgelehnt"),
+        body: clip(`${input.offer} · ${input.detail}`),
+      };
   }
 }
 
@@ -298,6 +326,7 @@ export type NotificationTarget =
       prospectId: string;
     }
   | { trigger: "task_due"; prospectId: string; taskId: string }
+  | { trigger: "offer_viewed" | "offer_answered"; offerId: string }
   | { trigger: "daily_digest" };
 
 /** Section anchors on the prospect page that a notification can open. */
@@ -334,5 +363,8 @@ export function notificationUrl(target: NotificationTarget): string {
       return `/kunden/${target.prospectId}#${PROSPECT_ANCHORS.privacy}`;
     case "task_due":
       return `/kunden/${target.prospectId}#${taskAnchor(target.taskId)}`;
+    case "offer_viewed":
+    case "offer_answered":
+      return `/angebote/${target.offerId}`;
   }
 }
