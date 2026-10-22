@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  FileSignature,
   FileText,
   Flag,
   ListChecks,
@@ -30,6 +31,7 @@ const items: { href: Route; label: string; icon: typeof Sun; mobile: boolean }[]
   { href: "/auswertung", label: "Auswertung", icon: BarChart3, mobile: false },
   { href: "/chat", label: "Chat", icon: MessageCircle, mobile: true },
   { href: "/exposes", label: "Exposés", icon: FileText, mobile: true },
+  { href: "/angebote", label: "Angebote", icon: FileSignature, mobile: false },
   { href: "/settings", label: "Einstellungen", icon: Settings, mobile: true },
   { href: "/design", label: "Design-System", icon: Palette, mobile: false },
 ];

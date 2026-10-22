@@ -34,6 +34,12 @@ Der Kern der App ist also: **Hosting + Tracking + Conversion + Benachrichtigung.
 | **Kontaktabsicht (Intent)** | Berechnete Wahrscheinlichkeit 0–100 %, dass der Prospect Kontakt aufnehmen wollte oder es getan hat, mit Begründung. |
 | **Nudge** | Eine verhaltensbasierte, dezente Aufforderung zur Kontaktaufnahme im Exposé. |
 | **Cockpit** | Der Admin-Bereich des Owners. |
+| **Kunde** | Ein Prospect, mit dem es ein Geschäft gibt (gewonnen oder mit angenommenem Angebot). Kein eigener Datensatz, sondern derselbe Prospect mit Rechnungsprofil. |
+| **Projekt** | Ein Vorhaben bei einem Kunden (z. B. „Website-Relaunch 2026“). Bündelt Exposés, Angebote, Zahlungsplan, Wartungsverträge und Rechnungen. Ein Kunde kann mehrere Projekte haben. |
+| **Angebot** | Versioniertes, verbindliches Angebot zu einem Projekt mit Positionen, optional Varianten, Zahlungsplan und Online-Annahme. |
+| **Tranche** | Ein Teil des Zahlungsplans eines Angebots mit Anteil und Auslöser; wird als Anzahlungs-, Teil- oder Schlussrechnung abgerechnet. |
+| **Wartungsvertrag** | Wiederkehrende Leistung mit festem Abrechnungsrhythmus (Periodisierung), entsteht aus den wiederkehrenden Positionen eines angenommenen Angebots. |
+| **Rechnung** | Unveränderliches Dokument nach österreichischem UStG mit fortlaufender Nummer; Korrektur nur per Storno. |
 
 ---
 
@@ -50,6 +56,7 @@ Diese Punkte sind Entscheidungen. Wenn du an einer Stelle triftige Gründe für 
 7. **Benachrichtigungen an den Owner**: Web-Push (PWA) und E-Mail. Telegram als optionaler Kanal vorbereitet.
 8. **Briefversand**: Die App erzeugt pro Prospect ein druckfertiges PDF (DIN A4, DIN-5008-konform, Fenster-Umschlag DL) mit QR-Code und Kurzlink. Der Owner druckt und versendet in v1 selbst. Der Versand ist aber von Anfang an über eine austauschbare **Versand-Schnittstelle** gebaut (siehe §7.9), damit Print-APIs wie Pingen oder LetterXpress und Handschrift-Dienste wie Pensaki später nur ein weiterer Adapter sind.
 9. **Sprache**: UI und Exposés auf Deutsch, Code und Kommentare auf Englisch, i18n-fähig angelegt.
+10. **Angebote und Rechnungen** (Owner-Entscheidung 2026-10-22, ADR-0067): Der Owner ist österreichischer Einzelunternehmer. Rechnungen folgen dem österreichischen UStG. Steuermodus pro Workspace, Standard **Kleinunternehmer** (§ 6 Abs. 1 Z 27 UStG, gilt in Österreich ohne Antrag ab dem ersten Umsatz), umschaltbar auf Regelbesteuerung. Rechnungsversand per E-Mail über Resend. Die Gestaltung von Angebot und Rechnung folgt später.
 
 ---
 
@@ -340,6 +347,41 @@ Das Cockpit ist die Kommandozentrale des Owners. Hier verwaltet er alle Kunden, 
 - Automatischer Follow-up-Versand: „X Tage nach `posted_at` (Standard 14) kein Besuch → Folgebrief vorbereiten“. Die App legt einen Entwurf mit eigenem Code und eine Aufgabe „Folgebrief drucken und versenden“ an, verschickt aber nichts von selbst, auch nicht mit Pingen: Das PDF entsteht im Browser des Owners, der den Entwurf mit einem Klick an Pingen übergibt (ADR-0063). Höchstens ein automatischer Folgebrief pro erstem Brief, nie nach „Kein Interesse“, eigene Vorlage für Folgebriefe, abschaltbar in den Einstellungen.
 - Zugangsdaten pro Workspace verschlüsselt (siehe §9a), Kosten pro Brief in `usage_events`.
 
+### 7.10 Projekte, Angebote und Rechnungen
+
+Aus einem gewonnenen Prospect wird ein **Kunde**; der Datensatz bleibt derselbe und bekommt ein Rechnungsprofil (Rechnungsadresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel). Darunter liegen **Projekte**. Jedes Projekt bündelt Exposés, Angebote, Zahlungsplan, Wartungsverträge und Rechnungen. Bestehende Exposés bekommen bei der Einführung ein Projekt „Erstakquise“. Umsetzung in drei Schritten (Phase 7a–7c), Begründungen in ADR-0067.
+
+**Angebot (7a)**
+
+- Versioniert: Der Owner bearbeitet einen Entwurf; jedes Senden friert eine unveränderliche Version mit Prüfsumme ein. Eigener Nummernkreis (`AN-2026-0001`), vergeben beim ersten Senden. Gültigkeit (Standard 30 Tage), Texte davor und danach.
+- Positionen aus einem **Leistungskatalog** in den Einstellungen (Name, Beschreibung, Einheit, Preis, Abrechnung, USt-Satz), im Angebot frei überschreibbar: Menge, Einheit, Einzelpreis in Cent, Rabatt in Prozent, USt-Satz, einmalig oder wiederkehrend (monatlich, quartalsweise, halbjährlich, jährlich), optional (vom Kunden abwählbar) oder Pflicht, Gesamtrabatt.
+- **Varianten** (z. B. „Starter“, „Pro“): Positionen gelten für alle oder einzelne Varianten, der Kunde wählt online eine.
+- **Zahlungsplan** mit Tranchen in Prozent oder als Betrag (die letzte Tranche nimmt den Rest), Vorlagen 100, 50/50, 30/40/30; Auslöser: bei Annahme, an einem Datum, bei einem Meilenstein, X Tage nach der vorigen Tranche. Wiederkehrende Positionen bilden den Wartungsvertrag (Beginn, Mindestlaufzeit, Kündigungsfrist, Abrechnung im Voraus oder nachträglich).
+- **Öffentliche Angebotsseite** `<domain>/a/<token>` (nicht erratbar, `noindex`), im Theming des Exposés des Projekts: Positionen, Variantenwahl, optionale Positionen an/ab mit Live-Summe, Zahlungsplan, wiederkehrende Kosten, Steuerhinweis, Gültigkeit, Drucken. **Online-Annahme** mit Name, Funktion und Bestätigung „verbindlich beauftragen“; gespeichert werden Zeitpunkt, Version, Prüfsumme, Auswahl und Summen (einfache elektronische Signatur). Ablehnen mit optionalem Grund. Abgelaufene oder ersetzte Versionen lassen sich nicht mehr annehmen.
+- Ansehen (erster echter Aufruf, ohne Bots und ohne Owner-Gerät) und Antwort erscheinen in der Timeline und lösen je eine Benachrichtigung aus (Ziel: das Angebot im Cockpit). Annahme setzt den Kunden auf „Gewonnen“ und das Projekt auf „Beauftragt“.
+- **Exposé-Anbindung**: Der `pricing`-Block kann `"source": "offer"` tragen; beim Veröffentlichen übernimmt er die Positionen des aktuellen versendeten oder angenommenen Angebots im Projekt des Exposés (bei Varianten die empfohlene), mit dem passenden Steuerhinweis; Entwürfe werden nie von selbst öffentlich. Im Angebotseditor überträgt „Ins Exposé übernehmen“ die Preise als neue Exposé-Version.
+- Später in 7a nachgereicht: `offer.json` im Exposé-Ordner legt beim Veröffentlichen einen Angebotsentwurf an; die Preisauswahl eines Besuchers im Exposé lässt sich als Angebotsanfrage abschicken (Entwurf + Aufgabe). Mehrere Exposés pro Kunde (je Projekt) über einen eigenen Exposé-Schlüssel.
+
+**Rechnungen nach österreichischem Recht (7b)**
+
+- Pflichtangaben nach § 11 UStG abhängig vom Betrag werden vor dem Ausstellen geprüft: bis 400 € brutto Kleinbetragsrechnung, darüber vollständige Rechnung mit UID des Leistenden, über 10.000 € brutto zusätzlich UID des Empfängers. Leistungsdatum oder -zeitraum immer.
+- Steuermodus pro Workspace mit Ausnahme je Rechnung: **Kleinunternehmer** (§ 6 Abs. 1 Z 27 UStG, Standard) ohne USt-Ausweis mit Hinweistext „Der Rechnungsbetrag enthält gemäß § 6 Abs. 1 Z 27 UStG 1994 keine Umsatzsteuer.“ (änderbar), oder **regelbesteuert** mit 20/13/10/0 %. Grenzwächter für 55.000 € Jahresumsatz brutto: Warnung ab 80 %, bis 10 % Überschreitung bleibt die Befreiung bis Jahresende, darüber endet sie ab dem überschreitenden Umsatz.
+- EU-Unternehmen mit UID: Übergang der Steuerschuld auf den Leistungsempfänger, beide UIDs, VIES-Prüfung, Vormerkung für die Zusammenfassende Meldung. Privatkunden in der EU und Drittland mit passendem Text; Sonderfälle werden zur Rücksprache markiert.
+- Tranchen werden zu Anzahlungs- bzw. Teilrechnungen, die letzte zur Schlussrechnung, die alle vorher abgerechneten Beträge und Steuern abzieht.
+- Fortlaufende, atomar vergebene Nummern pro Workspace und Jahr (`RE-2026-0001`), Entwürfe ohne Nummer. Ausgestellte Rechnungen sind unveränderlich; Korrektur nur per Storno mit eigener Nummer und Verweis plus neuer Rechnung. Aufbewahrung 7 Jahre (§ 132 BAO), auch gegenüber Datenschutz-Löschungen (dort Sperrvermerk statt Löschung).
+- PDF mit EPC-QR-Code („Zahlen mit Code“) und eingebettetem ZUGFeRD/Factur-X (EN 16931). Zahlungen manuell erfassen, auch Teilzahlungen. Monatsexport CSV + PDFs als ZIP für den Steuerberater.
+
+**Wartung, Versand und Mahnung (7c)**
+
+- Wartungsverträge: Intervall monatlich, quartalsweise, halbjährlich, jährlich; im Voraus oder nachträglich; anteilige erste und letzte Periode; Mindestlaufzeit, Kündigungsfrist; optional VPI-Indexierung mit Vorankündigung und Stundenkontingent. Jede Rechnung nennt den Leistungszeitraum.
+- Versand per E-Mail über den E-Mail-Port (Resend, optional SMTP über das eigene Postfach) von einer eigenen Versand-Subdomain, PDF im Anhang, Link zur Rechnungsseite `<domain>/r/<token>`, Zustellstatus per Webhook, keine Öffnungs-Pixel. Drei Stufen pro Workspace und Vertrag: manuell, **Freigabe über eine Aufgabe** (Standard: der stündliche Job legt den Entwurf und eine Aufgabe „Rechnung freigeben“ an, die sich nach dem Senden selbst erledigt) und automatisch für unveränderte Wartungsrechnungen mit Rückfall auf Freigabe.
+- Mahnwesen: Erinnerung 3 Tage nach Fälligkeit, Mahnungen nach 14 und 28 Tagen mit derselben Freigabe-Logik; Verzugszinsen (§ 456 UGB) und 40-€-Pauschale (§ 458 UGB) optional.
+- Projekt-Dashboard: Angebotsvolumen, Annahmequote, Zeit bis zur Annahme, offene Posten, MRR, Umsatz je Kampagne.
+
+**Später**: Gestaltung von Angebot und Rechnung, Online-Zahlung hinter einem `PaymentProvider` (Stripe oder Mollie, EPS, SEPA-Lastschrift), Bank-Abgleich (CAMT.053), Zeiterfassung, Kundenportal, BMD/DATEV-Export, PEPPOL, A/B-Tests (tief im Backlog).
+
+Hinweis an den Owner: Die Steuerregeln sind recherchiert, ersetzen aber keine Steuerberatung; vor der ersten echten Rechnung mit dem Steuerberater abgleichen.
+
 ---
 
 ## 8. Design & UX
@@ -409,7 +451,7 @@ Was in v1 bewusst **nicht** gebaut wird: Einladungs-UI, Team-Verwaltung, Abrechn
 
 ## 11. Datenmodell (Vorschlag, verfeinern)
 
-`workspaces`, `users`, `memberships`, `domains`, `workspace_settings`, `integrations` (verschlüsselte Secrets), `usage_events`, `prospects`, `contacts` (Personen am Prospect), `campaigns`, `exposes`, `expose_versions`, `assets`, `touchpoints` (Code, Typ, Kanal, Prospect, Version), `visits` (Touchpoint, Gerät, Geo-Stadt, Bot/Internal-Flags, Start/Ende), `events` (Visit, Typ, Block-ID, Payload JSONB, Zeit), `intent_signals`, `intent_scores` (aktueller Score + Erklärung, materialisiert), `chat_threads`, `chat_messages`, `chat_drafts`, `callback_requests`, `consents`, `notification_rules`, `notifications`, `push_subscriptions`, `letters`, `api_tokens`, `audit_log`.
+`workspaces`, `users`, `memberships`, `domains`, `workspace_settings`, `integrations` (verschlüsselte Secrets), `usage_events`, `prospects`, `contacts` (Personen am Prospect), `campaigns`, `exposes`, `expose_versions`, `assets`, `touchpoints` (Code, Typ, Kanal, Prospect, Version), `visits` (Touchpoint, Gerät, Geo-Stadt, Bot/Internal-Flags, Start/Ende), `events` (Visit, Typ, Block-ID, Payload JSONB, Zeit), `intent_signals`, `intent_scores` (aktueller Score + Erklärung, materialisiert), `chat_threads`, `chat_messages`, `chat_drafts`, `callback_requests`, `consents`, `notification_rules`, `notifications`, `push_subscriptions`, `letters`, `api_tokens`, `audit_log`, `tasks`; für §7.10: `projects`, `catalog_items` (Leistungskatalog), `offers` (Entwurf als JSONB, Status, Token, Annahme), `offer_versions` (eingefrorene Fassungen mit Prüfsumme), `number_series` (Nummernkreise), ab 7b `invoices`, `invoice_items`, `payments`, `dunning_steps`, `billing_documents`, ab 7c `subscriptions`.
 
 Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `section_view`, `section_dwell`, `scroll_depth`, `cta_hover`, `cta_click`, `contact_click`, `copy_contact`, `chat_open`, `chat_typing`, `chat_message_sent`, `callback_started`, `callback_submitted`, `pricing_change`, `media_play`, `nudge_shown`, `nudge_dismissed`, `nudge_clicked`, `share`, `pdf_download`, `opt_out`, `consent_given`, `consent_denied` …).
 
@@ -419,7 +461,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 
 - Keine KI-Generierung von Exposés in der App (macht Claude Code extern über §7.2).
 - Kein Team-/Einladungs-UI, keine Abrechnung, keine öffentliche Registrierung (Architektur dafür steht aber, siehe §9a).
-- Kein eigener E-Mail-Versand an Prospects (keine Kaltakquise per E-Mail, rechtlich heikel in DE).
+- Kein eigener E-Mail-Versand an Prospects zur Akquise (keine Kaltakquise per E-Mail, rechtlich heikel in DE). Angebote, Rechnungen und Mahnungen an Kunden mit Geschäftsbeziehung sind erlaubt (§7.10).
 - Keine nativen Apps, PWA reicht.
 
 ---
@@ -449,6 +491,7 @@ Event-Typen als zentrale, typisierte Enum/Union (`page_view`, `heartbeat`, `sect
 | **4 – Intent & Benachrichtigung** | Score-Engine, Erklärung + Empfehlung, Regel-Engine, Push + E-Mail, Digest, „Heute“-Ansicht | E2E-Kernpfad grün, Push kommt auf dem Handy an |
 | **5 – Brief & Auswertung** | Übersichts-, Kampagnen- und Inhalts-Dashboards, Karte, Brief-PDF, Sammel-Export, Versand-Schnittstelle mit `manual`-Provider und Brief-Lebenszyklus, Kampagnen-Funnel, Abschnitts-Heatmap, Consent + Session-Replay | Kampagne komplett von Import bis Auswertung durchspielbar |
 | **6 – Härtung** | Retention-Jobs, Datenexport/-löschung, Security-Header, Rate-Limits, Monitoring, Datenschutzseiten | `docs/PRIVACY.md` vollständig, Security-Checkliste abgehakt |
+| **7 – Projekte, Angebote, Rechnungen** | 7a Projekte, Leistungskatalog, Angebotseditor, öffentliche Angebotsseite mit Online-Annahme, Exposé-Anbindung · 7b Rechnungen nach AT-Recht, Steuermodus, Nummernkreise, Teil-/Schlussrechnung, Storno, PDF mit EPC-QR und ZUGFeRD, Zahlungen, Export · 7c Wartungsverträge, Versand mit Freigabe über Aufgaben, Mahnwesen, Projekt-Dashboard (§7.10) | Angebot online angenommen, daraus Teil-, Schluss- und Wartungsrechnung nach Freigabe per Mail versendet, Kleinunternehmer- und USt-Modus getestet |
 | **Später** | Weitere Print-API-Adapter (LetterXpress, ein Handschrift-Dienst; Pingen und automatische Folgebriefe sind umgesetzt), Messenger, SMS, Telegram, A/B-Varianten von Exposés, KI-Assistent für Exposé-Entwürfe, **SaaS-Launch** (Registrierung, Teams, Stripe-Abrechnung, Plattform-Admin, Landingpage) | – |
 
 ---

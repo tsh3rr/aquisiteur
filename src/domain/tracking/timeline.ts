@@ -39,7 +39,7 @@ export interface TimelineAudit {
   actorName: string | null;
 }
 
-export type TimelineKind = "visit" | "status" | "expose" | "touchpoint" | "letter";
+export type TimelineKind = "visit" | "status" | "expose" | "touchpoint" | "letter" | "offer";
 
 export interface TimelineEntry {
   key: string;
@@ -209,9 +209,11 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
               ? "automatisch durch einen Rückrufwunsch"
               : audit.meta.via === "letter"
                 ? "automatisch beim Briefversand"
-                : audit.actorName
-                  ? `von ${audit.actorName}`
-                  : null;
+                : audit.meta.via === "offer"
+                  ? "automatisch durch das angenommene Angebot"
+                  : audit.actorName
+                    ? `von ${audit.actorName}`
+                    : null;
       return { ...base, kind: "status", title: `Status: ${label}`, detail: by };
     }
     case "prospect.opted_out":
@@ -253,6 +255,44 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
         title: `Link „${String(audit.meta.label ?? "")}“ angelegt`,
         detail: audit.actorName ? `von ${audit.actorName}` : null,
       };
+    case "project.created":
+      return {
+        ...base,
+        kind: "offer",
+        title: `Projekt „${String(audit.meta.name ?? "")}“ angelegt`,
+        detail: audit.actorName ? `von ${audit.actorName}` : null,
+      };
+    case "offer.sent":
+    case "offer.viewed":
+    case "offer.accepted":
+    case "offer.declined":
+    case "offer.withdrawn": {
+      const number = typeof audit.meta.number === "string" ? audit.meta.number : "";
+      const version = typeof audit.meta.version === "number" ? audit.meta.version : null;
+      const title = {
+        "offer.sent":
+          version && version > 1
+            ? `Angebot ${number} als Version ${version} versendet`
+            : `Angebot ${number} versendet`,
+        "offer.viewed": `Angebot ${number} zum ersten Mal geöffnet`,
+        "offer.accepted": `Angebot ${number} angenommen`,
+        "offer.declined": `Angebot ${number} abgelehnt`,
+        "offer.withdrawn": `Angebot ${number} zurückgezogen`,
+      }[audit.action];
+      const detail =
+        audit.action === "offer.accepted"
+          ? [`von ${String(audit.meta.name ?? "")}`, version ? `Version ${version}` : null]
+              .filter(Boolean)
+              .join(" · ")
+          : audit.action === "offer.declined"
+            ? typeof audit.meta.reason === "string" && audit.meta.reason
+              ? `„${audit.meta.reason}“`
+              : "ohne Begründung"
+            : audit.actorName
+              ? `von ${audit.actorName}`
+              : null;
+      return { ...base, kind: "offer", title, detail };
+    }
     default:
       return null;
   }

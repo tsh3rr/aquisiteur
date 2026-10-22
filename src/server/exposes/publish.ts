@@ -33,6 +33,8 @@ import {
   type ValidationIssue,
 } from "@/domain/expose/schema";
 import type { StoragePort } from "@/infra";
+import { withOfferPricing } from "../offers/pricing";
+import { ensureProject } from "../projects";
 import { ensureLetterTouchpoint } from "../tracking/touchpoints";
 
 export interface PublishVariant {
@@ -244,12 +246,14 @@ export async function publishExpose(
         { path: "(Workspace)", message: "Das Limit für Exposés in Ihrem Plan ist erreicht." },
       ]);
     }
+    const projectId = await ensureProject(tx, context.workspaceId, prospectId);
     for (let attempt = 0; attempt < 8 && !expose; attempt++) {
       [expose] = await tx
         .insert(exposes)
         .values({
           workspaceId: context.workspaceId,
           prospectId,
+          projectId,
           slug: exposeSlug(document.prospect.key),
           refCode: refCode(attempt < 4 ? 4 : 5),
           title: document.meta.title,
@@ -260,6 +264,9 @@ export async function publishExpose(
     if (!expose) throw new Error("could not allocate exposé slug/ref code");
     createdExpose = true;
   }
+  const projectId = expose.projectId ?? (await ensureProject(tx, context.workspaceId, prospectId));
+  // A pricing block with "source": "offer" shows the project's current offer (§7.10).
+  const rendered = await withOfferPricing(tx, context.workspaceId, projectId, document);
 
   const [{ latest } = { latest: 0 }] = await tx
     .select({ latest: max(exposeVersions.version) })
@@ -274,7 +281,7 @@ export async function publishExpose(
       exposeId: expose.id,
       version,
       schemaVersion: EXPOSE_SCHEMA_VERSION,
-      document,
+      document: rendered,
       assetManifest: manifest,
       source: context.source,
       publishedByUserId: context.userId,
@@ -285,7 +292,12 @@ export async function publishExpose(
 
   await tx
     .update(exposes)
-    .set({ currentVersionId: created.id, title: document.meta.title, unpublishedAt: null })
+    .set({
+      currentVersionId: created.id,
+      title: document.meta.title,
+      unpublishedAt: null,
+      projectId,
+    })
     .where(eq(exposes.id, expose.id));
 
   await tx.insert(usageEvents).values({

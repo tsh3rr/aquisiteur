@@ -29,6 +29,7 @@ test("the owner exports a customer's data and sets a block marker", async ({ pag
 
   await page.goto("/kunden");
   await page.getByRole("link", { name: "Café Müller" }).first().click();
+  await page.getByRole("tab", { name: "Stammdaten" }).click();
   const card = page.locator("#datenschutz");
   await expect(card.getByRole("heading", { name: "Datenschutz" })).toBeVisible();
 
@@ -50,6 +51,16 @@ test("the owner exports a customer's data and sets a block marker", async ({ pag
 
   await card.getByRole("button", { name: "Sperrvermerk aufheben" }).click();
   await expect(card.getByRole("button", { name: "Sperrvermerk setzen" })).toBeVisible();
+
+  // Links from notifications point at a card; the tab holding it opens.
+  await page.getByRole("tab", { name: "Übersicht" }).click();
+  await expect(card).toBeHidden();
+  await page.goto(`${page.url().split("#")[0]}#datenschutz`);
+  await expect(page.getByRole("tab", { name: "Stammdaten" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(card).toBeVisible();
 });
 
 test("the owner writes the legal pages and checks the limits", async ({ page }) => {

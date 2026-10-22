@@ -29,6 +29,8 @@ const nextConfig: NextConfig = {
         // the consent notice and the contact layer with its chat panel.
         [path.join(process.cwd(), "src/components/expose/consent-notice.tsx")]: false,
         [path.join(process.cwd(), "src/components/expose/contact-layer.tsx")]: false,
+        // The offer editor, loaded on mount in the cockpit (ADR-0067).
+        [path.join(process.cwd(), "src/app/(cockpit)/angebote/[id]/offer-editor.tsx")]: false,
         leaflet$: false,
         rrweb$: false,
       };

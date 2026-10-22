@@ -179,10 +179,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm cf:build
-      # Workers Free allows 3 MB compressed (ADR-0035); keep a margin so the free plan stays usable.
-      - name: Worker size within the free plan
+      # Cloudflare is only a fallback (ADR-0068): warn above the free plan (3 MB compressed),
+      # fail only above the paid plan's 10 MB.
+      - name: Worker size
         run: |
           pnpm exec wrangler deploy --dry-run --outdir dist-worker > /dev/null
           size=$(gzip -9 -c dist-worker/worker.js | wc -c)
-          echo "Worker gzip: $((size / 1024)) KiB (limit 2900 KiB)"
-          test "$size" -le $((2900 * 1024))
+          echo "Worker gzip: $((size / 1024)) KiB (free plan 2900 KiB, hard limit 9800 KiB)"
+          if [ "$size" -gt $((2900 * 1024)) ]; then
+            echo "::warning title=Worker size::$((size / 1024)) KiB exceeds the Workers free plan; a Cloudflare deploy would need the paid plan."
+          fi
+          test "$size" -le $((9800 * 1024))

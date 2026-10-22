@@ -148,6 +148,20 @@
       "when": 1792611182523,
       "tag": "0020_chat_block",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792669988750,
+      "tag": "0021_projects_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792669990160,
+      "tag": "0022_projects_grants",
+      "breakpoints": true
     }
   ]
 }

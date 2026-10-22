@@ -944,3 +944,84 @@ zusammen wirken und einzeln nicht perfekt sein müssen:
 Folge: Die Datenschutzerklärung-Vorlage nennt die Rechenaufgabe und den Hash der IP auch für Chat und
 Rückruf. Offen für später: Besuchsstarts pro Client begrenzen (Rest von M2), bei echtem Spam-Aufkommen
 eine Quarantäne statt Ablehnung.
+
+## ADR-0067 · Projekte, Angebote und Online-Annahme (2026-10-22, Phase 7a)
+
+Kontext: Der Owner will Angebote, die das Exposé mit Preisen füllen, in Tranchen zahlbar sind und
+Wartungsverträge abbilden; später Rechnungen nach österreichischem Recht (ZIELPROMPT §7.10).
+Entschieden für Phase 7a:
+
+- **Kunde → Projekt → Exposé und Angebot.** Neue Tabelle `projects`; `exposes.project_id` ist nullable,
+  die Migration `0022` legt für jeden Kunden mit Exposé ein Projekt „Erstakquise“ an, und das
+  Veröffentlichen ordnet neue Exposés dem ältesten Projekt des Kunden zu. Mehrere Exposés pro Kunde
+  bleiben für später: `exposes_workspace_prospect_idx` ist eindeutig und viele Stellen setzen ein
+  Exposé pro Kunde voraus.
+- **Entwurf als JSONB, jede Sendung als unveränderliche Version.** `offers.draft` hält das Dokument
+  (Zod-Schema `src/domain/offers/schema.ts`), „Angebot fertigstellen“ friert es in `offer_versions` ein:
+  mit Steuermodus und Steuerhinweis zum Zeitpunkt der Sendung, Gültigkeit und SHA-256 über das
+  kanonische JSON. Der öffentliche Link `/a/<token>` (22 Zeichen base62) bleibt über alle Versionen
+  gleich und zeigt die neueste. Eine Annahme gilt nur für die Version, die der Kunde gesehen hat
+  (sonst 409, neu laden). Verworfen: Positionen als eigene Tabellen; das Angebot ist ein Dokument, das
+  als Ganzes versioniert und später in die Rechnung kopiert wird.
+- **Nummernkreis** `AN-JJJJ-NNNN` pro Workspace und Jahr in `number_series` (Upsert mit Zähler, in der
+  Transaktion der Sendung, also lückenlos für versendete Angebote). Dieselbe Tabelle trägt in 7b die
+  Rechnungsnummern.
+- **Geld in ganzen Cent**, jede Zeile kaufmännisch gerundet, USt je Satz auf die Summe der Zeilen
+  (20/13/10/0 %). Getrennte Summen für einmalig und je Intervall (monatlich bis jährlich). Der
+  Gesamtrabatt gilt nur für die einmaligen Positionen und mindert jede USt-Basis anteilig; im Exposé
+  steckt er in den einmaligen Preisen. Tranchen in Prozent oder Festbetrag, die letzte nimmt den Rest;
+  Tranchen davor werden auf den verbleibenden Betrag gekappt, damit keine negativ wird, wenn der Kunde
+  Optionen abwählt, und ein schon in der Standardauswahl überbuchter Plan lässt sich nicht senden.
+- **Kleinunternehmer als Standard** (`workspace_settings.billing`): keine USt, Hinweis nach § 6 Abs. 1
+  Z 27 UStG 1994, umschaltbar auf Regelbesteuerung. Keine Steuerberatung; der Spec-Abschnitt nennt die
+  Grenzen.
+- **Online-Annahme als einfache elektronische Erklärung**: Name, optional Funktion, Pflicht-Häkchen mit
+  den gewählten Beträgen im Text. Gespeichert werden Zeitpunkt, Version, Prüfsumme, gewählte Variante,
+  Optionen und Summen, **keine IP-Adresse** (passt zu ADR-0064; für Werkverträge dieser Größe reicht die
+  formfreie Annahme). Die Version wird in der sperrenden Transaktion noch einmal geprüft, sodass eine
+  inzwischen ersetzte Fassung nicht angenommen werden kann. Rate Limit 10 pro Stunde und Angebot, Honeypot wie ADR-0066. Annahme setzt den
+  Kunden auf „Gewonnen“ (außer vom eigenen Gerät) und das Projekt auf „Beauftragt“.
+- **Benachrichtigungen ohne Regel-Backfill**: Die neuen Trigger `offer_viewed` und `offer_answered`
+  gehen über Fallback-Kanäle (`OFFER_FALLBACK`), bis der Owner eigene Regeln anlegt. Ein Backfill wie in
+  `0015` scheitert, weil ein neuer Enum-Wert nicht in derselben Migrations-Transaktion benutzt werden darf.
+- **Exposé-Anbindung**: Ein Preisblock mit `"source": "offer"` wird beim Veröffentlichen aus dem
+  angenommenen, sonst dem zuletzt geänderten versendeten Angebot des Projekts gefüllt (in der versendeten
+  Fassung; Entwürfe werden nie von selbst öffentlich); „Ins Exposé übernehmen“ erzeugt
+  eine neue Exposé-Version mit diesen Preisen. Laufende Beträge in längeren Intervallen erscheinen im
+  Exposé als Monatswert mit Hinweis auf die Abrechnung.
+- **Worker-Größe**: Der Angebots-Editor ist eine reine Client-Komponente, wird nach dem Mounten geladen
+  (`offer-editor-lazy.tsx`, Skeleton solange) und in `next.config.ts` aus dem Server-Bundle aliasiert
+  (wie ADR-0035). `radix-ui` wird nur über Unterpfade (`radix-ui/slot`, `/label`, `/dialog`) importiert,
+  der Barrel-Import zog alle Primitives in den Worker. Zusammen 2864 statt 2982 KiB (Limit 2900).
+  `server-only` fehlt bewusst in `src/server/projects.ts` und `src/server/offers/pricing.ts`, weil
+  `scripts/seed.ts` sie über `publish.ts` importiert.
+- Die Angebotsseite läuft wie das Exposé über die System-Verbindung, auf den Workspace des Hosts
+  beschränkt (ADR-0012), ohne `Intl` und ohne Cockpit-Code (ADR-0048). Ansichten von Bots und vom
+  eigenen Gerät zählen nicht.
+
+Offen für 7b/7c: das Rechnungsprofil am Kunden (Rechnungsadresse, Land, UID, Rechnungs-E-Mail,
+Zahlungsziel), erst mit den Rechnungen nötig; Rechnungen aus angenommenen Angeboten und Tranchen, PDF, Versand per Resend mit
+Freigabe über die Aufgabenliste, Wartungsläufe, Mahnwesen; `offer.json` im Exposé-Ordner, Angebotsanfrage
+aus dem Exposé. Das Löschen eines Kunden löscht seine Angebote mit; ab 7b muss es bei Rechnungen
+verweigert werden.
+
+## ADR-0068 · Worker-Größe nur noch als Warnung (2026-10-22)
+
+Betrieben wird mit Docker Compose auf Mikrus (ADR-0054); Cloudflare ist nur ein baubarer Rückfall. Die
+harte CI-Grenze von 2900 KiB (Free-Plan, ADR-0035) hat bei Phase 7a mehr Zeit gekostet als sie nützt. Auf
+Wunsch des Owners warnt der CI-Job „Cloudflare bundle“ über 2900 KiB nur noch und schlägt erst über
+9800 KiB fehl (Workers Paid erlaubt 10 MB). Der Build selbst muss weiter durchlaufen. Wer über 2900 KiB
+geht, kann auf Cloudflare nur noch im bezahlten Plan (rund 5 $ im Monat) deployen. Die Lazy-Loading-Regeln
+aus ADR-0035/0037 gelten weiter, weil sie auch die Ladezeit im Cockpit verbessern.
+
+## ADR-0069 · Reiter auf der Kundenseite, kompakter Angebots-Editor (2026-10-22)
+
+Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (die Übersicht einspaltig: Kontaktabsicht, Aufgaben, Chat, Projekte, Timeline) (Übersicht, Besuche, Briefe und Links,
+Stammdaten) über `HashTabs` (`src/components/ui/tabs.tsx`): alle Panels werden auf dem Server gerendert
+und nur ausgeblendet, der URL-Hash wählt den Reiter. Ein Hash, der auf ein Element in einem Panel zeigt
+(`#datenschutz`, `#chat`, `aufgabe-…`), öffnet dessen Reiter, sodass Links aus Benachrichtigungen
+unverändert funktionieren. Im Angebots-Editor stehen Positionen in zwei Zeilen (Leistung, dann Menge,
+Einheit, Preis, Abrechnung und Zeilensumme); Beschreibung, Rabatt, USt-Satz, Optional und Varianten
+liegen unter „Weitere Angaben“, offen, sobald etwas davon gesetzt ist. Die Varianten-Karte erscheint erst,
+wenn Varianten angeboten werden. Speichern und Fertigstellen stehen ab `xl` oben in der Seitenleiste,
+darunter in der schwebenden Leiste mit der Summe.

@@ -68,6 +68,8 @@ export const notificationTrigger = pgEnum("notification_trigger", [
   "opt_out",
   "daily_digest",
   "task_due",
+  "offer_viewed",
+  "offer_answered",
 ]);
 export const notificationChannel = pgEnum("notification_channel", ["push", "email"]);
 
