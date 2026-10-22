@@ -54,9 +54,9 @@ const RANK: Record<EmailStatus, number> = {
   failed: 4,
 };
 
-/** The status after an event, or null when the event is old news. */
+/** The status after an event, or null when it is old news; a problem is final. */
 export function nextEmailStatus(current: EmailStatus, incoming: EmailStatus): EmailStatus | null {
-  if (incoming === current) return null;
+  if (incoming === current || EMAIL_PROBLEMS.has(current)) return null;
   return RANK[incoming] >= RANK[current] ? incoming : null;
 }
 

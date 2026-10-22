@@ -1124,7 +1124,11 @@ Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Vers
   der Timeline.
 - **Zustellstatus**: `POST /api/webhooks/resend`, Svix-Signatur mit `RESEND_WEBHOOK_SECRET`, höchstens fünf
   Minuten alt. Der Status geht nur vorwärts (`nextEmailStatus`), doppelte und verspätete Ereignisse
-  ändern nichts. Unzustellbar, Spam-Meldung oder Fehler legen eine Aufgabe „Adresse prüfen“ an.
+  ändern nichts; unzustellbar, Spam-Meldung und Fehler sind endgültig und legen einmal eine Aufgabe
+  „Adresse prüfen“ an. Ein Ereignis zu einer noch unbekannten Anbieter-ID wird mit 503 abgelehnt,
+  solange eine frische Mail (unter zehn Minuten) noch auf ihre ID wartet, damit Resend es erneut
+  zustellt; sonst gehört es zu einer anderen Mail (Anmeldelink, Zusammenfassung) und wird verworfen.
+  Empfängeradressen stehen nur in `outbound_emails`, nicht im Audit-Log.
   Unbekannte Ereignisse (später eingehende Mails) werden ignoriert. Keine Öffnungs-Pixel; die
   Rechnungsseite merkt sich nur den ersten echten Aufruf (ohne Bots und Owner-Geräte).
 - **Rechnungsseite** `/r/<token>` (22 Zeichen base62, `noindex`, kein Referrer): Betrag, Stand der Zahlung,
@@ -1134,5 +1138,6 @@ Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Vers
 - **Freigabe**: Versandmodus pro Workspace (manuell, Freigabe über eine Aufgabe als Standard,
   automatisch). `requestInvoiceApproval` legt die Aufgabe „Rechnung … freigeben“ mit Verweis auf die
   Rechnung an; der stündliche Job nutzt sie ab 7c-3 für Wartungs- und Mahnentwürfe. Die automatische
-  Stufe braucht ein serverseitig erzeugtes PDF und kommt mit 7c-3.
+  Stufe braucht ein serverseitig erzeugtes PDF und kommt mit 7c-3; bis dahin ist sie in den
+  Einstellungen nicht wählbar.
 - Ohne `EMAIL_PROVIDER=resend` landen Rechnungsmails im Log, wie Anmeldelinks.

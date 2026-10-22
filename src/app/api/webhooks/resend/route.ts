@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         : 400;
     return new Response("Rejected", { status: status >= 400 && status < 500 ? status : 400 });
   }
-  await recordEmailEvents(getDb(), events);
-  return new Response(null, { status: 204 });
+  const { retry } = await recordEmailEvents(getDb(), events);
+  // 503 makes Resend deliver the event again a little later.
+  return new Response(null, { status: retry ? 503 : 204 });
 }
