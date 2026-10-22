@@ -1016,7 +1016,7 @@ aus ADR-0035/0037 gelten weiter, weil sie auch die Ladezeit im Cockpit verbesser
 
 ## ADR-0069 · Reiter auf der Kundenseite, kompakter Angebots-Editor (2026-10-22)
 
-Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (Übersicht, Besuche, Briefe und Links,
+Die Kundenseite war eine lange Spalte. Sie hat jetzt Reiter (die Übersicht einspaltig: Kontaktabsicht, Aufgaben, Chat, Projekte, Timeline) (Übersicht, Besuche, Briefe und Links,
 Stammdaten) über `HashTabs` (`src/components/ui/tabs.tsx`): alle Panels werden auf dem Server gerendert
 und nur ausgeblendet, der URL-Hash wählt den Reiter. Ein Hash, der auf ein Element in einem Panel zeigt
 (`#datenschutz`, `#chat`, `aufgabe-…`), öffnet dessen Reiter, sodass Links aus Benachrichtigungen

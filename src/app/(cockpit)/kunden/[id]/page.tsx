@@ -267,145 +267,136 @@ export default async function CustomerPage({
                   </CardContent>
                 </Card>
 
-                <div className="grid items-start gap-6 xl:grid-cols-5">
-                  <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-3 [&>*]:min-w-0">
-                    <Card>
-                      <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-                        <CardTitle>Timeline</CardTitle>
-                        {detail.botCount > 0 ? (
-                          <Link
-                            href={showBots ? `/kunden/${id}` : `/kunden/${id}?bots=1`}
-                            className="inline-flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
-                          >
-                            {showBots
-                              ? "Bots und Link-Vorschauen ausblenden"
-                              : `${detail.botCount} ${detail.botCount === 1 ? "Bot" : "Bots"} und Link-Vorschauen anzeigen`}
-                          </Link>
-                        ) : null}
-                      </CardHeader>
-                      <CardContent>
-                        <Timeline
-                          entries={detail.timeline}
-                          prospectId={id}
-                          replays={detail.replays}
-                        />
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <div className="grid min-w-0 grid-cols-1 gap-6 xl:col-span-2 [&>*]:min-w-0">
-                    {detail.threads.length > 0 || detail.callbacks.length > 0 ? (
-                      <Card id={PROSPECT_ANCHORS.contact} className="scroll-mt-20">
-                        <CardHeader>
-                          <CardTitle>Chat und Rückrufe</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-4">
-                          {detail.threads.length > 0 ? (
-                            <ul className="grid gap-2">
-                              {detail.threads.map((thread) => (
-                                <li key={thread.id}>
-                                  <Link
-                                    href={`/chat/${thread.id}`}
-                                    className="grid gap-0.5 rounded-lg border border-border p-3 text-sm hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                                  >
-                                    <span className="flex flex-wrap items-center justify-between gap-2 font-medium">
-                                      <span>
-                                        Chat{thread.visitorName ? ` mit ${thread.visitorName}` : ""}
-                                      </span>
-                                      <span className="flex items-center gap-2 text-xs font-normal text-foreground-muted">
-                                        {thread.unread > 0 ? (
-                                          <Badge tone="accent">{thread.unread} neu</Badge>
-                                        ) : null}
-                                        {formatRelative(thread.lastMessageAt)}
-                                      </span>
-                                    </span>
-                                    {thread.preview ? (
-                                      <span className="line-clamp-2 text-foreground-muted">
-                                        {thread.preview}
-                                      </span>
+                {detail.threads.length > 0 || detail.callbacks.length > 0 ? (
+                  <Card id={PROSPECT_ANCHORS.contact} className="scroll-mt-20">
+                    <CardHeader>
+                      <CardTitle>Chat und Rückrufe</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                      {detail.threads.length > 0 ? (
+                        <ul className="grid gap-2">
+                          {detail.threads.map((thread) => (
+                            <li key={thread.id}>
+                              <Link
+                                href={`/chat/${thread.id}`}
+                                className="grid gap-0.5 rounded-lg border border-border p-3 text-sm hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                              >
+                                <span className="flex flex-wrap items-center justify-between gap-2 font-medium">
+                                  <span>
+                                    Chat{thread.visitorName ? ` mit ${thread.visitorName}` : ""}
+                                  </span>
+                                  <span className="flex items-center gap-2 text-xs font-normal text-foreground-muted">
+                                    {thread.unread > 0 ? (
+                                      <Badge tone="accent">{thread.unread} neu</Badge>
                                     ) : null}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
-                          {detail.callbacks.length > 0 ? (
-                            <CallbackList callbacks={detail.callbacks} />
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    ) : null}
+                                    {formatRelative(thread.lastMessageAt)}
+                                  </span>
+                                </span>
+                                {thread.preview ? (
+                                  <span className="line-clamp-2 text-foreground-muted">
+                                    {thread.preview}
+                                  </span>
+                                ) : null}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {detail.callbacks.length > 0 ? (
+                        <CallbackList callbacks={detail.callbacks} />
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ) : null}
 
-                    <Card id="projekte" aria-labelledby="projects-heading">
-                      <CardHeader>
-                        <CardTitle id="projects-heading">Projekte und Angebote</CardTitle>
-                      </CardHeader>
-                      <CardContent className="grid gap-4">
-                        {projects.length === 0 ? (
-                          <p className="text-sm text-foreground-muted">
-                            Noch kein Projekt. Ein Projekt bündelt Exposé, Angebot und später die
-                            Rechnungen.
-                          </p>
-                        ) : (
-                          <ul className="grid gap-3">
-                            {projects.map((project) => {
-                              const projectOffers = offers.filter(
-                                (offer) => offer.projectId === project.id,
-                              );
-                              return (
-                                <li
-                                  key={project.id}
-                                  className="grid gap-2 rounded-lg border border-border p-3"
-                                >
-                                  <Link
-                                    href={`/projekte/${project.id}`}
-                                    className="flex min-h-11 flex-wrap items-center justify-between gap-2 font-medium hover:text-accent"
-                                  >
-                                    {project.name}
-                                    <Badge tone={PROJECT_STATUS_TONES[project.status]}>
-                                      {PROJECT_STATUS_LABELS[project.status]}
-                                    </Badge>
-                                  </Link>
-                                  {projectOffers.length > 0 ? (
-                                    <ul className="grid gap-1 text-sm">
-                                      {projectOffers.map((offer) => (
-                                        <li key={offer.id}>
-                                          <Link
-                                            href={`/angebote/${offer.id}`}
-                                            className="flex min-h-11 flex-wrap items-center justify-between gap-2 hover:text-accent"
-                                          >
-                                            <span>
-                                              {offer.number ?? "Entwurf"}
-                                              {offer.onceCents > 0 ? (
-                                                <span className="text-foreground-muted">
-                                                  {" "}
-                                                  · {formatCents(offer.onceCents)}
-                                                </span>
-                                              ) : null}
+                <Card id="projekte" aria-labelledby="projects-heading">
+                  <CardHeader>
+                    <CardTitle id="projects-heading">Projekte und Angebote</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    {projects.length === 0 ? (
+                      <p className="text-sm text-foreground-muted">
+                        Noch kein Projekt. Ein Projekt bündelt Exposé, Angebot und später die
+                        Rechnungen.
+                      </p>
+                    ) : (
+                      <ul className="grid gap-3">
+                        {projects.map((project) => {
+                          const projectOffers = offers.filter(
+                            (offer) => offer.projectId === project.id,
+                          );
+                          return (
+                            <li
+                              key={project.id}
+                              className="grid gap-2 rounded-lg border border-border p-3"
+                            >
+                              <Link
+                                href={`/projekte/${project.id}`}
+                                className="flex min-h-11 flex-wrap items-center justify-between gap-2 font-medium hover:text-accent"
+                              >
+                                {project.name}
+                                <Badge tone={PROJECT_STATUS_TONES[project.status]}>
+                                  {PROJECT_STATUS_LABELS[project.status]}
+                                </Badge>
+                              </Link>
+                              {projectOffers.length > 0 ? (
+                                <ul className="grid gap-1 text-sm">
+                                  {projectOffers.map((offer) => (
+                                    <li key={offer.id}>
+                                      <Link
+                                        href={`/angebote/${offer.id}`}
+                                        className="flex min-h-11 flex-wrap items-center justify-between gap-2 hover:text-accent"
+                                      >
+                                        <span>
+                                          {offer.number ?? "Entwurf"}
+                                          {offer.onceCents > 0 ? (
+                                            <span className="text-foreground-muted">
+                                              {" "}
+                                              · {formatCents(offer.onceCents)}
                                             </span>
-                                            <Badge tone={OFFER_STATUS_TONES[offer.status]}>
-                                              {OFFER_STATUS_LABELS[offer.status]}
-                                            </Badge>
-                                          </Link>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-sm text-foreground-muted">
-                                      {project.exposes.length > 0
-                                        ? `${project.exposes.length === 1 ? "1 Exposé" : `${project.exposes.length} Exposés`}, noch kein Angebot.`
-                                        : "Noch kein Angebot."}
-                                    </p>
-                                  )}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                        {canManage ? <CreateProjectForm prospectId={prospect.id} /> : null}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
+                                          ) : null}
+                                        </span>
+                                        <Badge tone={OFFER_STATUS_TONES[offer.status]}>
+                                          {OFFER_STATUS_LABELS[offer.status]}
+                                        </Badge>
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-sm text-foreground-muted">
+                                  {project.exposes.length > 0
+                                    ? `${project.exposes.length === 1 ? "1 Exposé" : `${project.exposes.length} Exposés`}, noch kein Angebot.`
+                                    : "Noch kein Angebot."}
+                                </p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    {canManage ? <CreateProjectForm prospectId={prospect.id} /> : null}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle>Timeline</CardTitle>
+                    {detail.botCount > 0 ? (
+                      <Link
+                        href={showBots ? `/kunden/${id}` : `/kunden/${id}?bots=1`}
+                        className="inline-flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
+                      >
+                        {showBots
+                          ? "Bots und Link-Vorschauen ausblenden"
+                          : `${detail.botCount} ${detail.botCount === 1 ? "Bot" : "Bots"} und Link-Vorschauen anzeigen`}
+                      </Link>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent>
+                    <Timeline entries={detail.timeline} prospectId={id} replays={detail.replays} />
+                  </CardContent>
+                </Card>
               </div>
             ),
           },
