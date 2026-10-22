@@ -35,7 +35,12 @@ import { listDoneTasks, listOpenTasks, taskClock, taskItemView } from "@/server/
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { touchpointUrls } from "@/server/tracking/touchpoints";
 import { signOwnerLink } from "@/server/tracking/visits";
-import { deleteProspectAction, setDoNotContactAction, updateProspectAction } from "../actions";
+import {
+  deleteProspectAction,
+  restrictProspectAction,
+  setDoNotContactAction,
+  updateProspectAction,
+} from "../actions";
 import { ProspectForm } from "../prospect-form";
 import { CreateProjectForm } from "../../projekte/project-forms";
 import { BillingProfileForm } from "./billing-profile";
@@ -121,6 +126,8 @@ export default async function CustomerPage({
   const optOutDays = settings.retention.optOutTrackingDays;
   const { prospect } = detail;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
+  // Sperrvermerk (ADR-0071): no new personal data, letters or links for this customer.
+  const canEditData = canManage && !prospect.restrictedAt;
   const ownerLink = `${origin}/owner-device?token=${encodeURIComponent(await signOwnerLink(workspace.id))}`;
   const realVisits = detail.visits.filter((v) => !v.isBot && !v.isInternal && v.confirmedAt);
 
@@ -150,7 +157,11 @@ export default async function CustomerPage({
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">{prospect.companyName}</h1>
           <Badge tone={STATUS_TONES[prospect.status]}>{STATUS_LABELS[prospect.status]}</Badge>
-          {prospect.doNotContactAt ? <Badge tone="danger">Nicht mehr kontaktieren</Badge> : null}
+          {prospect.restrictedAt ? (
+            <Badge tone="danger">Daten gelöscht</Badge>
+          ) : prospect.doNotContactAt ? (
+            <Badge tone="danger">Nicht mehr kontaktieren</Badge>
+          ) : null}
         </div>
         <p className="text-foreground-muted">
           {[prospect.industry, [prospect.postalCode, prospect.city].filter(Boolean).join(" ")]
@@ -256,7 +267,7 @@ export default async function CustomerPage({
                         bleibt.
                       </p>
                     )}
-                    {canManage ? <AddTask prospectId={prospect.id} clock={clock} /> : null}
+                    {canEditData ? <AddTask prospectId={prospect.id} clock={clock} /> : null}
                     {doneTasks.length > 0 ? (
                       <details>
                         <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm text-foreground-muted hover:text-foreground">
@@ -521,7 +532,7 @@ export default async function CustomerPage({
                   <CardContent>
                     <ProspectLetters
                       prospectId={prospect.id}
-                      canManage={canManage}
+                      canManage={canEditData}
                       letters={letters.map((letter) => ({
                         id: letter.id,
                         kind: letter.kind,
@@ -546,7 +557,7 @@ export default async function CustomerPage({
                     <Touchpoints
                       prospectId={prospect.id}
                       hasExpose={detail.expose !== null}
-                      canManage={canManage}
+                      canManage={canEditData}
                       qrBase={`/kunden/${prospect.id}/qr`}
                       touchpoints={detail.touchpoints.map((link) => ({
                         id: link.id,
@@ -584,7 +595,7 @@ export default async function CustomerPage({
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {canManage ? (
+                    {canEditData ? (
                       <ProspectForm
                         action={updateProspectAction}
                         values={prospect}
@@ -593,7 +604,11 @@ export default async function CustomerPage({
                         compact
                       />
                     ) : (
-                      <p className="text-sm text-foreground-muted">Nur Lesezugriff.</p>
+                      <p className="text-sm text-foreground-muted">
+                        {prospect.restrictedAt
+                          ? "Gesperrt: Die Daten dieses Kunden wurden auf seinen Wunsch gelöscht."
+                          : "Nur Lesezugriff."}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -612,7 +627,7 @@ export default async function CustomerPage({
                         profile={billingProfileOf(prospect)}
                         companyName={prospect.companyName}
                         defaultTermsDays={settings.billing.paymentTermsDays}
-                        canEdit={canManage}
+                        canEdit={canEditData}
                       />
                     </CardContent>
                   </Card>
@@ -624,7 +639,7 @@ export default async function CustomerPage({
                     <CardContent>
                       <Contacts
                         prospectId={prospect.id}
-                        canManage={canManage}
+                        canManage={canEditData}
                         contacts={detail.contacts.map((contact) => ({
                           id: contact.id,
                           name:
@@ -665,46 +680,75 @@ export default async function CustomerPage({
                           </p>
                         </div>
 
-                        <form action={setDoNotContactAction} className="grid gap-2">
-                          <input type="hidden" name="id" value={prospect.id} />
-                          <input
-                            type="hidden"
-                            name="blocked"
-                            value={prospect.doNotContactAt ? "0" : "1"}
-                          />
-                          <p className="text-sm">
-                            {prospect.doNotContactAt ? (
-                              <>
-                                <span className="font-medium">
-                                  Sperrvermerk seit {day.format(prospect.doNotContactAt)}.
-                                </span>{" "}
-                                {prospect.trackingPurgedAt
-                                  ? `Die Besuchsdaten wurden am ${day.format(prospect.trackingPurgedAt)} gelöscht; nur der Sperrvermerk bleibt.`
-                                  : `Keine Briefe mehr. Die Besuchsdaten werden am ${day.format(
-                                      new Date(
-                                        prospect.doNotContactAt.getTime() +
-                                          optOutDays * 24 * 3600 * 1000,
-                                      ),
-                                    )} gelöscht; nur der Sperrvermerk bleibt.`}
-                              </>
-                            ) : (
-                              "Ein Sperrvermerk verhindert weitere Briefe. Die Besuchsdaten werden danach automatisch gelöscht, der Vermerk bleibt."
-                            )}
-                          </p>
-                          <button type="submit" className={`${action} justify-self-start`}>
-                            <Ban aria-hidden className="size-4" />
-                            {prospect.doNotContactAt
-                              ? "Sperrvermerk aufheben"
-                              : "Sperrvermerk setzen"}
-                          </button>
-                        </form>
+                        {prospect.restrictedAt ? null : (
+                          <form action={setDoNotContactAction} className="grid gap-2">
+                            <input type="hidden" name="id" value={prospect.id} />
+                            <input
+                              type="hidden"
+                              name="blocked"
+                              value={prospect.doNotContactAt ? "0" : "1"}
+                            />
+                            <p className="text-sm">
+                              {prospect.doNotContactAt ? (
+                                <>
+                                  <span className="font-medium">
+                                    Sperrvermerk seit {day.format(prospect.doNotContactAt)}.
+                                  </span>{" "}
+                                  {prospect.trackingPurgedAt
+                                    ? `Die Besuchsdaten wurden am ${day.format(prospect.trackingPurgedAt)} gelöscht; nur der Sperrvermerk bleibt.`
+                                    : `Keine Briefe mehr. Die Besuchsdaten werden am ${day.format(
+                                        new Date(
+                                          prospect.doNotContactAt.getTime() +
+                                            optOutDays * 24 * 3600 * 1000,
+                                        ),
+                                      )} gelöscht; nur der Sperrvermerk bleibt.`}
+                                </>
+                              ) : (
+                                "Ein Sperrvermerk verhindert weitere Briefe. Die Besuchsdaten werden danach automatisch gelöscht, der Vermerk bleibt."
+                              )}
+                            </p>
+                            <button type="submit" className={`${action} justify-self-start`}>
+                              <Ban aria-hidden className="size-4" />
+                              {prospect.doNotContactAt
+                                ? "Sperrvermerk aufheben"
+                                : "Sperrvermerk setzen"}
+                            </button>
+                          </form>
+                        )}
 
-                        {keepForRetention ? (
-                          <p className="text-sm text-foreground-muted">
-                            Löschen ist nicht möglich: Für diesen Kunden gibt es ausgestellte
-                            Rechnungen, die 7 Jahre aufbewahrt werden müssen (§ 132 BAO). Ein
-                            Sperrvermerk verhindert weitere Briefe.
+                        {prospect.restrictedAt ? (
+                          <p className="text-sm" role="status">
+                            <span className="font-medium">
+                              Daten am {day.format(prospect.restrictedAt)} gelöscht.
+                            </span>{" "}
+                            Es bleiben nur Firmenname, Projekte, Angebote und ausgestellte
+                            Rechnungen, solange das Gesetz sie verlangt (§ 132 BAO). Danach wird der
+                            Kunde automatisch vollständig gelöscht.
                           </p>
+                        ) : keepForRetention ? (
+                          <details>
+                            <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">
+                              Daten löschen, Rechnungen behalten …
+                            </summary>
+                            <form action={restrictProspectAction} className="mt-3 grid gap-3">
+                              <input type="hidden" name="id" value={prospect.id} />
+                              <p className="text-sm">
+                                Für {prospect.companyName} gibt es ausgestellte Rechnungen, die 7
+                                Jahre aufbewahrt werden müssen (§ 132 BAO). Gelöscht werden
+                                Kontaktdaten, Ansprechpartner, Exposé, Links, Briefe, Besuche,
+                                Aufzeichnungen, Chats, Aufgaben und Rechnungsentwürfe. Firmenname,
+                                Projekte, Angebote und ausgestellte Rechnungen bleiben bis zum Ende
+                                der Frist, dann wird der Kunde automatisch gelöscht. Das lässt sich
+                                nicht rückgängig machen.
+                              </p>
+                              <button
+                                type="submit"
+                                className="inline-flex h-11 items-center justify-self-start rounded-md bg-danger px-4 text-sm font-medium text-danger-foreground hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                              >
+                                Daten löschen
+                              </button>
+                            </form>
+                          </details>
                         ) : (
                           <details>
                             <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-danger">

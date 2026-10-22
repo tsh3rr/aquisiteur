@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
         [path.join(process.cwd(), "src/app/(cockpit)/rechnungen/[id]/invoice-editor.tsx")]: false,
         leaflet$: false,
         rrweb$: false,
+        // Zips the invoice month in the browser (ADR-0071).
+        fflate$: false,
       };
     }
     return config;

@@ -1,6 +1,7 @@
 import { Download, Receipt, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MonthZipButton } from "@/components/invoices/month-zip-button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,10 +14,11 @@ import {
 import { germanDate } from "@/domain/invoices/totals";
 import { formatCents } from "@/domain/offers/totals";
 import { localDateString } from "@/domain/tasks";
-import { listInvoices, smallBusinessRevenue } from "@/server/invoices/manage";
+import { hasReverseCharge, listInvoices, smallBusinessRevenue } from "@/server/invoices/manage";
 import { requireCockpit } from "@/server/session";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 import { LiveRefresh } from "../chat/live-refresh";
+import { loadMonthArchiveAction } from "./actions";
 
 export const metadata: Metadata = { title: "Rechnungen" };
 
@@ -58,7 +60,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
   const { monat } = await searchParams;
   const month = monat && /^\d{4}-(0[1-9]|1[0-2])$/.test(monat) ? monat : undefined;
   const { workspace, tenant } = await requireCockpit();
-  const { rows, revenue, settings, today } = await tenant(async (tx) => {
+  const { rows, revenue, settings, today, reverseCharge } = await tenant(async (tx) => {
     const settings = await loadWorkspaceSettings(tx, workspace.id);
     const today = localDateString(new Date(), settings.notifications.timezone);
     return {
@@ -66,6 +68,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
       today,
       rows: await listInvoices(tx, workspace.id, { month }),
       revenue: await smallBusinessRevenue(tx, workspace.id, Number(today.slice(0, 4))),
+      reverseCharge: await hasReverseCharge(tx, workspace.id),
     };
   });
   const open = rows.filter((row) => ["open", "partly_paid", "overdue"].includes(row.status));
@@ -119,6 +122,23 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
             <Download aria-hidden className="size-4" />
             CSV für {monthLabel(month)}
           </a>
+        ) : null}
+        {month && reverseCharge ? (
+          <a
+            href={`/rechnungen/zm?quartal=${month.slice(0, 4)}-${Math.ceil(Number(month.slice(5)) / 3)}`}
+            download
+            className={linkButton}
+          >
+            <Download aria-hidden className="size-4" />
+            ZM-Daten Q{Math.ceil(Number(month.slice(5)) / 3)} {month.slice(0, 4)}
+          </a>
+        ) : null}
+        {month ? (
+          <MonthZipButton
+            month={month}
+            label={`ZIP für ${monthLabel(month)}`}
+            load={loadMonthArchiveAction}
+          />
         ) : null}
       </form>
 

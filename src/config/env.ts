@@ -67,6 +67,8 @@ const serverEnvSchema = z.object({
    * Nominatim, at most one request per second, from the hourly job.
    * `fake`: deterministic points for tests. `none`: no map positions.
    */
+  /** EU VAT id check for reverse charge (VIES, §7.10); "fake" in tests. */
+  VAT_CHECK_PROVIDER: z.enum(["none", "fake", "vies"]).default("vies"),
   GEOCODER_PROVIDER: z.enum(["none", "fake", "nominatim"]).default("nominatim"),
   /** Contact address sent to Nominatim, as its usage policy asks. */
   GEOCODER_CONTACT: z.string().optional(),

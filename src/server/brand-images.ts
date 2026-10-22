@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import { assets } from "@/db/schema";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
-import { resolveEntry } from "@/components/expose/render-context";
+import { printSource, resolveEntry } from "@/components/expose/render-context";
 
 export type BrandImageKind = "photo" | "logo" | "signature";
 
@@ -49,4 +49,19 @@ export async function loadBrandImages(
     logo: preview(ids.logo),
     signature: preview(ids.signature),
   };
+}
+
+/** One brand image as a print-size URL for the PDF renderers (letters, invoices). */
+export async function brandPrintSource(
+  tx: Transaction,
+  workspaceId: string,
+  assetId: string | undefined,
+): Promise<string | null> {
+  if (!assetId) return null;
+  const [row] = await tx
+    .select()
+    .from(assets)
+    .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
+  const image = row && resolveEntry({ ...row, assetId: row.id }, "/preview/assets", "");
+  return image ? printSource(image) : null;
 }

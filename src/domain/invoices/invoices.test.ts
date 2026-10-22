@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { invoicesCsv, type CsvInvoice } from "./csv";
+import { invoicesCsv, zmCsv, zmRows, type CsvInvoice } from "./csv";
 import { epcPayload, formatIban, normaliseIban } from "./epc";
 import { billingProfileSchema, invoiceDocumentSchema, type InvoiceIssuer } from "./schema";
 import {
@@ -255,6 +255,23 @@ describe("issueIssues (§ 11 UStG)", () => {
     ).toEqual([]);
   });
 
+  it("refuses reverse charge for a UID that VIES rejected and warns while unconfirmed", () => {
+    const totals = invoiceTotals(doc({ treatment: "reverse_charge", lines: [line("ab", 100)] }));
+    const abroad = { ...recipient, country: "DE", vatId: "DE123456789" };
+    const base = { treatment: "reverse_charge" as const, totals, recipient: abroad };
+    expect(errors(input(0, { ...base, vatIdInvalid: true }))).toEqual(["recipient.vatId"]);
+    const warnings = (value: IssueCheckInput) =>
+      issueIssues(value)
+        .filter((issue) => issue.level === "warning")
+        .map((issue) => issue.path);
+    expect(warnings(input(0, base))).toContain("recipient.vatId");
+    const confirmed = {
+      ...abroad,
+      vatCheck: { checkedAt: "2026-10-22T10:00:00.000Z", consultationNumber: "WAPIAAAAX" },
+    };
+    expect(warnings(input(0, { ...base, recipient: confirmed }))).not.toContain("recipient.vatId");
+  });
+
   it("blocks a final invoice while deposit drafts are open", () => {
     expect(errors(input(1_000, { kind: "final", pendingDeposits: 1 }))).toEqual([undefined]);
     expect(errors(input(1_000, { kind: "final", pendingDeposits: 0 }))).toEqual([]);
@@ -355,5 +372,44 @@ describe("invoicesCsv", () => {
     expect(data).toContain("RE-2026-0001;Stornorechnung;22.10.2026;01.10.2026;");
     expect(data).toContain(`"'=HYPERLINK(""x""); ""Huber"""`);
     expect(data).toContain(";-100,00;-20,00;-120,00;0,00;-120,00;0,00;Storno;RE-2026-0000");
+  });
+});
+
+describe("Zusammenfassende Meldung", () => {
+  const base: CsvInvoice = {
+    number: "RE-2026-0001",
+    kind: "standard",
+    issueDate: "2026-10-01",
+    servicePeriod: "01.10.2026",
+    customer: "Huber GmbH",
+    customerVatId: "DE123456789",
+    country: "DE",
+    treatment: "reverse_charge",
+    netCents: 100_000,
+    vatCents: 0,
+    totalCents: 100_000,
+    deductedCents: 0,
+    dueCents: 100_000,
+    paidCents: 0,
+    status: "open",
+    cancels: null,
+  };
+
+  it("sums reverse-charge bases per UID, stornos negative, and skips the rest", () => {
+    const rows = zmRows([
+      base,
+      { ...base, number: "RE-2026-0002", netCents: 50_000 },
+      { ...base, number: "RE-2026-0003", kind: "cancellation", netCents: -50_000 },
+      // A final invoice of 300 € that deducts a deposit of 200 € reports 100 €.
+      { ...base, number: "RE-2026-0006", kind: "final", netCents: 30_000, deductedCents: 20_000 },
+      { ...base, number: "RE-2026-0004", customerVatId: "BE0123456789", customer: "Smet BV" },
+      { ...base, number: "RE-2026-0005", treatment: "domestic", customerVatId: "ATU99999999" },
+    ]);
+    expect(rows).toEqual([
+      { vatId: "BE0123456789", customer: "Smet BV", netCents: 100_000, invoices: 1 },
+      { vatId: "DE123456789", customer: "Huber GmbH", netCents: 110_000, invoices: 4 },
+    ]);
+    const [, first] = zmCsv(rows).trim().split("\r\n");
+    expect(first).toBe("BE0123456789;Smet BV;1000,00;Sonstige Leistung;1");
   });
 });

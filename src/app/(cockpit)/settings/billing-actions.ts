@@ -32,6 +32,7 @@ export async function saveBillingSettings(
   const parsed = billingSettingsSchema.safeParse({
     taxMode: text(formData, "taxMode"),
     vatId: text(formData, "vatId"),
+    taxNumber: text(formData, "taxNumber"),
     smallBusinessNote: text(formData, "smallBusinessNote") || undefined,
     offerValidDays: Number(text(formData, "offerValidDays")),
     offerIntro: text(formData, "offerIntro"),

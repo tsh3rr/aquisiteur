@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
@@ -6,7 +7,8 @@ import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace }
  * maintenance line → the customer picks an option and accepts online → the
  * customer counts as won and the timeline shows it.
  * Phase 7b: invoices from the instalments → issue with a number → PDF →
- * partial payment → storno.
+ * partial payment → storno. Phase 7c: VIES check, Factur-X, month ZIP,
+ * deletion request with retained invoices.
  */
 
 const account = {
@@ -115,6 +117,7 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await letters.getByLabel("Ort").fill("Wien");
   await letters.getByRole("button", { name: "Speichern", exact: true }).click();
   await expect(letters.getByText("Gespeichert.")).toBeVisible();
+  await billing.getByLabel("Steuernummer").fill("12 345/6789");
   await billing.getByLabel("IBAN").fill("AT61 1904 3002 3457 3201");
   await billing.getByRole("button", { name: "Speichern", exact: true }).click();
   await expect(billing.getByText("Gespeichert.")).toBeVisible();
@@ -126,8 +129,19 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await profile.getByLabel("Straße und Hausnummer").fill("Markt 1");
   await profile.getByLabel("PLZ").fill("8010");
   await profile.getByLabel("Ort").fill("Graz");
+  // VIES checks the customer's UID on save (fake provider: a trailing 0 is invalid).
+  await profile.getByLabel("UID-Nummer des Kunden").fill("ATU12345670");
   await profile.getByRole("button", { name: "Rechnungsprofil speichern" }).click();
-  await expect(profile.getByText("Rechnungsprofil gespeichert.")).toBeVisible();
+  await expect(profile.getByText("die UID ist laut VIES ungültig")).toBeVisible();
+  await profile.getByLabel("UID-Nummer des Kunden").fill("ATU12345678");
+  await profile.getByRole("button", { name: "Rechnungsprofil speichern" }).click();
+  await expect(profile.getByText("UID laut VIES gültig")).toBeVisible();
+  const shots = process.env.SCREENSHOT_DIR;
+  if (shots) await profile.screenshot({ path: `${shots}/vies-check.png` });
+  // Without a UID the café stays a domestic customer for the rest of the flow.
+  await profile.getByLabel("UID-Nummer des Kunden").fill("");
+  await profile.getByRole("button", { name: "Rechnungsprofil speichern" }).click();
+  await expect(profile.getByText("Rechnungsprofil gespeichert.", { exact: true })).toBeVisible();
   await expectAccessible(page, "customer billing profile");
 
   // Accepted offer → one draft per instalment: a deposit and the final invoice.
@@ -149,6 +163,11 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF herunterladen" }).click();
   expect((await download).suggestedFilename()).toMatch(/^RE-\d{4}-0001.*\.pdf$/);
+  // The issued invoice is a Factur-X / ZUGFeRD file: PDF/A-3 with the XML attached (ADR-0071).
+  const pdfBytes = readFileSync((await (await download).path())!).toString("latin1");
+  expect(pdfBytes).toContain("factur-x.xml");
+  expect(pdfBytes).toContain("<pdfaid:part>3</pdfaid:part>");
+  if (process.env.E2E_KEEP_PDF) await (await download).saveAs(process.env.E2E_KEEP_PDF);
 
   await page.getByLabel("Betrag in €").fill("500,00");
   await page.getByRole("button", { name: "Zahlung erfassen" }).click();
@@ -163,4 +182,24 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await page.goto("/rechnungen");
   await expect(page.getByRole("link", { name: /RE-\d{4}-0002/ })).toBeVisible();
   await expectAccessible(page, "invoice list");
+
+  // The month for the tax adviser: CSV plus every issued invoice as PDF in one ZIP.
+  await page.getByLabel("Monat").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Anzeigen" }).click();
+  const zip = page.waitForEvent("download");
+  await page.getByRole("button", { name: /^ZIP für / }).click();
+  expect((await zip).suggestedFilename()).toMatch(/^rechnungen-\d{4}-\d{2}\.zip$/);
+  await expect(page.getByText("ZIP mit 2 Rechnungen erstellt.")).toBeVisible();
+
+  // Deletion request with issued invoices: everything else goes, the invoices stay (ADR-0071).
+  await page.goto("/kunden");
+  await page.getByRole("link", { name: "Café Müller" }).first().click();
+  await page.getByRole("tab", { name: "Stammdaten" }).click();
+  const privacy = page.locator("#datenschutz");
+  await privacy.getByText("Daten löschen, Rechnungen behalten …").click();
+  await privacy.getByRole("button", { name: "Daten löschen", exact: true }).click();
+  await expect(page.getByRole("status").getByText(/Daten am .* gelöscht\./)).toBeVisible();
+  await expect(page.getByText("Daten gelöscht", { exact: true })).toBeVisible();
+  await expectAccessible(page, "restricted customer");
+  if (shots) await privacy.screenshot({ path: `${shots}/restricted-customer.png` });
 });

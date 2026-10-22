@@ -370,7 +370,7 @@ Aus einem gewonnenen Prospect wird ein **Kunde**; der Datensatz bleibt derselbe 
 - Tranchen werden zu Anzahlungs- bzw. Teilrechnungen, die letzte zur Schlussrechnung, die alle vorher abgerechneten Beträge und Steuern abzieht.
 - Fortlaufende, atomar vergebene Nummern pro Workspace und Jahr (`RE-2026-0001`), Entwürfe ohne Nummer. Ausgestellte Rechnungen sind unveränderlich; Korrektur nur per Storno mit eigener Nummer und Verweis plus neuer Rechnung. Aufbewahrung 7 Jahre (§ 132 BAO), auch gegenüber Datenschutz-Löschungen (dort Sperrvermerk statt Löschung).
 - PDF mit EPC-QR-Code („Zahlen mit Code“) und eingebettetem ZUGFeRD/Factur-X (EN 16931). Zahlungen manuell erfassen, auch Teilzahlungen. Monatsexport CSV + PDFs als ZIP für den Steuerberater.
-- Umgesetzt in 7b (ADR-0070); nach 7c verschoben: ZUGFeRD/Factur-X, das ZIP mit PDFs, die VIES-Prüfung mit Vormerkung für die ZM und der Sperrvermerk. Bis dahin wird das Löschen eines Kunden mit ausgestellter Rechnung verweigert.
+- Umgesetzt in 7b (ADR-0070) und 7c-1 (ADR-0071): Logo und Akzentfarbe der Agentur im PDF, ZUGFeRD/Factur-X (EN 16931, PDF/A-3b), ZIP mit PDFs und CSV je Monat, VIES-Prüfung der Kunden-UID mit ZM-Daten je Quartal. Ein Löschwunsch für einen Kunden mit ausgestellter Rechnung setzt einen Sperrvermerk: alles außer Firmenname, Projekten, Angeboten und ausgestellten Rechnungen wird gelöscht, der Rest nach Ablauf der Aufbewahrungsfrist automatisch.
 
 **Wartung, Versand und Mahnung (7c)**
 

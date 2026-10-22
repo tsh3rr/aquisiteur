@@ -4,10 +4,12 @@ import { cloudflareDatabase } from "./cloudflare/database";
 import { cloudflareMetrics } from "./cloudflare/metrics";
 import { logEmail } from "./dev/email";
 import { fakeGeocoder } from "./dev/geocoder";
+import { fakeVatCheck } from "./dev/vat-check";
 import { consoleMonitor } from "./dev/monitor";
 import { logPush } from "./dev/push";
 import { memoryRealtime } from "./memory/realtime";
 import { nominatimGeocoder } from "./nominatim/geocoder";
+import { viesVatCheck } from "./vies/vat-check";
 import { pingenLetters } from "./pingen/letters";
 import { diskStorage } from "./disk/storage";
 import { urlDatabase } from "./portable/database";
@@ -97,6 +99,12 @@ export function getInfra(): Infra {
       }
       return null;
     },
+    vatCheck:
+      env.VAT_CHECK_PROVIDER === "vies"
+        ? viesVatCheck()
+        : env.VAT_CHECK_PROVIDER === "fake"
+          ? fakeVatCheck()
+          : null,
     geocoder:
       env.GEOCODER_PROVIDER === "nominatim"
         ? nominatimGeocoder({ appUrl: env.APP_URL, contact: env.GEOCODER_CONTACT })

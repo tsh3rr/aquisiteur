@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, lt, ne, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, sql, sum } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import {
   auditLog,
@@ -68,11 +68,19 @@ export function issuerFrom(settings: WorkspaceSettings, workspaceName: string): 
     city: sender.city ?? null,
     country: sender.country,
     vatId: settings.billing.vatId ?? null,
+    taxNumber: settings.billing.taxNumber ?? null,
     email: settings.channels.email ?? null,
     iban: settings.billing.iban ?? null,
     bic: settings.billing.bic ?? null,
     bankName: settings.billing.bankName ?? null,
   };
+}
+
+function vatIdInvalid(prospect: ProspectRow): boolean {
+  const profile = billingProfileOf(prospect);
+  return Boolean(
+    profile.vatId && profile.vatCheck?.vatId === profile.vatId && !profile.vatCheck.valid,
+  );
 }
 
 /** The customer as recipient: the billing profile, else the master data. */
@@ -86,6 +94,13 @@ export function recipientFrom(prospect: ProspectRow): InvoiceParty {
     city: (own ? profile.city : prospect.city) ?? null,
     country: profile.country ?? prospect.country,
     vatId: profile.vatId ?? null,
+    vatCheck:
+      profile.vatId && profile.vatCheck?.vatId === profile.vatId && profile.vatCheck.valid
+        ? {
+            checkedAt: profile.vatCheck.checkedAt,
+            consultationNumber: profile.vatCheck.consultationNumber,
+          }
+        : null,
   };
 }
 
@@ -332,6 +347,7 @@ export async function loadInvoice(
         review: needsReview(input),
         pendingDeposits,
         smallBusinessRevenueCents,
+        vatIdInvalid: vatIdInvalid(prospect),
       })
     : [];
   return {
@@ -399,7 +415,8 @@ export async function createInvoice(
   now = new Date(),
 ): Promise<string | null> {
   const prospect = await loadProspect(tx, actor.workspaceId, input.prospectId);
-  if (!prospect) return null;
+  // A restricted customer (Sperrvermerk) only keeps what is already issued.
+  if (!prospect || prospect.restrictedAt) return null;
   if (input.projectId) {
     const [project] = await tx
       .select({ id: projects.id })
@@ -920,6 +937,19 @@ export async function hasIssuedInvoices(
 }
 
 /** Saves the billing profile of a customer. */
+/** The stored billing profile of a customer, null when there is none. */
+export async function billingProfileFor(
+  tx: Transaction,
+  workspaceId: string,
+  prospectId: string,
+): Promise<BillingProfile | null> {
+  const [row] = await tx
+    .select({ billing: prospects.billing })
+    .from(prospects)
+    .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospectId)));
+  return row ? billingProfileOf(row) : null;
+}
+
 export async function saveBillingProfile(
   tx: Transaction,
   actor: Actor,
@@ -929,7 +959,13 @@ export async function saveBillingProfile(
   const [row] = await tx
     .update(prospects)
     .set({ billing: profile })
-    .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, prospectId)))
+    .where(
+      and(
+        eq(prospects.workspaceId, actor.workspaceId),
+        eq(prospects.id, prospectId),
+        isNull(prospects.restrictedAt),
+      ),
+    )
     .returning({ id: prospects.id });
   return Boolean(row);
 }
@@ -983,4 +1019,20 @@ export async function monthCsvRows(
       cancels: row.cancelsInvoiceId ? (numbers.get(row.cancelsInvoiceId) ?? null) : null,
     };
   });
+}
+
+/** Whether the workspace has issued reverse-charge invoices, which need a ZM. */
+export async function hasReverseCharge(tx: Transaction, workspaceId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.workspaceId, workspaceId),
+        ne(invoices.status, "draft"),
+        sql`${invoices.document} ->> 'treatment' = 'reverse_charge'`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }

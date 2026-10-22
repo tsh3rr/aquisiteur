@@ -176,6 +176,20 @@
       "when": 1792686184747,
       "tag": "0024_invoices_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792695047723,
+      "tag": "0025_prospect_restriction",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792695054761,
+      "tag": "0026_invoices_retention",
+      "breakpoints": true
     }
   ]
 }

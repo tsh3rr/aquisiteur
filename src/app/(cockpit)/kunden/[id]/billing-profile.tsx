@@ -7,6 +7,18 @@ import { Input, Select } from "@/components/ui/input";
 import type { BillingProfile } from "@/domain/invoices/schema";
 import { saveBillingProfileAction, type BillingProfileState } from "../../rechnungen/actions";
 
+function vatHint(profile: BillingProfile): string {
+  const check = profile.vatCheck;
+  if (!profile.vatId || !check || check.vatId !== profile.vatId) {
+    return "Pflicht über 10.000 € brutto und für Reverse Charge. Wird beim Speichern per VIES geprüft.";
+  }
+  const [year, month, day] = check.checkedAt.slice(0, 10).split("-");
+  const when = `${day}.${month}.${year}`;
+  return check.valid
+    ? `Laut VIES gültig, geprüft am ${when}${check.consultationNumber ? ` (Abfrage ${check.consultationNumber})` : ""}.`
+    : `Laut VIES ungültig, geprüft am ${when}.`;
+}
+
 /** Customer → Stammdaten → Rechnungsprofil (§7.10): who the invoices go to. */
 export function BillingProfileForm({
   prospectId,
@@ -51,12 +63,7 @@ export function BillingProfileForm({
         >
           <Input name="name" defaultValue={profile.name ?? ""} maxLength={160} />
         </Field>
-        <Field
-          label="UID-Nummer des Kunden"
-          optional
-          hint="Pflicht über 10.000 € brutto und für Reverse Charge."
-          error={e("vatId")}
-        >
+        <Field label="UID-Nummer des Kunden" optional hint={vatHint(profile)} error={e("vatId")}>
           <Input name="vatId" defaultValue={profile.vatId ?? ""} maxLength={20} />
         </Field>
         <Field label="Rechnungs-E-Mail" optional error={e("email")}>

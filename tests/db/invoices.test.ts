@@ -18,13 +18,20 @@ import {
   listInvoices,
   loadInvoice,
   monthCsvRows,
+  saveBillingProfile,
   saveInvoiceDraft,
   smallBusinessRevenue,
 } from "@/server/invoices/manage";
 import { createOffer, saveOfferDraft, sendOffer } from "@/server/offers/manage";
-import { answerOffer } from "@/server/offers/public";
+import { answerOffer, loadPublicOffer } from "@/server/offers/public";
 import { deleteProject } from "@/server/projects";
-import { deleteProspect } from "@/server/prospects/mutations";
+import {
+  addContact,
+  deleteProspect,
+  restrictProspect,
+  setDoNotContact,
+} from "@/server/prospects/mutations";
+import { purgeRestrictedProspects } from "@/server/retention";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
 
@@ -430,5 +437,114 @@ describe("invoices", () => {
       .from(schema.invoices)
       .where(eq(schema.invoices.prospectId, published.prospectId));
     expect(left).toEqual([]);
+  });
+
+  it("restricts instead of deleting: keeps issued invoices, drops the rest (Sperrvermerk)", async () => {
+    await db
+      .update(schema.prospects)
+      .set({ email: "info@ibl.test", phone: "+43 316 1", notes: "Mag Holz" })
+      .where(eq(schema.prospects.id, prospectId));
+    const issuedBefore = (await invoicesOfOffer()).filter((row) => row.status !== "draft");
+    expect(await asIda((tx) => restrictProspect(tx, actor, prospectId, now))).toBe(true);
+
+    const [prospect] = await db
+      .select()
+      .from(schema.prospects)
+      .where(eq(schema.prospects.id, prospectId));
+    expect(prospect).toMatchObject({
+      companyName: "Tischlerei Ibl",
+      email: null,
+      phone: null,
+      notes: null,
+      street: null,
+      billing: null,
+    });
+    expect(prospect!.restrictedAt).toEqual(now);
+    expect(prospect!.doNotContactAt).not.toBeNull();
+    expect(prospect!.chatBlockedAt).not.toBeNull();
+    for (const table of [schema.exposes, schema.contacts, schema.touchpoints, schema.letters]) {
+      const rows = await db.select().from(table).where(eq(table.prospectId, prospectId));
+      expect(rows).toEqual([]);
+    }
+    const kept = (await invoicesOfOffer()).filter((row) => row.status !== "draft");
+    expect(kept.map((row) => row.id)).toEqual(issuedBefore.map((row) => row.id));
+    expect((await invoicesOfOffer()).some((row) => row.status === "draft")).toBe(false);
+    expect(await asIda((tx) => createInvoice(tx, actor, { prospectId }, now))).toBeNull();
+    const [offer] = await db.select().from(schema.offers).where(eq(schema.offers.id, offerId));
+    expect(await loadPublicOffer(db, ws, offer!.publicToken, now)).toBeNull();
+    // The restriction cannot be lifted or filled with new personal data.
+    expect(await asIda((tx) => setDoNotContact(tx, actor, prospectId, false))).toBe(false);
+    expect(
+      await asIda((tx) =>
+        addContact(tx, actor, prospectId, { firstName: "Ilse", lastName: "Ibl" }),
+      ),
+    ).toBe(false);
+    expect(
+      await asIda((tx) =>
+        saveBillingProfile(tx, actor, prospectId, {
+          customerType: "business",
+          name: undefined,
+          street: undefined,
+          postalCode: undefined,
+          city: undefined,
+          email: "neu@ibl.test",
+        }),
+      ),
+    ).toBe(false);
+    await expect(
+      asIda((tx) =>
+        publishExpose(
+          tx,
+          { workspaceId: ws, userId: ida.id, source: "api" },
+          { document: minimalExpose("tischlerei-ibl", "Tischlerei Ibl"), assets: [] },
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    // Invoices of 2026 are kept until the end of 2033.
+    expect(await purgeRestrictedProspects(db, ws, now)).toBe(0);
+    const audit = await db
+      .select({ action: schema.auditLog.action })
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.targetId, prospectId));
+    expect(audit.map((row) => row.action)).toContain("prospect.restricted");
+  });
+
+  it("deletes a restricted customer once its invoices are past the retention period", async () => {
+    const published = await asIda((tx) =>
+      publishExpose(
+        tx,
+        { workspaceId: ws, userId: ida.id, source: "api" },
+        { document: minimalExpose("alt-ibl", "Altbau Ibl"), assets: [] },
+      ),
+    );
+    const [template] = (await invoicesOfOffer()).filter((row) => row.status === "issued");
+    const { id: _id, ...copy } = template!;
+    const [old] = await db
+      .insert(schema.invoices)
+      .values({
+        ...copy,
+        prospectId: published.prospectId,
+        projectId: null,
+        offerId: null,
+        milestoneId: null,
+        cancelsInvoiceId: null,
+        number: "2018-0001",
+        issueDate: "2018-03-01",
+        dueDate: "2018-03-15",
+      })
+      .returning();
+    expect(await asIda((tx) => restrictProspect(tx, actor, published.prospectId, now))).toBe(true);
+    expect(await purgeRestrictedProspects(db, ws, now)).toBe(1);
+    const gone = await db
+      .select()
+      .from(schema.prospects)
+      .where(eq(schema.prospects.id, published.prospectId));
+    expect(gone).toEqual([]);
+    const invoice = await db.select().from(schema.invoices).where(eq(schema.invoices.id, old!.id));
+    expect(invoice).toEqual([]);
+    // A younger issued invoice still refuses deletion.
+    expect(
+      await dbError(db.delete(schema.invoices).where(eq(schema.invoices.id, template!.id))),
+    ).toContain("cannot be deleted");
   });
 });

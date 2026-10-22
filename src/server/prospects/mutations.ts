@@ -1,15 +1,19 @@
 import "server-only";
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import {
   auditLog,
+  consents,
   contacts,
   exposes,
+  intentScores,
   invoices,
   letters,
+  notifications,
   prospects,
   savedViews,
   sessionReplays,
+  tasks,
   touchpoints,
 } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
@@ -120,7 +124,13 @@ export async function updateProspect(
       longitude: keep(prospects.longitude),
       geocodedAt: keep(prospects.geocodedAt),
     })
-    .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
+    .where(
+      and(
+        eq(prospects.workspaceId, actor.workspaceId),
+        eq(prospects.id, id),
+        isNull(prospects.restrictedAt),
+      ),
+    )
     .returning({ id: prospects.id });
   return updated.length > 0;
 }
@@ -134,7 +144,14 @@ export async function setDoNotContact(tx: Transaction, actor: Actor, id: string,
   const updated = await tx
     .update(prospects)
     .set({ doNotContactAt: blocked ? new Date() : null })
-    .where(and(eq(prospects.workspaceId, actor.workspaceId), eq(prospects.id, id)))
+    // A restricted customer stays blocked (ADR-0071).
+    .where(
+      and(
+        eq(prospects.workspaceId, actor.workspaceId),
+        eq(prospects.id, id),
+        isNull(prospects.restrictedAt),
+      ),
+    )
     .returning({ id: prospects.id });
   if (updated.length === 0) return false;
   await tx.insert(auditLog).values({
@@ -213,13 +230,124 @@ export async function deleteProspect(
   return true;
 }
 
+/**
+ * Sperrvermerk (§7.10, ADR-0071): the deletion request for a customer whose
+ * issued invoices must be kept (§ 132 BAO). Everything but the company name,
+ * projects, offers and issued invoices is deleted now; the prospect is
+ * blocked for letters, chat and tracking. Retention removes the rest once
+ * the newest invoice is past its period (`purgeRestrictedProspects`).
+ * Returns "deletable" when nothing needs keeping, so the caller deletes.
+ */
+export async function restrictProspect(
+  tx: Transaction,
+  actor: Actor,
+  id: string,
+  now = new Date(),
+): Promise<boolean | "deletable"> {
+  const ws = actor.workspaceId;
+  const [prospect] = await tx
+    .select({ id: prospects.id })
+    .from(prospects)
+    .where(and(eq(prospects.workspaceId, ws), eq(prospects.id, id)))
+    .limit(1);
+  if (!prospect) return false;
+  const [issued] = await tx
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(
+      and(eq(invoices.workspaceId, ws), eq(invoices.prospectId, id), ne(invoices.status, "draft")),
+    )
+    .limit(1);
+  if (!issued) return "deletable";
+  const replays = await tx
+    .select({ id: sessionReplays.id })
+    .from(sessionReplays)
+    .where(and(eq(sessionReplays.workspaceId, ws), eq(sessionReplays.prospectId, id)));
+  const letterRows = await tx
+    .select({ id: letters.id })
+    .from(letters)
+    .where(and(eq(letters.workspaceId, ws), eq(letters.prospectId, id)));
+  // Letters first: they point at touchpoints without a cascade. Touchpoints,
+  // visits, events, chats and callback requests go with the exposé.
+  for (const table of [
+    letters,
+    consents,
+    sessionReplays,
+    exposes,
+    notifications,
+    intentScores,
+    tasks,
+    contacts,
+  ]) {
+    await tx.delete(table).where(and(eq(table.workspaceId, ws), eq(table.prospectId, id)));
+  }
+  await tx
+    .delete(invoices)
+    .where(
+      and(eq(invoices.workspaceId, ws), eq(invoices.prospectId, id), eq(invoices.status, "draft")),
+    );
+  await tx
+    .update(prospects)
+    .set({
+      industry: null,
+      website: null,
+      street: null,
+      postalCode: null,
+      city: null,
+      phone: null,
+      email: null,
+      notes: null,
+      tags: [],
+      estimatedValueCents: null,
+      billing: null,
+      campaignId: null,
+      latitude: null,
+      longitude: null,
+      geocodedAt: null,
+      restrictedAt: now,
+      doNotContactAt: sql`coalesce(${prospects.doNotContactAt}, ${now.toISOString()}::timestamptz)`,
+      chatBlockedAt: sql`coalesce(${prospects.chatBlockedAt}, ${now.toISOString()}::timestamptz)`,
+      trackingPurgedAt: now,
+    })
+    .where(and(eq(prospects.workspaceId, ws), eq(prospects.id, id)));
+  await tx.insert(auditLog).values({
+    workspaceId: ws,
+    actorUserId: actor.userId,
+    action: "prospect.restricted",
+    targetType: "prospect",
+    targetId: id,
+    meta: { letters: letterRows.length, recordings: replays.length },
+  });
+  await deleteReplayFiles(
+    ws,
+    replays.map((r) => r.id),
+  );
+  await deleteLetterPdfs(
+    ws,
+    letterRows.map((letter) => letter.id),
+  );
+  return true;
+}
+
 export async function addContact(
   tx: Transaction,
   actor: Actor,
   prospectId: string,
   contact: Omit<typeof contacts.$inferInsert, "workspaceId" | "prospectId">,
-) {
+): Promise<boolean> {
+  const [open] = await tx
+    .select({ id: prospects.id })
+    .from(prospects)
+    .where(
+      and(
+        eq(prospects.workspaceId, actor.workspaceId),
+        eq(prospects.id, prospectId),
+        isNull(prospects.restrictedAt),
+      ),
+    );
+  if (!open) return false;
   await tx.insert(contacts).values({ ...contact, workspaceId: actor.workspaceId, prospectId });
+  return true;
 }
 
 export async function removeContact(tx: Transaction, actor: Actor, contactId: string) {

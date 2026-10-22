@@ -62,6 +62,14 @@ export function BillingSettingsForm({
           <Input name="vatId" defaultValue={billing.vatId ?? ""} maxLength={14} />
         </Field>
         <Field
+          label="Steuernummer"
+          optional
+          hint="Vom Finanzamt, z. B. 12 345/6789. Ohne UID kennzeichnet sie Sie in der E-Rechnung."
+          error={e("taxNumber")}
+        >
+          <Input name="taxNumber" defaultValue={billing.taxNumber ?? ""} maxLength={20} />
+        </Field>
+        <Field
           label="Hinweis für Kleinunternehmer"
           hint="Erscheint unter jedem Angebot und jeder Rechnung ohne USt."
           error={e("smallBusinessNote")}

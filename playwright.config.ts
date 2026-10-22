@@ -55,6 +55,7 @@ export default defineConfig({
       PUSH_PROVIDER: "log",
       PUSH_LOG_FILE: E2E.pushLog,
       GEOCODER_PROVIDER: "fake",
+      VAT_CHECK_PROVIDER: "fake",
       // Fixed test key, so Pingen credentials can be stored (tests/e2e/pingen.spec.ts).
       INTEGRATIONS_ENCRYPTION_KEY: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
     },

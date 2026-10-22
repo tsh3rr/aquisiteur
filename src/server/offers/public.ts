@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/db";
 import {
   auditLog,
@@ -88,7 +88,14 @@ export async function loadPublicOffer(
       and(eq(projects.workspaceId, offers.workspaceId), eq(projects.id, offers.projectId)),
     )
     .innerJoin(workspaces, eq(workspaces.id, offers.workspaceId))
-    .where(and(eq(offers.workspaceId, workspaceId), eq(offers.publicToken, token)))
+    .where(
+      and(
+        eq(offers.workspaceId, workspaceId),
+        eq(offers.publicToken, token),
+        // A restricted customer (Sperrvermerk, ADR-0071) has no public pages any more.
+        isNull(prospects.restrictedAt),
+      ),
+    )
     .limit(1);
   if (!row) return null;
   const document = offerDocumentSchema.parse(row.version.document);
