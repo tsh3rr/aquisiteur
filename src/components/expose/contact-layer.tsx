@@ -232,6 +232,7 @@ export function ContactLayer(props: ContactLayerProps) {
             <div
               role="group"
               aria-label="Hinweis"
+              data-chat-nudge
               className="w-[min(22rem,calc(100vw-2rem))] origin-bottom-right rounded-[1.75rem] border border-border bg-surface p-2 shadow-xl motion-safe:animate-[nudge-in_240ms_ease-out]"
             >
               <div className="flex items-start gap-3 py-2 pl-2">

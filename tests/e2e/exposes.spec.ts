@@ -78,6 +78,15 @@ test("the public exposé renders accessibly with working slider and price calcul
   await page.keyboard.press("ArrowRight");
   expect(Number(await slider.inputValue())).toBeGreaterThan(Number(before));
 
+  // Dragging works anywhere on the image, not only on the handle.
+  await slider.evaluate((element) => element.scrollIntoView({ block: "center" }));
+  const area = (await slider.boundingBox())!;
+  await page.mouse.move(area.x + area.width * 0.9, area.y + area.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(area.x + area.width * 0.25, area.y + area.height * 0.35, { steps: 6 });
+  await page.mouse.up();
+  await expect(slider).toHaveValue("25");
+
   const total = page.locator("[aria-live='polite']").filter({ hasText: "Einmalig" });
   await expect(total).toContainText("4.700");
   await page.getByText("Fototag in der Werkstatt").click();
