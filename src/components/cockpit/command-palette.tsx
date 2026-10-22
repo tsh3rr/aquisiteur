@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Dialog } from "radix-ui";
+import * as Dialog from "radix-ui/dialog";
 import {
   createContext,
   useCallback,

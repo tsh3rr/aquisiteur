@@ -15,7 +15,7 @@ import { listCatalog, loadOffer } from "@/server/offers/manage";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteOfferAction, duplicateOfferAction } from "../actions";
-import { OfferEditor } from "./offer-editor";
+import { OfferEditorLazy } from "./offer-editor-lazy";
 
 type Params = Promise<{ id: string }>;
 
@@ -144,7 +144,7 @@ export default async function OfferPage({ params }: { params: Params }) {
         </Card>
       ) : null}
 
-      <OfferEditor
+      <OfferEditorLazy
         offerId={offer.id}
         initial={offer.draft}
         taxMode={offer.billing.taxMode}

@@ -1,4 +1,3 @@
-import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Transaction } from "@/db";
 import { assets, exposes, exposeVersions, offers, offerVersions } from "@/db/schema";

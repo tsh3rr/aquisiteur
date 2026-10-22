@@ -989,6 +989,12 @@ Entschieden für Phase 7a:
   Fassung; Entwürfe werden nie von selbst öffentlich); „Ins Exposé übernehmen“ erzeugt
   eine neue Exposé-Version mit diesen Preisen. Laufende Beträge in längeren Intervallen erscheinen im
   Exposé als Monatswert mit Hinweis auf die Abrechnung.
+- **Worker-Größe**: Der Angebots-Editor ist eine reine Client-Komponente, wird nach dem Mounten geladen
+  (`offer-editor-lazy.tsx`, Skeleton solange) und in `next.config.ts` aus dem Server-Bundle aliasiert
+  (wie ADR-0035). `radix-ui` wird nur über Unterpfade (`radix-ui/slot`, `/label`, `/dialog`) importiert,
+  der Barrel-Import zog alle Primitives in den Worker. Zusammen 2864 statt 2982 KiB (Limit 2900).
+  `server-only` fehlt bewusst in `src/server/projects.ts` und `src/server/offers/pricing.ts`, weil
+  `scripts/seed.ts` sie über `publish.ts` importiert.
 - Die Angebotsseite läuft wie das Exposé über die System-Verbindung, auf den Workspace des Hosts
   beschränkt (ADR-0012), ohne `Intl` und ohne Cockpit-Code (ADR-0048). Ansichten von Bots und vom
   eigenen Gerät zählen nicht.
