@@ -1104,3 +1104,35 @@ Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Vers
   Angebotsseiten des Kunden sind danach nicht mehr erreichbar. Danach
   lassen sich Stammdaten, Ansprechpartner und Rechnungsprofil nicht mehr ändern, der Sperrvermerk nicht
   aufheben und kein neues Exposé für den Schlüssel veröffentlichen (409).
+
+## ADR-0072 · Rechnungsversand per E-Mail (2026-10-22, Phase 7c-2)
+
+- **Versand aus der Rechnung**: Ausgestellte Rechnungen haben eine Karte „Versand“ mit Empfänger
+  (Rechnungs-E-Mail des Profils, sonst die des Kunden oder des Hauptansprechpartners), Betreff und Text
+  aus den Einstellungen mit Platzhaltern (`{art}`, `{nummer}`, `{betrag}`, `{faellig}`, `{link}`,
+  `{absender}`, `{kunde}`). Das PDF entsteht wie beim Download im Browser (ADR-0037) und wird mit der
+  ersten Mail unter `<workspace>/invoices/<id>.pdf` gespeichert; jede spätere Mail und die Rechnungsseite
+  geben genau diese Datei heraus, auch wenn der Browser etwas anderes schickt.
+- **Absender und Antworten**: Die Mail kommt von der Plattform-Adresse aus `EMAIL_FROM` (eigene
+  Versand-Subdomain) mit dem Namen der Agentur; `Reply-To` liefert `replyToAddress` an einer Stelle
+  (Kontakt-E-Mail des Workspaces, sonst die des Owners). Jede Mail bekommt eine eigene `Message-ID`
+  und eine Zeile in `outbound_emails` (Kunde, Projekt, Rechnung, Empfänger, Betreff, Status), damit ein
+  späterer Posteingang Antworten zuordnen kann. Der Text selbst wird nicht gespeichert.
+- **Ablauf**: Die Zeile wird mit Status „sending“ angelegt und festgeschrieben, die Mail außerhalb der
+  Transaktion gesendet, danach „sent“ oder „failed“ mit Grund. Erst nach der Annahme durch den Anbieter
+  erledigen sich offene Freigabe-Aufgaben der Rechnung, und „Rechnung … per E-Mail gesendet“ steht in
+  der Timeline.
+- **Zustellstatus**: `POST /api/webhooks/resend`, Svix-Signatur mit `RESEND_WEBHOOK_SECRET`, höchstens fünf
+  Minuten alt. Der Status geht nur vorwärts (`nextEmailStatus`), doppelte und verspätete Ereignisse
+  ändern nichts. Unzustellbar, Spam-Meldung oder Fehler legen eine Aufgabe „Adresse prüfen“ an.
+  Unbekannte Ereignisse (später eingehende Mails) werden ignoriert. Keine Öffnungs-Pixel; die
+  Rechnungsseite merkt sich nur den ersten echten Aufruf (ohne Bots und Owner-Geräte).
+- **Rechnungsseite** `/r/<token>` (22 Zeichen base62, `noindex`, kein Referrer): Betrag, Stand der Zahlung,
+  Bankverbindung und das gespeicherte PDF. Token und PDF stehen in `invoice_shares`, weil die Zeile in
+  `invoices` ab dem Ausstellen eingefroren ist. Kunden mit Sperrvermerk haben keine Rechnungsseite; die
+  Mails des Kunden werden beim Sperrvermerk gelöscht, die Rechnung bleibt.
+- **Freigabe**: Versandmodus pro Workspace (manuell, Freigabe über eine Aufgabe als Standard,
+  automatisch). `requestInvoiceApproval` legt die Aufgabe „Rechnung … freigeben“ mit Verweis auf die
+  Rechnung an; der stündliche Job nutzt sie ab 7c-3 für Wartungs- und Mahnentwürfe. Die automatische
+  Stufe braucht ein serverseitig erzeugtes PDF und kommt mit 7c-3.
+- Ohne `EMAIL_PROVIDER=resend` landen Rechnungsmails im Log, wie Anmeldelinks.

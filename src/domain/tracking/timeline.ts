@@ -326,6 +326,19 @@ function auditEntry(audit: TimelineAudit, index: number): TimelineEntry | null {
         .join(" · ");
       return { ...base, kind: "invoice", title, detail: detail || null };
     }
+    case "invoice.sent":
+    case "invoice.undelivered": {
+      const number = typeof audit.meta.number === "string" ? audit.meta.number : "";
+      const to = typeof audit.meta.to === "string" ? audit.meta.to : null;
+      const title =
+        audit.action === "invoice.sent"
+          ? `Rechnung ${number} per E-Mail gesendet`
+          : `Rechnung ${number} nicht zugestellt`;
+      const detail = [to ? `an ${to}` : null, audit.actorName ? `von ${audit.actorName}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      return { ...base, kind: "invoice", title, detail: detail || null };
+    }
     default:
       return null;
   }

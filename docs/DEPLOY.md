@@ -151,6 +151,10 @@ Wolke anlegen, ein Origin-Zertifikat dafür erzeugen und in Coolify eintragen. E
 1. **Domains → Add domain**, Region **EU (Ireland)**, z. B. `mail.aquisiteur.de`; die DNS-Einträge (SPF,
    DKIM) anlegen und verifizieren lassen.
 2. **API Keys → Create** mit _Sending access_.
+3. Für den Zustellstatus von Rechnungsmails: **Webhooks → Add endpoint** mit
+   `https://<APP_URL>/api/webhooks/resend` und den Ereignissen `email.sent`, `email.delivered`,
+   `email.delivery_delayed`, `email.bounced`, `email.complained` und `email.failed`. Das
+   _Signing secret_ (`whsec_…`) kommt in `RESEND_WEBHOOK_SECRET`.
 
 Zum ersten Ausprobieren geht es auch ohne Resend, siehe „Ohne E-Mail-Versand testen“.
 
@@ -228,6 +232,7 @@ Passwortmanager. `INTEGRATIONS_ENCRYPTION_KEY` besonders gut sichern.
 | `EMAIL_PROVIDER`              | `resend`                                                                           |        |
 | `EMAIL_FROM`                  | `Aquisiteur <anmeldung@mail.aquisiteur.de>`                                        |        |
 | `RESEND_API_KEY`              | aus Schritt 5                                                                      | ja     |
+| `RESEND_WEBHOOK_SECRET`       | aus Schritt 5, Punkt 3 (Zustellstatus der Rechnungsmails)                          | ja     |
 | `STORAGE_PROVIDER`            | `s3`                                                                               |        |
 | `S3_ENDPOINT`                 | `https://<account-id>.eu.r2.cloudflarestorage.com`                                 |        |
 | `S3_BUCKET`                   | `aquisiteur-files`                                                                 |        |

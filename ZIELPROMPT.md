@@ -376,6 +376,7 @@ Aus einem gewonnenen Prospect wird ein **Kunde**; der Datensatz bleibt derselbe 
 
 - Wartungsverträge: Intervall monatlich, quartalsweise, halbjährlich, jährlich; im Voraus oder nachträglich; anteilige erste und letzte Periode; Mindestlaufzeit, Kündigungsfrist; optional VPI-Indexierung mit Vorankündigung und Stundenkontingent. Jede Rechnung nennt den Leistungszeitraum.
 - Versand per E-Mail über den E-Mail-Port (Resend, optional SMTP über das eigene Postfach) von einer eigenen Versand-Subdomain, PDF im Anhang, Link zur Rechnungsseite `<domain>/r/<token>`, Zustellstatus per Webhook, keine Öffnungs-Pixel. Drei Stufen pro Workspace und Vertrag: manuell, **Freigabe über eine Aufgabe** (Standard: der stündliche Job legt den Entwurf und eine Aufgabe „Rechnung freigeben“ an, die sich nach dem Senden selbst erledigt) und automatisch für unveränderte Wartungsrechnungen mit Rückfall auf Freigabe.
+- Umgesetzt in 7c-2 (ADR-0072): Versand aus der Rechnung mit PDF im Anhang und Link zur Rechnungsseite, Versand-Log mit Message-ID, Zustellstatus per Resend-Webhook mit Aufgabe bei Unzustellbarkeit, Versandmodus und Mailtext in den Einstellungen, Freigabe-Aufgabe, die sich mit dem Versand erledigt. SMTP über das eigene Postfach folgt bei Bedarf.
 - Mahnwesen: Erinnerung 3 Tage nach Fälligkeit, Mahnungen nach 14 und 28 Tagen mit derselben Freigabe-Logik; Verzugszinsen (§ 456 UGB) und 40-€-Pauschale (§ 458 UGB) optional.
 - Projekt-Dashboard: Angebotsvolumen, Annahmequote, Zeit bis zur Annahme, offene Posten, MRR, Umsatz je Kampagne.
 

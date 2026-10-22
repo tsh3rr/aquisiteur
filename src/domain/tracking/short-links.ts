@@ -22,6 +22,7 @@ export function generateShortCode(length = 4): string {
 export const RESERVED_CODES = new Set([
   "x",
   "a",
+  "r",
   "t",
   "assets",
   "impressum",

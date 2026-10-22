@@ -190,6 +190,20 @@
       "when": 1792695054761,
       "tag": "0026_invoices_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792704326202,
+      "tag": "0027_outbound_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792704333022,
+      "tag": "0028_outbound_email_grants",
+      "breakpoints": true
     }
   ]
 }

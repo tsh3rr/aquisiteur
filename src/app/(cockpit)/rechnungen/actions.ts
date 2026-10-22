@@ -23,6 +23,7 @@ import {
   billingProfileFor,
 } from "@/server/invoices/manage";
 import { printableInvoice } from "@/server/invoices/printable";
+import { MAX_INVOICE_PDF_BYTES, sendInvoiceEmail } from "@/server/invoices/send";
 import { checkVatId, type VatCheckOutcome } from "@/server/invoices/vat-check";
 import { requireCockpit } from "@/server/session";
 import { loadWorkspaceSettings } from "@/server/workspaces";
@@ -328,4 +329,58 @@ export async function loadMonthArchiveAction(month: string): Promise<MonthArchiv
     }
     return { ok: true as const, csv: invoicesCsv(rows), invoices };
   });
+}
+
+export interface SendInvoiceState {
+  ok: boolean;
+  message?: string;
+  errors?: Record<string, string>;
+}
+
+const sendSchema = z.object({
+  to: z.email("Bitte eine gültige E-Mail-Adresse angeben.").max(254),
+  subject: z.string().trim().min(3, "Bitte einen Betreff angeben.").max(200),
+  body: z.string().trim().min(10, "Bitte einen kurzen Text schreiben.").max(4000),
+});
+
+/**
+ * Sends an issued invoice by e-mail (§7.10, 7c-2). The form carries the PDF
+ * the browser rendered; it is stored with the first mail and reused after.
+ */
+export async function sendInvoiceAction(formData: FormData): Promise<SendInvoiceState> {
+  const { actor, tenant } = await manager();
+  const invoiceId = id.safeParse(text(formData, "invoiceId"));
+  if (!invoiceId.success) return { ok: false, message: "Rechnung nicht gefunden." };
+  const parsed = sendSchema.safeParse({
+    to: text(formData, "to").trim(),
+    subject: text(formData, "subject"),
+    body: text(formData, "body"),
+  });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Bitte prüfen Sie die markierten Felder.",
+      errors: issuesByField(parsed.error),
+    };
+  }
+  const file = formData.get("pdf");
+  const pdf =
+    file instanceof File && file.size > 0 && file.size <= MAX_INVOICE_PDF_BYTES
+      ? new Uint8Array(await file.arrayBuffer())
+      : null;
+  const result = await sendInvoiceEmail(tenant, actor, {
+    invoiceId: invoiceId.data,
+    ...parsed.data,
+    pdf,
+  });
+  revalidateInvoice(invoiceId.data);
+  if (result.ok) return { ok: true, message: `Rechnung an ${parsed.data.to} gesendet.` };
+  const messages: Record<typeof result.error, string> = {
+    not_found: "Nur ausgestellte Rechnungen lassen sich senden.",
+    restricted: "Für diesen Kunden gilt ein Sperrvermerk.",
+    pdf_missing: "Das PDF fehlt. Bitte erneut senden.",
+    pdf_invalid: "Das PDF ist ungültig oder größer als 4 MB.",
+    send_failed: "Die E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",
+  };
+  return { ok: false, message: messages[result.error] };
 }

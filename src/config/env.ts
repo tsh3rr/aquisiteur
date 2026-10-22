@@ -29,6 +29,8 @@ const serverEnvSchema = z.object({
   EMAIL_PROVIDER: z.enum(["log", "resend"]).default("log"),
   EMAIL_FROM: z.string().default("Aquisiteur <noreply@aquisiteur.app>"),
   RESEND_API_KEY: z.string().optional(),
+  /** Signing secret (`whsec_…`) of the Resend webhook for delivery status (7c-2). */
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
   /** `local` writes to LOCAL_STORAGE_DIR (dev, tests); `s3` uses any S3 API, in production R2. */
   STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
   LOCAL_STORAGE_DIR: z.string().default(".data/storage"),

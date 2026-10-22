@@ -14,6 +14,7 @@ import { loadWorkspaceSettings } from "@/server/workspaces";
 export interface TaskView {
   id: string;
   prospectId: string;
+  invoiceId: string | null;
   companyName: string;
   title: string;
   note: string | null;
@@ -28,6 +29,7 @@ export interface TaskView {
 const view = {
   id: tasks.id,
   prospectId: tasks.prospectId,
+  invoiceId: tasks.invoiceId,
   companyName: prospects.companyName,
   title: tasks.title,
   note: tasks.note,
@@ -326,6 +328,7 @@ export function taskItemView(task: TaskView) {
   return {
     id: task.id,
     prospectId: task.prospectId,
+    invoiceId: task.invoiceId,
     companyName: task.companyName,
     title: task.title,
     note: task.note,

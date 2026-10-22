@@ -91,7 +91,8 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [ ] 7a, Rest: `offer.json` im Exposé-Ordner, Angebotsanfrage aus dem Exposé, mehrere Exposés pro Kunde
 - [x] 7b: Rechnungsprofil am Kunden (Adresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel), Rechnungen nach österreichischem Recht (Kleinunternehmer und Regelbesteuerung), Anzahlungs- und Schlussrechnungen aus Tranchen, Rechnungs-PDF mit EPC-QR, Nummernkreis, Storno, Zahlungen, CSV-Export (ADR-0070)
 - [x] 7c-1: Logo und Akzentfarbe im Rechnungs-PDF, ZUGFeRD/Factur-X im PDF, ZIP mit PDFs für den Steuerberater, VIES-Prüfung und Zusammenfassende Meldung, Sperrvermerk statt Löschung (ADR-0071)
-- [ ] 7c: Wartungsverträge mit periodischer Abrechnung, Versand per E-Mail (Resend) mit Freigabe über die Aufgaben, Zahlungserinnerungen
+- [x] 7c-2: Versand per E-Mail mit PDF im Anhang, Rechnungsseite `/r/<token>`, Zustellstatus per Webhook, Freigabe-Aufgabe (ADR-0072)
+- [ ] 7c: Wartungsverträge mit periodischer Abrechnung und automatischem Versand, Zahlungserinnerungen
 - [ ] Später: eigene Rechnungsvorlagen, E-Rechnung (ebInterface/ZUGFeRD), Bankabgleich
 
 ## Später

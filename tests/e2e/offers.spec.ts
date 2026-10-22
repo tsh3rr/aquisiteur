@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { E2E } from "../../playwright.config";
 import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
 /**
@@ -168,6 +169,52 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   expect(pdfBytes).toContain("factur-x.xml");
   expect(pdfBytes).toContain("<pdfaid:part>3</pdfaid:part>");
   if (process.env.E2E_KEEP_PDF) await (await download).saveAs(process.env.E2E_KEEP_PDF);
+
+  // By e-mail (7c-2): the PDF rendered here goes along, the link leads to the invoice page.
+  const shipping = page.locator("#versand");
+  await shipping.getByLabel("An").fill("buchhaltung@cafe-mueller.test");
+  await shipping.getByRole("button", { name: "Per E-Mail senden" }).click();
+  await expect(
+    shipping.getByText("Rechnung an buchhaltung@cafe-mueller.test gesendet."),
+  ).toBeVisible();
+  await expect(shipping.getByText("Versendet", { exact: true })).toBeVisible();
+  await expectAccessible(page, "invoice shipping");
+  if (process.env.SCREENSHOT_DIR) {
+    await shipping.screenshot({ path: `${process.env.SCREENSHOT_DIR}/invoice-shipping.png` });
+  }
+  const mail = readFileSync(E2E.mailLog, "utf8")
+    .trim()
+    .split("\n")
+    .map(
+      (line) =>
+        JSON.parse(line) as {
+          to: string;
+          text: string;
+          attachments?: { filename: string; bytes: number }[];
+        },
+    )
+    .filter((entry) => entry.to === "buchhaltung@cafe-mueller.test")
+    .at(-1)!;
+  expect(mail.attachments![0]!.filename).toMatch(/^RE-\d{4}-0001\.pdf$/);
+  expect(mail.attachments![0]!.bytes).toBeGreaterThan(10_000);
+  const invoiceUrl = mail.text.match(/https?:\/\/\S+\/r\/[0-9A-Za-z]{22}/)![0];
+  const reader = await browser.newContext();
+  const readerPage = await reader.newPage();
+  await readerPage.goto(invoiceUrl);
+  await expect(
+    readerPage.getByRole("heading", { level: 1, name: /Anzahlungsrechnung RE-\d{4}-0001/ }),
+  ).toBeVisible();
+  await expectAccessible(readerPage, "public invoice page");
+  if (process.env.SCREENSHOT_DIR) {
+    await readerPage.screenshot({
+      path: `${process.env.SCREENSHOT_DIR}/public-invoice.png`,
+      fullPage: true,
+    });
+  }
+  const stored = readerPage.waitForEvent("download");
+  await readerPage.getByRole("link", { name: "PDF herunterladen" }).click();
+  expect((await stored).suggestedFilename()).toMatch(/^RE-\d{4}-0001\.pdf$/);
+  await reader.close();
 
   await page.getByLabel("Betrag in €").fill("500,00");
   await page.getByRole("button", { name: "Zahlung erfassen" }).click();
