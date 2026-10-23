@@ -1,3 +1,4 @@
+import { EXPIRED_SECTION_NAMES } from "./expiry";
 import type { ExposeBlock, ExposeDocument } from "./schema";
 
 /** Title for the table of contents, if the block has one. */
@@ -32,6 +33,12 @@ export function exposeOutline(document: ExposeDocument | null): ExposeOutline {
       for (const option of block.options) {
         pricingOptions.set(`${block.id}:${option.id}`, option.title);
       }
+    }
+  }
+  if (document) {
+    // Sections of the short page (§7.3) last; an authored block with the same id wins.
+    for (const [id, name] of Object.entries(EXPIRED_SECTION_NAMES)) {
+      if (!blocks.has(id)) blocks.set(id, name);
     }
   }
   return { blocks, pricingOptions };

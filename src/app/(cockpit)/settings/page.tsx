@@ -32,6 +32,7 @@ import { NotificationRules } from "./notification-rules";
 import { PasskeyManager } from "./passkey-manager";
 import { PushDevices } from "./push-device";
 import { ReplaySettingsForm } from "./replay-settings";
+import { ExposeExpiryForm } from "./expose-expiry-settings";
 import { ScoreSettingsForm } from "./score-settings";
 import { PlatformUsageList, WorkspaceUsageList } from "./system-usage";
 import { isPlatformAdmin, platformUsage, workspaceUsage } from "@/server/system-usage";
@@ -287,6 +288,23 @@ export default async function SettingsPage() {
           <ScoreSettingsForm
             weights={resolveWeights(settings.scoreWeights)}
             timezone={settings.notifications.timezone}
+            canEdit={canEditSettings}
+          />
+        </CardContent>
+      </Card>
+
+      <Card id="exposes">
+        <CardHeader>
+          <CardTitle>Ablauf von Exposés</CardTitle>
+          <CardDescription>
+            Ein Exposé, das lange niemand öffnet, wirkt beim späten Aufruf veraltet. Dann zeigt der
+            Link eine kurze Seite, die zum Gespräch einlädt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ExposeExpiryForm
+            enabled={settings.exposeExpiry.enabled}
+            afterDays={settings.exposeExpiry.afterDays}
             canEdit={canEditSettings}
           />
         </CardContent>

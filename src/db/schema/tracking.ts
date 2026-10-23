@@ -99,6 +99,8 @@ export const visits = pgTable(
     isInternal: boolean("is_internal").notNull().default(false),
     /** Set when the exposé's script reported in: a real browser rendered the page. */
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    /** The exposé had expired: the visitor saw the short page (§7.3, ADR-0078). */
+    onExpiredPage: boolean("on_expired_page").notNull().default(false),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     /** Visible time from heartbeats, in seconds. */

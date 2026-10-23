@@ -105,6 +105,7 @@ export const workspaceSettings = pgTable(
     replay: jsonb("replay").notNull().default({}),
     letter: jsonb("letter").notNull().default({}),
     billing: jsonb("billing").notNull().default({}),
+    exposeExpiry: jsonb("expose_expiry").notNull().default({}),
     ...timestamps,
   },
   (t) => [workspaceIsolation(t.workspaceId)],

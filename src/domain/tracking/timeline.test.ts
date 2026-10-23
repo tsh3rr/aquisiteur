@@ -54,6 +54,9 @@ describe("timeline wording", () => {
     expect(visitTitle(visit({ confirmedAt: null }))).toBe(
       "Per QR-Code aufgerufen, Seite nicht geladen",
     );
+    expect(visitTitle(visit({ onExpiredPage: true }))).toBe(
+      "Per QR-Code geöffnet, Kurzseite (Exposé abgelaufen)",
+    );
     expect(visitDetail(visit())).toBe(
       "Smartphone, iOS, Safari · Leipzig · 3 min 15 s aktiv · 75 % gescrollt · über „Brief“",
     );

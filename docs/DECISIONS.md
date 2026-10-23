@@ -1321,3 +1321,30 @@ Der Reiter „Geschäft“ (ADR-0076) bekommt drei Diagramme, auf Wunsch des Own
   Umsatzdiagramm schließt mit Escape (WCAG 1.4.13).
 - Zwei neue Farbtokens `chart1` (Indigo) und `chart2` (Orange) je Schema; das Paar ist für
   Farbsehschwächen geprüft (ΔE über 24 in hell und dunkel) und erreicht 3:1 gegen die Fläche.
+
+## ADR-0078 · Ablauf von Exposés: Kurzseite statt eigener Version (2026-10-23)
+
+Ein Exposé, das lange niemand öffnet, wirkt beim späten Aufruf veraltet. Nach einer einstellbaren Zahl
+ruhiger Tage (Standard 60) zeigt sein Link deshalb eine Kurzseite (ZIELPROMPT §7.3).
+
+- **Abgeleitete Ansicht, keine neue Version.** Die Kurzseite entsteht beim Aufruf aus der aktuellen
+  Version (`expiredPage()` in `src/domain/expose/expiry.ts`). Eine eigene Version hätte bei jedem
+  Exposé zusätzliche Arbeit bedeutet, hätte die Versionsliste mit Inhalten gefüllt, die niemand
+  geschrieben hat, und müsste bei jeder Änderung nachgezogen werden. So passt die Kurzseite immer zum
+  Brief, Tracking und Abschnitts-IDs bleiben dieselben, und eine neue Version ist sofort wieder voll da.
+- **Kein gespeicherter Status, kein Job.** Abgelaufen ist ein Exposé, wenn die letzte Aktivität länger
+  her ist als die Frist. Aktivität ist das Späteste aus: Veröffentlichen der aktuellen Version,
+  `exposes.expiry_reset_at` („Wieder voll anzeigen“), letzter Brief mit `posted_at` und letzter echter
+  Besuch des ganzen Exposés. Ein neuer Brief, eine neue Version oder der Knopf im Cockpit machen es
+  ohne weiteren Schritt wieder aktuell; ein ausgefallener Cron kann nichts verzögern.
+- **Besuche der Kurzseite** tragen `visits.on_expired_page`. Sie zählen in Timeline, Score und
+  Benachrichtigungen wie jeder Besuch (ein später Rückkehrer ist ein Signal), aber nicht als Aktivität,
+  sonst brächte schon ein kurzer Blick das ganze Exposé zurück. Ob die Kurzseite gilt, entscheidet der
+  Server beim Start des Besuchs, nicht das Script.
+- **Funnel-Gedanke:** eine Botschaft, ein Ziel. Ehrlicher Grund statt künstlicher Verknappung, ein
+  niedrigschwelliges Angebot (frischer, kostenloser Blick), ein Button zum Kontakt über dem Falz, das
+  Gesicht des Owners als Vertrauenssignal, Vorher-nachher als stärkster Beweis, die Ideen nur als
+  Stichpunkte (Neugier statt Lesestoff) und danach sofort alle Kontaktwege. Preise, Inhaltsmenü und
+  PDF entfallen, weil sie zum alten Angebot gehören.
+- Die Kurzseite trägt nicht mehr das Theming des Prospects, sondern die Akzentfarbe der Agentur im Stil
+  `editorial`; die Bilder des Sliders bleiben.

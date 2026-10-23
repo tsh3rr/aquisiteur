@@ -24,6 +24,8 @@ export interface TimelineVisit {
   activeSeconds: number;
   maxScroll: number;
   touchpointLabel: string | null;
+  /** Saw the short page of an expired exposé (§7.3). */
+  onExpiredPage?: boolean;
 }
 
 export interface TimelineEvent {
@@ -123,7 +125,7 @@ export function visitTitle(visit: TimelineVisit): string {
   }[visit.source];
   if (visit.isInternal) return `${how} (Ihr eigenes Gerät)`;
   if (!visit.confirmedAt) return `${how.replace("geöffnet", "aufgerufen")}, Seite nicht geladen`;
-  return how;
+  return visit.onExpiredPage ? `${how}, Kurzseite (Exposé abgelaufen)` : how;
 }
 
 export function visitDetail(visit: TimelineVisit): string {

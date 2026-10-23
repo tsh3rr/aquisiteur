@@ -205,6 +205,12 @@ Unter **Exposés** siehst du alle veröffentlichten Exposés mit Version und Sta
 eine Vorschau (Mobil/Desktop), alle Versionen und den Schalter **Offline nehmen**. Offline genommene
 Exposés antworten mit 404, bis du sie wieder online stellst oder neu veröffentlichst.
 
+Ruft niemand ein Exposé lange auf (Einstellungen → Ablauf von Exposés, Standard 60 Tage), zeigt der Link
+eine **Kurzseite**. Sie entsteht automatisch aus dem Exposé: der erste `before_after`-Block ohne `intro`,
+die `title` der `proposal`-Punkte (ohne `proposal` die der `findings`, höchstens acht) und die Kanäle
+des `contact`-Blocks. Schreib Titel deshalb so, dass sie auch allein verständlich sind. Die Vorschau
+der Kurzseite steht auf der Detailseite neben der normalen Vorschau.
+
 ## Was Interessenten sehen
 
 - Kein Cookie-Banner nötig: Exposés setzen keine Cookies. Ein kleines eigenes Script misst ohne Cookies,

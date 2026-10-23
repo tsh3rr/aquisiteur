@@ -94,6 +94,8 @@ export const exposes = pgTable(
     }),
     /** Taken offline by the owner; the public URL then answers 404. */
     unpublishedAt: timestamp("unpublished_at", { withTimezone: true }),
+    /** „Wieder voll anzeigen“: restarts the expiry clock (§7.3, ADR-0078). */
+    expiryResetAt: timestamp("expiry_reset_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

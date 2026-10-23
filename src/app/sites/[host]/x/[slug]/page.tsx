@@ -44,6 +44,7 @@ export default async function PublicExposePage({ params }: { params: Params }) {
     <ExposeView
       data={data}
       mode="public"
+      variant={data.expiry.expired ? "expired" : "full"}
       nonce={nonce}
       links={{
         optOut: `/x/${slug}/kein-interesse`,

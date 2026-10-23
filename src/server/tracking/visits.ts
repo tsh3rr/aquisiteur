@@ -21,10 +21,12 @@ import { signToken, verifyToken } from "@/domain/tracking/signed-token";
 import { detectBot, geoFromHeaders, parseUserAgent } from "@/domain/tracking/user-agent";
 import { workspaceAvailable } from "@/server/chat/presence";
 import { defer } from "@/server/defer";
+import { exposeExpiry } from "@/server/exposes/expiry";
 import { processProspect } from "@/server/intent/process";
 import type { NotifyInput } from "@/server/notifications/notify";
 import { publish, workspaceTopic } from "@/server/realtime";
 import { advanceStatus } from "@/server/prospects/auto-status";
+import { loadWorkspaceSettings } from "@/server/workspaces";
 import { hitRateLimit } from "./rate-limit";
 import { createTouchpoint } from "./touchpoints";
 
@@ -155,6 +157,8 @@ interface VisitInput {
   /** Extra bot signal from the caller (HEAD request, empty viewport). */
   botReason?: string | null;
   confirmed?: boolean;
+  /** The exposé had expired and showed its short page (§7.3). */
+  onExpiredPage?: boolean;
 }
 
 export async function createVisit(db: Database | Transaction, input: VisitInput) {
@@ -178,6 +182,7 @@ export async function createVisit(db: Database | Transaction, input: VisitInput)
       botReason,
       isInternal: input.internal,
       confirmedAt: input.confirmed ? new Date() : null,
+      onExpiredPage: input.onExpiredPage ?? false,
     })
     .returning({ id: visits.id, isBot: visits.isBot });
   return row!;
@@ -230,6 +235,9 @@ export async function startVisit(
     );
   if (!expose) return { error: "not_found" };
   if (!(await hitRateLimit(db, `t:start:${expose.id}`, 60, 600))) return { error: "limited" };
+  // Decided before this visit exists, exactly as the page did when it rendered.
+  const { exposeExpiry: expirySettings } = await loadWorkspaceSettings(db, input.workspaceId);
+  const { expired } = await exposeExpiry(db, input.workspaceId, expose.id, expirySettings);
 
   const botReason =
     detectBot(input.headers) ??
@@ -247,6 +255,7 @@ export async function startVisit(
         .set({
           confirmedAt: new Date(),
           lastSeenAt: new Date(),
+          onExpiredPage: expired,
           isInternal: sql`${visits.isInternal} or ${input.internal}`,
           isBot: sql`${visits.isBot} or ${botReason !== null}`,
           botReason: sql`coalesce(${visits.botReason}, ${botReason})`,
@@ -275,6 +284,7 @@ export async function startVisit(
         internal: input.internal,
         botReason,
         confirmed: true,
+        onExpiredPage: expired,
       }).then((row) => ({ id: row.id, quiet: row.isBot || input.internal })));
 
     await tx.insert(events).values({

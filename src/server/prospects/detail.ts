@@ -91,6 +91,7 @@ export async function loadProspectDetail(
       botReason: visits.botReason,
       isInternal: visits.isInternal,
       confirmedAt: visits.confirmedAt,
+      onExpiredPage: visits.onExpiredPage,
       startedAt: visits.startedAt,
       lastSeenAt: visits.lastSeenAt,
       activeSeconds: visits.activeSeconds,
