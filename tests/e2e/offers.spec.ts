@@ -244,7 +244,8 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await page.goto("/angebote");
   await page.getByRole("link", { name: /Neue Website für das Café/ }).click();
   await page.getByRole("button", { name: "Wartungsvertrag anlegen" }).click();
-  await expect(page.getByText("Wartungsvertrag angelegt.")).toBeVisible();
+  // The page refreshes with the new contract, and the button goes away with it.
+  await expect(page.getByRole("button", { name: "Wartungsvertrag anlegen" })).toHaveCount(0);
   await page.getByRole("link", { name: /Wartung: Neue Website für das Café/ }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Wartung: Neue Website für das Café" }),

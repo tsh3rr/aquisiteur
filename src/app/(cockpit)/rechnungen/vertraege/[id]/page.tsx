@@ -45,7 +45,7 @@ export default async function ContractPage({ params }: { params: Params }) {
   const facts: [string, string][] = [
     [
       "Abrechnung",
-      `${BILLING_LABELS[interval]}, ${CONTRACT_TIMING_LABELS[contract.timing]}, je Kalender-${INTERVAL_PERIOD_LABELS[interval].toLowerCase()}`,
+      `${BILLING_LABELS[interval]}, ${CONTRACT_TIMING_LABELS[contract.timing]}, je Kalender${INTERVAL_PERIOD_LABELS[interval].toLowerCase()}`,
     ],
     ["Beginn", contract.startDate ? germanDate(contract.startDate) : "noch offen"],
     ["Mindestlaufzeit", contract.minimumMonths > 0 ? months(contract.minimumMonths) : "keine"],

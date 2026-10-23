@@ -32,6 +32,8 @@ const nextConfig: NextConfig = {
           ? {
               "@react-pdf/renderer$": false,
               [path.join(process.cwd(), "src/components/invoices/invoice-document.tsx")]: false,
+              // The server imports it through the "@/" path, which resolves without the extension.
+              [path.join(process.cwd(), "src/components/invoices/invoice-document")]: false,
             }
           : {}),
         // Exposé layers that only an effect in the browser imports (ADR-0065):
