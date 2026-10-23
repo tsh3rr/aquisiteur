@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatCount } from "@/domain/analytics/format";
+import { ScrollRegion } from "@/components/ui/misc";
 import { cn } from "@/lib/cn";
 
 export interface DailyPoint {
@@ -117,7 +118,7 @@ export function DailyChart({ points, label }: { points: DailyPoint[]; label: str
         <summary className="inline-flex min-h-11 cursor-pointer items-center text-accent underline-offset-4 hover:underline">
           Werte als Tabelle
         </summary>
-        <div className="max-h-72 overflow-y-auto">
+        <ScrollRegion label={`${label} als Tabelle`} className="max-h-72 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{label}</caption>
             <thead>
@@ -143,7 +144,7 @@ export function DailyChart({ points, label }: { points: DailyPoint[]; label: str
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       </details>
     </figure>
   );

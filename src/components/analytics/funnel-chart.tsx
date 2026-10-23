@@ -1,11 +1,19 @@
 import { formatCount, formatPercent } from "@/domain/analytics/format";
-import type { FunnelRow } from "@/domain/analytics/funnel";
 
 /**
  * Funnel as horizontal bars (share of "versendet"). The list itself carries
  * every number as text, so it doubles as the table view (§7.8).
  */
-export function FunnelChart({ rows, label }: { rows: FunnelRow[]; label: string }) {
+/** A campaign funnel row (`FunnelRow`) or any other stage list, e.g. the offer funnel. */
+interface Stage {
+  stage: string;
+  label: string;
+  count: number;
+  rate: number | null;
+  dropOff: number | null;
+}
+
+export function FunnelChart({ rows, label }: { rows: readonly Stage[]; label: string }) {
   const sent = rows[0]?.count ?? 0;
   return (
     <ol aria-label={label} className="grid gap-3">

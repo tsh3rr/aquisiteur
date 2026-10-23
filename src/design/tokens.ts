@@ -37,6 +37,9 @@ export interface ColorScheme {
   dangerForeground: Oklch;
   dangerSoft: Oklch;
   dangerSoftForeground: Oklch;
+  /** Two categorical chart series, validated for colour-vision deficiency (ADR-0077). */
+  chart1: Oklch;
+  chart2: Oklch;
 }
 
 export const light: ColorScheme = {
@@ -66,6 +69,8 @@ export const light: ColorScheme = {
   dangerForeground: ok(0.99, 0.005, 25),
   dangerSoft: ok(0.95, 0.03, 25),
   dangerSoftForeground: ok(0.44, 0.17, 25),
+  chart1: ok(0.5, 0.24, 275),
+  chart2: ok(0.62, 0.15, 45),
 };
 
 export const dark: ColorScheme = {
@@ -95,6 +100,8 @@ export const dark: ColorScheme = {
   dangerForeground: ok(0.17, 0.03, 25),
   dangerSoft: ok(0.28, 0.06, 25),
   dangerSoftForeground: ok(0.86, 0.08, 25),
+  chart1: ok(0.64, 0.18, 275),
+  chart2: ok(0.66, 0.15, 50),
 };
 
 /**
@@ -128,6 +135,8 @@ export const contrastPairs: ReadonlyArray<{
   { fg: "borderStrong", bg: "surface", min: 3 },
   { fg: "focusRing", bg: "background", min: 3 },
   { fg: "focusRing", bg: "surface", min: 3 },
+  { fg: "chart1", bg: "surface", min: 3 },
+  { fg: "chart2", bg: "surface", min: 3 },
   { fg: "success", bg: "surface", min: 3 },
   { fg: "warning", bg: "surface", min: 3 },
 ];

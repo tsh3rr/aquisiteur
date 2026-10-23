@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { BucketTotals } from "../offers/totals";
 import {
   acceptance,
+  agingBucket,
+  buildAging,
   businessCsvRows,
+  fillMonths,
+  monthsUntil,
+  niceMaxCents,
+  offerFunnel,
   formatDays,
   monthlyCents,
   offerValueCents,
@@ -91,23 +97,116 @@ describe("sortRevenue", () => {
 
 describe("businessCsvRows", () => {
   it("rounds the days and gives revenue per campaign its own header", () => {
-    const offers = { sent: 2, volumeCents: 411_600, rate: 2 / 3, avgDays: 3.4583 };
+    const offers = {
+      sent: 2,
+      volumeCents: 411_600,
+      rate: 2 / 3,
+      avgDays: 3.4583,
+      viewed: 2,
+      acceptedOfSent: 1,
+    };
     const rows = businessCsvRows({
       offers,
-      previousOffers: { sent: 0, volumeCents: 0, rate: null, avgDays: null },
+      previousOffers: {
+        sent: 0,
+        volumeCents: 0,
+        rate: null,
+        avgDays: null,
+        viewed: 0,
+        acceptedOfSent: 0,
+      },
       revenue: {
         netCents: 300_000,
         byCampaign: [{ campaignId: "a", name: "Cafés", netCents: 300_000, invoices: 3 }],
       },
       previousRevenue: { netCents: 0 },
-      open: { openCents: 260_000, overdueCents: 0 },
+      open: {
+        openCents: 260_000,
+        overdueCents: 0,
+        aging: buildAging([{ daysOverdue: 3, openCents: 260_000 }]),
+      },
       contracts: { mrrCents: 9_300 },
+      byMonth: [{ month: "2026-10", oneOffCents: 300_000, recurringCents: 9_300 }],
     });
     expect(rows).toContainEqual(["Kennzahl", "Ø Tage bis zur Annahme", 3.5, null]);
     expect(rows).toContainEqual(["Kennzahl", "Annahmequote (%)", 66.7, null]);
-    expect(rows.slice(-2)).toEqual([
-      ["Umsatz je Kampagne", "Kampagne", "Umsatz netto (EUR)", "Rechnungen"],
-      ["Umsatz je Kampagne", "Cafés", 3_000, 3],
+    expect(rows).toContainEqual([
+      "Umsatz je Kampagne",
+      "Kampagne",
+      "Umsatz netto (EUR)",
+      "Rechnungen",
+    ]);
+    expect(rows).toContainEqual(["Umsatz je Kampagne", "Cafés", 3_000, 3]);
+    expect(rows).toContainEqual(["Umsatz je Monat", "2026-10", 3_000, 93]);
+    expect(rows).toContainEqual(["Angebots-Funnel", "Angenommen", 1, 50]);
+    expect(rows).toContainEqual(["Offene Posten nach Alter", "1–30 Tage überfällig", 2_600, 1]);
+  });
+});
+
+describe("months", () => {
+  it("lists the twelve months up to the period's last day, across the year", () => {
+    const months = monthsUntil("2026-02-14");
+    expect(months).toHaveLength(12);
+    expect([months[0], months.at(-1)]).toEqual(["2025-03", "2026-02"]);
+  });
+
+  it("fills empty months and sums the two series", () => {
+    expect(
+      fillMonths(
+        ["2026-09", "2026-10"],
+        [
+          { month: "2026-10", recurring: false, netCents: 300_000 },
+          { month: "2026-10", recurring: true, netCents: 9_300 },
+          { month: "2026-10", recurring: false, netCents: -80_000 },
+          { month: "2025-01", recurring: false, netCents: 1 },
+        ],
+      ),
+    ).toEqual([
+      { month: "2026-09", oneOffCents: 0, recurringCents: 0 },
+      { month: "2026-10", oneOffCents: 220_000, recurringCents: 9_300 },
+    ]);
+  });
+});
+
+describe("aging", () => {
+  it("buckets by days since the due date", () => {
+    expect([0, -3, 1, 30, 31, 60, 61].map(agingBucket)).toEqual([
+      "current",
+      "current",
+      "d30",
+      "d30",
+      "d60",
+      "d60",
+      "older",
+    ]);
+    const rows = buildAging([
+      { daysOverdue: -2, openCents: 100 },
+      { daysOverdue: 45, openCents: 200 },
+      { daysOverdue: 50, openCents: 300 },
+    ]);
+    expect(rows.map((row) => [row.label, row.count, row.openCents])).toEqual([
+      ["Noch nicht fällig", 1, 100],
+      ["1–30 Tage überfällig", 0, 0],
+      ["31–60 Tage überfällig", 2, 500],
+      ["Über 60 Tage überfällig", 0, 0],
+    ]);
+  });
+});
+
+describe("offerFunnel", () => {
+  it("gives each stage its share of the sent offers and the drop-off", () => {
+    expect(offerFunnel({ sent: 4, viewed: 3, accepted: 1 })).toEqual([
+      { stage: "sent", label: "Versendet", count: 4, rate: 1, dropOff: null },
+      { stage: "viewed", label: "Angesehen oder beantwortet", count: 3, rate: 0.75, dropOff: 0.25 },
+      { stage: "accepted", label: "Angenommen", count: 1, rate: 0.25, dropOff: 2 / 3 },
+    ]);
+  });
+});
+
+describe("niceMaxCents", () => {
+  it("rounds up to 1, 2 or 5 times a power of ten euros", () => {
+    expect([0, 10_000, 100_000, 100_001, 350_000, 999_999_900].map(niceMaxCents)).toEqual([
+      10_000, 10_000, 100_000, 200_000, 500_000, 1_000_000_000,
     ]);
   });
 });

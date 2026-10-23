@@ -71,11 +71,129 @@ export function sortRevenue(rows: CampaignRevenue[]): CampaignRevenue[] {
   );
 }
 
+/** The twelve calendar months ("2026-10") up to the one holding the period's last day. */
+export function monthsUntil(lastDay: string, count = 12): string[] {
+  const year = Number(lastDay.slice(0, 4));
+  const month = Number(lastDay.slice(5, 7)) - 1;
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - (count - 1 - index), 1));
+    return date.toISOString().slice(0, 7);
+  });
+}
+
+/** A round axis ceiling in cents: 1, 2 or 5 times a power of ten euros, at least 100 €. */
+export function niceMaxCents(cents: number): number {
+  const euros = Math.max(cents / 100, 100);
+  const magnitude = 10 ** Math.floor(Math.log10(euros));
+  for (const factor of [1, 2, 5]) if (euros <= factor * magnitude) return factor * magnitude * 100;
+  return 10 * magnitude * 100;
+}
+
+export interface MonthRevenue {
+  month: string;
+  /** Project invoices: standard, deposit and final, less their cancellations. */
+  oneOffCents: number;
+  /** Maintenance contract invoices, less their cancellations. */
+  recurringCents: number;
+}
+
+/** One point per month, zero where nothing was invoiced. */
+export function fillMonths(
+  months: readonly string[],
+  rows: readonly { month: string; recurring: boolean; netCents: number }[],
+): MonthRevenue[] {
+  const byMonth = new Map(
+    months.map((month) => [month, { month, oneOffCents: 0, recurringCents: 0 }]),
+  );
+  for (const row of rows) {
+    const point = byMonth.get(row.month);
+    if (!point) continue;
+    if (row.recurring) point.recurringCents += row.netCents;
+    else point.oneOffCents += row.netCents;
+  }
+  return [...byMonth.values()];
+}
+
+export const AGING_BUCKETS = ["current", "d30", "d60", "older"] as const;
+export type AgingBucket = (typeof AGING_BUCKETS)[number];
+
+export const AGING_LABELS: Record<AgingBucket, string> = {
+  current: "Noch nicht fällig",
+  d30: "1–30 Tage überfällig",
+  d60: "31–60 Tage überfällig",
+  older: "Über 60 Tage überfällig",
+};
+
+/** Bucket of an open invoice by the days since its due date (0 or less: not yet due). */
+export function agingBucket(daysOverdue: number): AgingBucket {
+  if (daysOverdue <= 0) return "current";
+  if (daysOverdue <= 30) return "d30";
+  if (daysOverdue <= 60) return "d60";
+  return "older";
+}
+
+export interface AgingRow {
+  bucket: AgingBucket;
+  label: string;
+  count: number;
+  openCents: number;
+}
+
+export function buildAging(
+  invoices: readonly { daysOverdue: number; openCents: number }[],
+): AgingRow[] {
+  const rows = new Map<AgingBucket, AgingRow>(
+    AGING_BUCKETS.map((bucket) => [
+      bucket,
+      { bucket, label: AGING_LABELS[bucket], count: 0, openCents: 0 },
+    ]),
+  );
+  for (const invoice of invoices) {
+    const row = rows.get(agingBucket(invoice.daysOverdue))!;
+    row.count += 1;
+    row.openCents += invoice.openCents;
+  }
+  return [...rows.values()];
+}
+
+export interface StageRow {
+  stage: string;
+  label: string;
+  count: number;
+  /** Share of the first stage. */
+  rate: number | null;
+  /** Share lost since the previous stage. */
+  dropOff: number | null;
+}
+
+/** Offers sent in the period: sent → seen (opened online or answered) → accepted. */
+export function offerFunnel(counts: {
+  sent: number;
+  viewed: number;
+  accepted: number;
+}): StageRow[] {
+  const stages = [
+    { stage: "sent", label: "Versendet", count: counts.sent },
+    { stage: "viewed", label: "Angesehen oder beantwortet", count: counts.viewed },
+    { stage: "accepted", label: "Angenommen", count: counts.accepted },
+  ];
+  return stages.map((row, index) => {
+    const before = index === 0 ? null : stages[index - 1]!.count;
+    return {
+      ...row,
+      rate: ratio(row.count, counts.sent),
+      dropOff: before === null || before === 0 ? null : (before - row.count) / before,
+    };
+  });
+}
+
 interface OfferFigures {
   sent: number;
   volumeCents: number;
   rate: number | null;
   avgDays: number | null;
+  viewed: number;
+  acceptedOfSent: number;
 }
 
 export interface BusinessFigures {
@@ -83,8 +201,9 @@ export interface BusinessFigures {
   previousOffers: OfferFigures;
   revenue: { netCents: number; byCampaign: CampaignRevenue[] };
   previousRevenue: { netCents: number };
-  open: { openCents: number; overdueCents: number };
+  open: { openCents: number; overdueCents: number; aging: AgingRow[] };
   contracts: { mrrCents: number };
+  byMonth: MonthRevenue[];
 }
 
 type Cell = string | number | null;
@@ -117,6 +236,30 @@ export function businessCsvRows(data: BusinessFigures): Cell[][] {
       row.name,
       euro(row.netCents),
       row.invoices,
+    ]),
+    [],
+    ["Umsatz je Monat", "Monat", "Projekte (EUR)", "Wartung (EUR)"],
+    ...data.byMonth.map((row) => [
+      "Umsatz je Monat",
+      row.month,
+      euro(row.oneOffCents),
+      euro(row.recurringCents),
+    ]),
+    [],
+    ["Angebots-Funnel", "Stufe", "Anzahl", "Anteil (%)"],
+    ...offerFunnel({ sent: o.sent, viewed: o.viewed, accepted: o.acceptedOfSent }).map((row) => [
+      "Angebots-Funnel",
+      row.label,
+      row.count,
+      percent(row.rate),
+    ]),
+    [],
+    ["Offene Posten nach Alter", "Alter", "Offen (EUR)", "Rechnungen"],
+    ...data.open.aging.map((row) => [
+      "Offene Posten nach Alter",
+      row.label,
+      euro(row.openCents),
+      row.count,
     ]),
   ];
 }

@@ -185,6 +185,16 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   if (process.env.SCREENSHOT_DIR) {
     await shipping.screenshot({ path: `${process.env.SCREENSHOT_DIR}/invoice-shipping.png` });
   }
+  // While the deposit is unpaid, the project dashboard shows it among the open items (7c-5).
+  const board = await page.context().newPage();
+  await board.goto("/auswertung/geschaeft");
+  await expect(board.getByRole("list", { name: "Offene Posten nach Alter" })).toContainText(
+    "Noch nicht fällig",
+  );
+  await board.getByText("Werte als Tabelle").click();
+  await expect(board.getByRole("table", { name: "Umsatz je Monat" })).toBeVisible();
+  await expectAccessible(board, "business dashboard with open items and table");
+  await board.close();
   const mail = readFileSync(E2E.mailLog, "utf8")
     .trim()
     .split("\n")
@@ -359,8 +369,36 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await expect(page.getByRole("region", { name: "Umsatz je Kampagne" })).toBeVisible();
   await expectAccessible(page, "business dashboard");
   const businessCsv = await page.request.get("/auswertung/export?teil=geschaeft");
-  expect(await businessCsv.text()).toContain("Umsatz je Kampagne;Kampagne;Umsatz netto (EUR)");
-  if (shots) await page.screenshot({ path: `${shots}/business-dashboard.png`, fullPage: true });
+  const csvText = await businessCsv.text();
+  expect(csvText).toContain("Umsatz je Kampagne;Kampagne;Umsatz netto (EUR)");
+  expect(csvText).toContain("Umsatz je Monat;Monat;Projekte (EUR);Wartung (EUR)");
+  expect(csvText).toContain("Angebots-Funnel;Versendet;1;100");
+  await expect(page.getByRole("img", { name: /^Umsatz je Monat: / })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Angebots-Funnel" })).toContainText("Angenommen");
+  // Everything is paid by now: the aging card shows its empty state.
+  await expect(page.getByText("Alle Rechnungen sind bezahlt.")).toBeVisible();
+  if (shots) {
+    await page.screenshot({ path: `${shots}/business-dashboard.png`, fullPage: true });
+    // Hover the current month, the rightmost column, for the tooltip.
+    const revenueChart = page.getByRole("img", { name: /^Umsatz je Monat: / });
+    // The element screenshot scrolls; scroll first so the pointer stays on the bar.
+    await revenueChart.locator("xpath=ancestor::figure").scrollIntoViewIfNeeded();
+    const box = (await revenueChart.boundingBox())!;
+    await page.mouse.move(box.x + box.width - 8, box.y + box.height - 4);
+    await revenueChart
+      .locator("xpath=ancestor::figure")
+      .screenshot({ path: `${shots}/business-revenue-hover.png` });
+  }
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expectAccessible(page, "business dashboard (dark)");
+  if (shots)
+    await page.screenshot({ path: `${shots}/business-dashboard-dark.png`, fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectAccessible(page, "business dashboard (phone, dark)");
+  if (shots)
+    await page.screenshot({ path: `${shots}/business-dashboard-phone.png`, fullPage: true });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // Deletion request with issued invoices: everything else goes, the invoices stay (ADR-0071).
   await page.goto("/kunden");

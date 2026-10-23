@@ -29,6 +29,8 @@
   --color-accent-foreground: var(--aq-accent-foreground);
   --color-accent-soft: var(--aq-accent-soft);
   --color-accent-soft-foreground: var(--aq-accent-soft-foreground);
+  --color-chart-1: var(--aq-chart1);
+  --color-chart-2: var(--aq-chart2);
   --color-focus-ring: var(--aq-focus-ring);
   --color-success: var(--aq-success);
   --color-success-soft: var(--aq-success-soft);
