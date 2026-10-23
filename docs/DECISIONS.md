@@ -1183,3 +1183,43 @@ Wartungsverträgen, die der stündliche Job abrechnet.
   Sperrvermerk werden übersprungen.
 - VPI-Indexierung und Stundenkontingent folgen als eigener Schritt 7c-3b (Entscheidung des Owners);
   bis dahin lassen sich Preise nur über einen neuen Vertrag ändern.
+
+## ADR-0074 · Mahnwesen: Zahlungserinnerung und zwei Mahnungen mit Freigabe (2026-10-23)
+
+Phase 7c-4 (ZIELPROMPT §7.10). Überfällige Rechnungen bekommen eine Zahlungserinnerung und danach zwei
+Mahnungen, vom stündlichen Job vorbereitet und mit derselben Freigabe-Logik wie Rechnungen versendet.
+
+- **Stufen** (`src/domain/invoices/dunning.ts`, rein): Zahlungserinnerung, 1. Mahnung, Letzte Mahnung,
+  standardmäßig 3, 14 und 28 Tage nach Fälligkeit (in den Einstellungen änderbar, aufsteigend). Jede
+  Mahnung nennt eine Zahlungsfrist (Standard 7 Tage); die nächste Stufe kommt frühestens am Tag nach
+  dieser Frist, auch wenn der Plan früher wäre. Stufen werden nie übersprungen: Eine Rechnung, die
+  schon 30 Tage offen ist, bekommt zuerst die Erinnerung.
+- **Zinsen und Pauschale** sind optional und gelten nur gegenüber Unternehmen (Kundentyp im
+  Rechnungsprofil) und erst ab der 1. Mahnung; die Erinnerung bleibt kostenlos. Verzugszinsen nach
+  § 456 UGB: Basiszinssatz plus 9,2 Prozentpunkte, tageweise vom Tag nach der Fälligkeit bis zum
+  Versandtag auf den offenen Betrag, Satz auf 365 Tage. Den Basiszinssatz trägt der Owner ein
+  (Standard 1,53 %, Stand 2. Halbjahr 2026), weil er sich halbjährlich ändert. Die 40 € nach § 458 UGB
+  kommen einmal pro Forderung dazu, nicht pro Mahnung. Zinsen und Pauschale stehen nur in der Mahnung,
+  nicht als neue Rechnung; Zahlungen werden weiter gegen den Rechnungsbetrag erfasst. Verbraucher
+  bekommen keine Zinsen (§ 1333 ABGB bliebe möglich, ist aber nicht umgesetzt).
+- **Datenmodell**: `invoice_reminders` mit einer Zeile pro Rechnung und Stufe (eindeutig), Status
+  Entwurf oder versendet. Offener Betrag, Zinsen, Satz, Pauschale und Frist werden beim Anlegen
+  berechnet und beim Senden für den Versandtag neu berechnet und festgeschrieben. Rechnungen selbst
+  bleiben unverändert (ADR-0070). `tasks.reminder_id` und `outbound_emails.reminder_id` verbinden
+  Aufgabe und Mail mit der Stufe, damit sich die Freigabe der Rechnung und die der Mahnung nicht
+  gegenseitig erledigen; die Mail hat die Art `reminder`.
+- **Ablauf**: Der Job (Systemverbindung zum Finden, `withTenant` als Owner zum Schreiben) sucht
+  ausgestellte, nicht ganz bezahlte Rechnungen ohne wartenden Entwurf, ohne laufende Frist und ohne
+  letzte Mahnung, und legt die fällige Stufe an. Modus pro Workspace: aus (der Job legt nichts an),
+  manuell (Entwurf an der Rechnung), Freigabe (Standard, zusätzlich die Aufgabe „Zahlungserinnerung zur
+  Rechnung … freigeben“) oder automatisch (sofort senden, bei jedem Hindernis Rückfall auf die Aufgabe
+  mit Grund). Im Cockpit lässt sich die nächste Stufe auch früher von Hand vorbereiten und ein Entwurf
+  verwerfen.
+- **Versand**: E-Mail mit dem gespeicherten PDF der Rechnung im Anhang und dem Link zur Rechnungsseite,
+  an die Adresse, an die die Rechnung zuletzt ging. Wurde die Rechnung nie gemailt, rendert der Browser
+  das PDF beim ersten Senden (ADR-0072), im Automatikmodus der Server (nur Node-Profil, ADR-0073). Eine
+  eigene PDF-Mahnung gibt es nicht; die Texte je Stufe sind fest hinterlegt und vor dem Senden
+  editierbar, mit Platzhaltern wie `{aufstellung}` und `{frist}`.
+- **Aufräumen**: Eine Zahlung, die die Rechnung ganz begleicht, und ein Storno löschen wartende
+  Entwürfe samt Aufgabe; beim Senden wird erneut geprüft. Kunden mit Sperrvermerk bekommen keine
+  Mahnungen; ihre versendeten Stufen bleiben als Beleg ohne Personendaten.

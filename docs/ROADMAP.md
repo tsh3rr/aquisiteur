@@ -93,7 +93,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] 7c-1: Logo und Akzentfarbe im Rechnungs-PDF, ZUGFeRD/Factur-X im PDF, ZIP mit PDFs für den Steuerberater, VIES-Prüfung und Zusammenfassende Meldung, Sperrvermerk statt Löschung (ADR-0071)
 - [x] 7c-2: Versand per E-Mail mit PDF im Anhang, Rechnungsseite `/r/<token>`, Zustellstatus per Webhook, Freigabe-Aufgabe (ADR-0072)
 - [x] 7c-3: Wartungsverträge aus angenommenen Angeboten, Abrechnung je Kalenderzeitraum im Voraus oder nachträglich mit anteiligem Anfang und Ende, Kündigung, stündlicher Job mit Freigabe-Aufgabe oder automatischem Versand mit PDF vom Server (ADR-0073)
-- [ ] 7c-4: Mahnwesen (Zahlungserinnerung, Mahnungen, optional § 456/§ 458 UGB)
+- [x] 7c-4: Mahnwesen (Zahlungserinnerung, Mahnungen, optional § 456/§ 458 UGB, ADR-0074)
 - [ ] 7c-3b: VPI-Indexierung mit Vorankündigung und Stundenkontingent im Wartungsvertrag
 - [ ] 7c-5: Projekt-Dashboard
 - [ ] Später: eigene Rechnungsvorlagen, E-Rechnung (ebInterface/ZUGFeRD), Bankabgleich

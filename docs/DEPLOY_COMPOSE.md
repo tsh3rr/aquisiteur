@@ -109,7 +109,7 @@ Das veröffentlicht die vier Beispiel-Exposés in deinem Workspace. Eigene Expos
 
 ## 9. Stündlicher Job und tägliches Backup
 
-Ohne den stündlichen Job kommen keine Erinnerungen an Aufgaben, keine Wartungsrechnungen und keine Tageszusammenfassung.
+Ohne den stündlichen Job kommen keine Erinnerungen an Aufgaben, keine Wartungsrechnungen, keine Mahnungen und keine Tageszusammenfassung.
 `crontab -e` und diese zwei Zeilen anhängen:
 
 ```

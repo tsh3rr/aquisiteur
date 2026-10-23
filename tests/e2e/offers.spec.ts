@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import postgres from "postgres";
 import { E2E } from "../../playwright.config";
 import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace } from "./helpers";
 
@@ -10,7 +11,8 @@ import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace }
  * Phase 7b: invoices from the instalments → issue with a number → PDF →
  * partial payment → storno. Phase 7c: VIES check, Factur-X, month ZIP,
  * deletion request with retained invoices, e-mail with the invoice page, a
- * maintenance contract billed by the hourly job.
+ * maintenance contract billed by the hourly job, a payment reminder for the
+ * overdue invoice.
  */
 
 const account = {
@@ -220,6 +222,49 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await page.getByLabel("Betrag in €").fill("500,00");
   await page.getByRole("button", { name: "Zahlung erfassen" }).click();
   await expect(page.getByText("Teilweise bezahlt").first()).toBeVisible();
+
+  // Dunning (7c-4): three weeks later the rest is overdue. Issued invoices are frozen,
+  // so the test moves the dates back with the guard trigger off for a moment.
+  const invoiceId = new URL(page.url()).pathname.split("/").at(-1)!;
+  const sql = postgres(E2E.databaseUrl, { max: 1, onnotice: () => {} });
+  try {
+    await sql.begin(async (tx) => {
+      await tx`alter table invoices disable trigger invoices_immutable`;
+      await tx`update invoices set issue_date = issue_date - 21, due_date = due_date - 21 where id = ${invoiceId}`;
+      await tx`alter table invoices enable trigger invoices_immutable`;
+    });
+  } finally {
+    await sql.end();
+  }
+  const dunningJob = await page.request.post("/api/jobs/hourly", {
+    headers: { authorization: `Bearer ${E2E.cronSecret}` },
+  });
+  expect(dunningJob.ok()).toBe(true);
+  expect((await dunningJob.json()).dunning).toMatchObject({ drafted: 1, approvals: 1 });
+  await page.reload();
+  const dunning = page.locator("#mahnungen");
+  await expect(
+    dunning.getByRole("heading", { name: "Zahlungserinnerung (Entwurf)" }),
+  ).toBeVisible();
+  await expect(dunning.getByText("Eine Aufgabe wartet auf die Freigabe")).toBeVisible();
+  await expect(dunning.getByLabel("An")).toHaveValue("buchhaltung@cafe-mueller.test");
+  await expectAccessible(page, "invoice dunning");
+  if (shots) await dunning.screenshot({ path: `${shots}/dunning-draft.png` });
+  await dunning.getByRole("button", { name: "Zahlungserinnerung senden" }).click();
+  // The page refreshes with the sent reminder and the next level.
+  await expect(dunning.getByRole("list", { name: "Versendete Mahnungen" })).toContainText(
+    "Zahlungserinnerung",
+  );
+  await expect(dunning.getByText(/Nächste Stufe: 1\. Mahnung, planmäßig am/)).toBeVisible();
+  const reminderMail = readFileSync(E2E.mailLog, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as { to: string; subject: string; text: string })
+    .filter((entry) => entry.to === "buchhaltung@cafe-mueller.test")
+    .at(-1)!;
+  expect(reminderMail.subject).toMatch(/^Zahlungserinnerung: Anzahlungsrechnung RE-\d{4}-0001$/);
+  expect(reminderMail.text).toContain("Offener Betrag: 700,00 €");
+  if (shots) await dunning.screenshot({ path: `${shots}/dunning-sent.png` });
 
   await page.getByRole("button", { name: "Stornieren …" }).click();
   await page.getByRole("button", { name: "Jetzt stornieren" }).click();

@@ -4,6 +4,7 @@ import type { Transaction } from "@/db";
 import {
   auditLog,
   invoicePayments,
+  invoiceReminders,
   invoices,
   offers,
   offerVersions,
@@ -48,6 +49,8 @@ import { localDateString } from "@/domain/tasks";
 import { sha256Hex } from "@/lib/crypto";
 import { nextNumber } from "@/server/offers/manage";
 import { publish, workspaceTopic } from "@/server/realtime";
+import type { DunningLevel } from "@/domain/invoices/dunning";
+import { dropSettledReminders } from "./reminder-drafts";
 import { loadWorkspaceSettings } from "@/server/workspaces";
 
 /** Invoices in the cockpit (§7.10, phase 7b, ADR-0070). Every function runs inside withTenant. */
@@ -144,6 +147,8 @@ export interface InvoiceListItem {
   dueCents: number;
   paidCents: number;
   status: InvoiceDisplayStatus;
+  /** Highest reminder level sent (7c-4). */
+  dunningLevel: DunningLevel | null;
   updatedAt: Date;
 }
 
@@ -180,6 +185,9 @@ export async function listInvoices(
       paid: sql<
         string | null
       >`(select sum(${invoicePayments.amountCents}) from ${invoicePayments} where ${invoicePayments.invoiceId} = ${invoices.id})`,
+      dunningLevel: sql<
+        number | null
+      >`(select max(${invoiceReminders.level}) from ${invoiceReminders} where ${invoiceReminders.invoiceId} = ${invoices.id} and ${invoiceReminders.status} = 'sent')`,
     })
     .from(invoices)
     .innerJoin(
@@ -192,7 +200,7 @@ export async function listInvoices(
     )
     .where(and(...conditions))
     .orderBy(desc(invoices.issueDate), desc(invoices.number), desc(invoices.updatedAt));
-  return rows.map(({ invoice, company, projectName, paid }) => {
+  return rows.map(({ invoice, company, projectName, paid, dunningLevel }) => {
     const totals = invoice.totals ?? draftTotals(invoice.document, invoice.kind);
     const paidCents = Number(paid ?? 0);
     return {
@@ -221,6 +229,7 @@ export async function listInvoices(
         paidCents,
         today,
       ),
+      dunningLevel: dunningLevel === null ? null : (Number(dunningLevel) as DunningLevel),
       updatedAt: invoice.updatedAt,
     };
   });
@@ -811,6 +820,7 @@ export async function cancelInvoice(
     targetId: original.id,
     meta: { prospectId: original.prospectId, number: original.number, cancellation: number },
   });
+  await dropSettledReminders(tx, actor.workspaceId, original.id);
   await changed(actor.workspaceId, original.id, original.prospectId);
   return { ok: true, number, id: created!.id };
 }
@@ -873,6 +883,8 @@ export async function addPayment(
       paidOn: input.paidOn,
     },
   });
+  // Paid in full: a waiting reminder has nothing left to ask for.
+  await dropSettledReminders(tx, actor.workspaceId, invoiceId);
   await changed(actor.workspaceId, invoiceId, invoice.prospectId);
   return "ok";
 }

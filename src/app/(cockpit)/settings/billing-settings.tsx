@@ -16,6 +16,7 @@ import {
   INVOICE_SEND_MODES,
   INVOICE_SEND_MODE_LABELS,
 } from "@/domain/invoices/email";
+import { DUNNING_MODES, DUNNING_MODE_LABELS } from "@/domain/invoices/dunning";
 import { BILLING_INTERVALS, BILLING_LABELS, UNITS, VAT_RATES } from "@/domain/offers/schema";
 import { formatCents } from "@/domain/offers/totals";
 import {
@@ -205,6 +206,103 @@ export function BillingSettingsForm({
             maxLength={4000}
           />
         </Field>
+      </fieldset>
+
+      <fieldset className="grid gap-4 sm:grid-cols-3" disabled={disabled}>
+        <legend className="mb-3 text-base font-semibold">Mahnwesen</legend>
+        <Field
+          label="Erinnerungen und Mahnungen"
+          hint="Der stündliche Job bereitet jede fällige Stufe als Entwurf vor. Mit Freigabe entsteht eine Aufgabe, die sich mit dem Versand erledigt; automatisch geht sie sofort per E-Mail mit der Rechnung im Anhang hinaus. Bezahlt der Kunde, verschwindet ein wartender Entwurf."
+          error={e("dunningMode")}
+          className="sm:col-span-3"
+        >
+          <Select name="dunningMode" defaultValue={billing.dunningMode}>
+            {DUNNING_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {DUNNING_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Zahlungserinnerung nach" hint="Tagen ab Fälligkeit" error={e("dunningDays")}>
+          <Input
+            name="dunningDays1"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={180}
+            defaultValue={billing.dunningDays[0]}
+          />
+        </Field>
+        <Field label="1. Mahnung nach" hint="Tagen ab Fälligkeit">
+          <Input
+            name="dunningDays2"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={180}
+            defaultValue={billing.dunningDays[1]}
+          />
+        </Field>
+        <Field label="Letzte Mahnung nach" hint="Tagen ab Fälligkeit">
+          <Input
+            name="dunningDays3"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={180}
+            defaultValue={billing.dunningDays[2]}
+          />
+        </Field>
+        <Field
+          label="Zahlungsfrist in Tagen"
+          hint="Die nächste Stufe kommt frühestens danach."
+          error={e("dunningDeadlineDays")}
+        >
+          <Input
+            name="dunningDeadlineDays"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={60}
+            defaultValue={billing.dunningDeadlineDays}
+          />
+        </Field>
+        <Field
+          label="Basiszinssatz in %"
+          hint="OeNB, halbjährlich prüfen. Verzugszinsen: 9,2 Prozentpunkte darüber."
+          error={e("baseRatePercent")}
+        >
+          <Input
+            name="baseRatePercent"
+            inputMode="decimal"
+            defaultValue={String(billing.baseRatePercent).replace(".", ",")}
+          />
+        </Field>
+        <div className="grid gap-1 sm:col-span-3">
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="lateInterest"
+              defaultChecked={billing.lateInterest}
+              className="size-5 accent-accent"
+            />
+            Verzugszinsen nach § 456 UGB verlangen
+          </label>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="collectionFee"
+              defaultChecked={billing.collectionFee}
+              className="size-5 accent-accent"
+            />
+            Pauschale von 40 € nach § 458 UGB verlangen
+          </label>
+          <p className="text-sm text-foreground-muted">
+            Beides gilt nur gegenüber Unternehmen (Rechnungsprofil des Kunden) und erst ab der 1.
+            Mahnung; die Zahlungserinnerung bleibt freundlich und kostenlos.
+          </p>
+        </div>
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">

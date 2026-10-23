@@ -12,12 +12,12 @@ import {
 import { EMAIL_STATUSES } from "../../domain/email";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
-import { invoices, projects } from "./projects";
+import { invoiceReminders, invoices, projects } from "./projects";
 import { prospects } from "./prospects";
 import { workspaces } from "./tenancy";
 
 export const emailStatus = pgEnum("email_status", EMAIL_STATUSES);
-export const outboundEmailKind = pgEnum("outbound_email_kind", ["invoice"]);
+export const outboundEmailKind = pgEnum("outbound_email_kind", ["invoice", "reminder"]);
 
 /**
  * Every mail sent to a customer (§7.10, phase 7c-2), with the Message-ID it
@@ -36,6 +36,8 @@ export const outboundEmails = pgTable(
     prospectId: uuid("prospect_id").notNull(),
     projectId: uuid("project_id"),
     invoiceId: uuid("invoice_id"),
+    /** For kind "reminder": the reminder or dunning letter (7c-4). */
+    reminderId: uuid("reminder_id"),
     toAddress: text("to_address").notNull(),
     subject: text("subject").notNull(),
     /** Our Message-ID header, `<id@sending-domain>`. */
@@ -66,8 +68,14 @@ export const outboundEmails = pgTable(
       columns: [t.workspaceId, t.invoiceId],
       foreignColumns: [invoices.workspaceId, invoices.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "outbound_emails_reminder_fk",
+      columns: [t.workspaceId, t.reminderId],
+      foreignColumns: [invoiceReminders.workspaceId, invoiceReminders.id],
+    }).onDelete("cascade"),
     index("outbound_emails_prospect_idx").on(t.workspaceId, t.prospectId),
     index("outbound_emails_invoice_idx").on(t.workspaceId, t.invoiceId),
+    index("outbound_emails_reminder_idx").on(t.workspaceId, t.reminderId),
     // Webhooks look a mail up by the provider's id across workspaces.
     uniqueIndex("outbound_emails_provider_idx").on(t.providerId),
     uniqueIndex("outbound_emails_message_idx").on(t.messageId),

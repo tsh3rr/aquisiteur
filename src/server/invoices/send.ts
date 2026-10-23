@@ -93,11 +93,11 @@ export async function replyToAddress(
   return owner?.email ?? null;
 }
 
-function senderName(settings: WorkspaceSettings, workspaceName: string): string {
+export function senderName(settings: WorkspaceSettings, workspaceName: string): string {
   return settings.senderAddress.company ?? settings.profile.displayName ?? workspaceName;
 }
 
-async function loadIssued(tx: Transaction, workspaceId: string, invoiceId: string) {
+export async function loadIssued(tx: Transaction, workspaceId: string, invoiceId: string) {
   const [row] = await tx
     .select({ invoice: invoices, prospect: prospects, workspace: workspaces })
     .from(invoices)
@@ -116,7 +116,7 @@ async function loadIssued(tx: Transaction, workspaceId: string, invoiceId: strin
   return row ?? null;
 }
 
-async function defaultRecipient(
+export async function defaultRecipient(
   tx: Transaction,
   prospect: typeof prospects.$inferSelect,
 ): Promise<string> {
@@ -171,7 +171,11 @@ export async function loadInvoiceDelivery(
       .select()
       .from(outboundEmails)
       .where(
-        and(eq(outboundEmails.workspaceId, workspaceId), eq(outboundEmails.invoiceId, invoiceId)),
+        and(
+          eq(outboundEmails.workspaceId, workspaceId),
+          eq(outboundEmails.invoiceId, invoiceId),
+          isNull(outboundEmails.reminderId),
+        ),
       )
       .orderBy(desc(outboundEmails.createdAt)),
     tx
@@ -181,6 +185,7 @@ export async function loadInvoiceDelivery(
         and(
           eq(tasks.workspaceId, workspaceId),
           eq(tasks.invoiceId, invoiceId),
+          isNull(tasks.reminderId),
           isNull(tasks.doneAt),
         ),
       ),
@@ -201,6 +206,131 @@ export async function loadInvoiceDelivery(
 
 async function readAll(stream: ReadableStream): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/**
+ * The share of an issued invoice with its stored PDF. `pdf` (the browser's or
+ * the server's rendering) is only used, and then required, when none is stored.
+ */
+export async function storeInvoicePdf(
+  tx: Transaction,
+  workspaceId: string,
+  invoiceId: string,
+  pdf: Uint8Array | null,
+): Promise<
+  | { ok: true; share: typeof invoiceShares.$inferSelect; pdfKey: string }
+  | { ok: false; error: "pdf_missing" | "pdf_invalid" }
+> {
+  const share = await ensureInvoiceShare(tx, workspaceId, invoiceId);
+  if (share.pdfKey) return { ok: true, share, pdfKey: share.pdfKey };
+  if (!pdf) return { ok: false, error: "pdf_missing" };
+  if (!isPdf(pdf) || pdf.byteLength > MAX_INVOICE_PDF_BYTES) {
+    return { ok: false, error: "pdf_invalid" };
+  }
+  const pdfKey = invoicePdfKey(workspaceId, invoiceId);
+  await getInfra().storage.put(pdfKey, pdf, {
+    contentType: "application/pdf",
+    cacheControl: "private, no-store",
+  });
+  await tx
+    .update(invoiceShares)
+    .set({ pdfKey, pdfBytes: pdf.byteLength })
+    .where(and(eq(invoiceShares.workspaceId, workspaceId), eq(invoiceShares.invoiceId, invoiceId)));
+  return { ok: true, share: { ...share, pdfKey, pdfBytes: pdf.byteLength }, pdfKey };
+}
+
+export interface PreparedMail {
+  /** The outbound_emails row, recorded with status "sending". */
+  id: string;
+  messageId: string;
+  to: string;
+  from: string;
+  replyTo: string | null;
+  mail: { subject: string; text: string; html: string };
+  pdfKey: string;
+  /** The invoice number, the attachment's file name. */
+  number: string;
+}
+
+/**
+ * Hands a recorded mail with the stored invoice PDF to the provider, outside
+ * any transaction, and marks the row sent or failed.
+ */
+export async function transmitMail(
+  tenant: <T>(fn: (tx: Transaction) => Promise<T>) => Promise<T>,
+  workspaceId: string,
+  prepared: PreparedMail,
+): Promise<{ ok: true } | { ok: false; detail: string }> {
+  let providerId: string | null;
+  try {
+    const stored = await getInfra().storage.get(prepared.pdfKey);
+    if (!stored) throw new Error("stored invoice PDF is missing");
+    const pdf = await readAll(stored.body);
+    ({ id: providerId } = await getInfra().email.send({
+      to: prepared.to,
+      from: prepared.from,
+      ...(prepared.replyTo ? { replyTo: prepared.replyTo } : {}),
+      subject: prepared.mail.subject,
+      text: prepared.mail.text,
+      html: prepared.mail.html,
+      headers: { "Message-ID": prepared.messageId },
+      attachments: [
+        { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
+      ],
+    }));
+    await tenant((tx) =>
+      tx
+        .update(outboundEmails)
+        .set({ attachmentBytes: pdf.byteLength })
+        .where(eq(outboundEmails.id, prepared.id)),
+    );
+  } catch (error) {
+    const detail = error instanceof Error ? error.message.slice(0, 500) : "unknown error";
+    await tenant((tx) =>
+      tx
+        .update(outboundEmails)
+        .set({ status: "failed", statusAt: new Date(), error: detail })
+        .where(
+          and(eq(outboundEmails.workspaceId, workspaceId), eq(outboundEmails.id, prepared.id)),
+        ),
+    );
+    return { ok: false, detail };
+  }
+  await tenant((tx) =>
+    tx
+      .update(outboundEmails)
+      .set({ providerId, status: "sent", statusAt: new Date() })
+      .where(
+        and(
+          eq(outboundEmails.workspaceId, workspaceId),
+          eq(outboundEmails.id, prepared.id),
+          eq(outboundEmails.status, "sending"),
+        ),
+      ),
+  );
+  return { ok: true };
+}
+
+/** The address the last mail about this invoice went to, else the customer's billing address. */
+export async function recipientFor(
+  tx: Transaction,
+  prospect: typeof prospects.$inferSelect,
+  invoiceId: string,
+): Promise<string> {
+  const [last] = await tx
+    .select({ to: outboundEmails.toAddress })
+    .from(outboundEmails)
+    .where(
+      and(
+        eq(outboundEmails.workspaceId, prospect.workspaceId),
+        eq(outboundEmails.invoiceId, invoiceId),
+        ne(outboundEmails.status, "failed"),
+        ne(outboundEmails.status, "bounced"),
+      ),
+    )
+    .orderBy(desc(outboundEmails.createdAt))
+    .limit(1);
+  return last?.to ?? (await defaultRecipient(tx, prospect));
 }
 
 export type SendInvoiceResult =
@@ -227,28 +357,9 @@ export async function sendInvoiceEmail(
     const row = await loadIssued(tx, actor.workspaceId, input.invoiceId);
     if (!row || !row.invoice.number) return { ok: false as const, error: "not_found" as const };
     if (row.prospect.restrictedAt) return { ok: false as const, error: "restricted" as const };
-    const share = await ensureInvoiceShare(tx, actor.workspaceId, input.invoiceId);
-    let pdfKey = share.pdfKey;
-    if (!pdfKey) {
-      if (!input.pdf) return { ok: false as const, error: "pdf_missing" as const };
-      if (!isPdf(input.pdf) || input.pdf.byteLength > MAX_INVOICE_PDF_BYTES) {
-        return { ok: false as const, error: "pdf_invalid" as const };
-      }
-      pdfKey = invoicePdfKey(actor.workspaceId, input.invoiceId);
-      await getInfra().storage.put(pdfKey, input.pdf, {
-        contentType: "application/pdf",
-        cacheControl: "private, no-store",
-      });
-      await tx
-        .update(invoiceShares)
-        .set({ pdfKey, pdfBytes: input.pdf.byteLength })
-        .where(
-          and(
-            eq(invoiceShares.workspaceId, actor.workspaceId),
-            eq(invoiceShares.invoiceId, input.invoiceId),
-          ),
-        );
-    }
+    const stored = await storeInvoicePdf(tx, actor.workspaceId, input.invoiceId, input.pdf);
+    if (!stored.ok) return stored;
+    const { share, pdfKey } = stored;
     const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
     const id = crypto.randomUUID();
     const domain = domainOf(env.EMAIL_FROM) ?? new URL(env.APP_URL).hostname;
@@ -287,6 +398,7 @@ export async function sendInvoiceEmail(
       ok: true as const,
       id,
       messageId,
+      to: input.to,
       mail,
       pdfKey,
       number: row.invoice.number,
@@ -297,56 +409,10 @@ export async function sendInvoiceEmail(
   });
   if (!prepared.ok) return { ok: false, error: prepared.error };
 
-  let providerId: string | null;
-  try {
-    const stored = await getInfra().storage.get(prepared.pdfKey);
-    if (!stored) throw new Error("stored invoice PDF is missing");
-    const pdf = await readAll(stored.body);
-    ({ id: providerId } = await getInfra().email.send({
-      to: input.to,
-      from: prepared.from,
-      ...(prepared.replyTo ? { replyTo: prepared.replyTo } : {}),
-      subject: prepared.mail.subject,
-      text: prepared.mail.text,
-      html: prepared.mail.html,
-      headers: { "Message-ID": prepared.messageId },
-      attachments: [
-        { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
-      ],
-    }));
-    await tenant((tx) =>
-      tx
-        .update(outboundEmails)
-        .set({ attachmentBytes: pdf.byteLength })
-        .where(eq(outboundEmails.id, prepared.id)),
-    );
-  } catch (error) {
-    const detail = error instanceof Error ? error.message.slice(0, 500) : "unknown error";
-    await tenant((tx) =>
-      tx
-        .update(outboundEmails)
-        .set({ status: "failed", statusAt: new Date(), error: detail })
-        .where(
-          and(
-            eq(outboundEmails.workspaceId, actor.workspaceId),
-            eq(outboundEmails.id, prepared.id),
-          ),
-        ),
-    );
-    return { ok: false, error: "send_failed", detail };
-  }
+  const sent = await transmitMail(tenant, actor.workspaceId, prepared);
+  if (!sent.ok) return { ok: false, error: "send_failed", detail: sent.detail };
 
   await tenant(async (tx) => {
-    await tx
-      .update(outboundEmails)
-      .set({ providerId, status: "sent", statusAt: new Date() })
-      .where(
-        and(
-          eq(outboundEmails.workspaceId, actor.workspaceId),
-          eq(outboundEmails.id, prepared.id),
-          eq(outboundEmails.status, "sending"),
-        ),
-      );
     await tx
       .update(tasks)
       .set({ doneAt: now })
@@ -354,6 +420,7 @@ export async function sendInvoiceEmail(
         and(
           eq(tasks.workspaceId, actor.workspaceId),
           eq(tasks.invoiceId, input.invoiceId),
+          isNull(tasks.reminderId),
           isNull(tasks.doneAt),
         ),
       );
@@ -402,7 +469,12 @@ export async function requestInvoiceApproval(
     .select({ id: tasks.id })
     .from(tasks)
     .where(
-      and(eq(tasks.workspaceId, workspaceId), eq(tasks.invoiceId, invoiceId), isNull(tasks.doneAt)),
+      and(
+        eq(tasks.workspaceId, workspaceId),
+        eq(tasks.invoiceId, invoiceId),
+        isNull(tasks.reminderId),
+        isNull(tasks.doneAt),
+      ),
     );
   if (open) return false;
   const settings = await loadWorkspaceSettings(db, workspaceId);
@@ -469,7 +541,7 @@ export async function recordEmailEvents(
       await tx.insert(tasks).values({
         workspaceId: mail.workspaceId,
         prospectId: mail.prospectId,
-        title: `Rechnung ${invoice?.number ?? ""} nicht zugestellt: Adresse ${mail.toAddress} prüfen`,
+        title: `${mail.kind === "reminder" ? "Mahnung zur Rechnung" : "Rechnung"} ${invoice?.number ?? ""} nicht zugestellt: Adresse ${mail.toAddress} prüfen`,
         note: event.detail,
         dueDate: localDateString(now, settings.notifications.timezone),
         reminder: "at_due",

@@ -40,6 +40,8 @@ export interface TaskItemView {
   prospectId: string;
   /** „Rechnung freigeben“ links to its invoice (7c-2). */
   invoiceId?: string | null;
+  /** „Zahlungserinnerung/Mahnung freigeben“ links to the invoice's dunning section (7c-4). */
+  reminderId?: string | null;
   companyName: string;
   title: string;
   note: string | null;
@@ -192,7 +194,7 @@ function TaskItem({
           ) : null}
           {task.invoiceId ? (
             <Link
-              href={`/rechnungen/${task.invoiceId}#versand`}
+              href={`/rechnungen/${task.invoiceId}#${task.reminderId ? "mahnungen" : "versand"}`}
               className="inline-flex min-h-6 items-center font-medium text-accent underline-offset-4 hover:underline"
             >
               Rechnung öffnen

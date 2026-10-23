@@ -9,12 +9,14 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { DunningLevel } from "../../domain/invoices/dunning";
 import type { InvoiceSendMode } from "../../domain/invoices/email";
 import type { ContractTiming } from "../../domain/invoices/maintenance";
 import type {
@@ -387,6 +389,46 @@ export const invoicePayments = pgTable(
       foreignColumns: [invoices.workspaceId, invoices.id],
     }).onDelete("cascade"),
     index("invoice_payments_invoice_idx").on(t.workspaceId, t.invoiceId),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+/**
+ * Payment reminders and dunning letters of an issued invoice (§7.10, phase
+ * 7c-4, ADR-0074): one row per level. The hourly job drafts it; claim and
+ * deadline are recomputed and frozen when it is sent.
+ */
+export const invoiceReminders = pgTable(
+  "invoice_reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    invoiceId: uuid("invoice_id").notNull(),
+    level: smallint("level").$type<DunningLevel>().notNull(),
+    status: text("status").$type<"draft" | "sent">().notNull().default("draft"),
+    /** The day the claim is computed for: drafting, then sending. */
+    asOf: date("as_of", { mode: "string" }).notNull(),
+    deadline: date("deadline", { mode: "string" }).notNull(),
+    openCents: integer("open_cents").notNull(),
+    interestCents: integer("interest_cents").notNull().default(0),
+    /** Basis points per year; null without interest. */
+    interestRateBp: integer("interest_rate_bp"),
+    feeCents: integer("fee_cents").notNull().default(0),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    sentBy: text("sent_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: "invoice_reminders_invoice_fk",
+      columns: [t.workspaceId, t.invoiceId],
+      foreignColumns: [invoices.workspaceId, invoices.id],
+    }).onDelete("cascade"),
+    unique("invoice_reminders_workspace_id_id_key").on(t.workspaceId, t.id),
+    uniqueIndex("invoice_reminders_invoice_level_idx").on(t.invoiceId, t.level),
+    index("invoice_reminders_workspace_idx").on(t.workspaceId, t.invoiceId),
     workspaceIsolation(t.workspaceId),
   ],
 ).enableRLS();

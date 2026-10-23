@@ -11,6 +11,7 @@ import {
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_TONES,
 } from "@/domain/invoices/schema";
+import { DUNNING_LEVEL_LABELS } from "@/domain/invoices/dunning";
 import { germanDate } from "@/domain/invoices/totals";
 import { formatCents } from "@/domain/offers/totals";
 import { localDateString } from "@/domain/tasks";
@@ -218,6 +219,11 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
                     <Badge tone={INVOICE_STATUS_TONES[row.status]}>
                       {INVOICE_STATUS_LABELS[row.status]}
                     </Badge>
+                    {row.dunningLevel && ["open", "partly_paid", "overdue"].includes(row.status) ? (
+                      <span className="block pt-1 text-xs text-foreground-muted">
+                        {DUNNING_LEVEL_LABELS[row.dunningLevel]} gesendet
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-5 py-3 text-right whitespace-nowrap tabular-nums">
                     {formatCents(row.dueCents)}
