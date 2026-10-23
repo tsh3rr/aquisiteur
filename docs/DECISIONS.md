@@ -1276,3 +1276,26 @@ Stundensatz.
   sperren die Einträge genauso, sobald ihr Zeitraum abgerechnet ist. Nach dem Ende eines im Voraus abgerechneten Vertrags legt der
   Job für die Stunden des letzten Zeitraums eine eigene Rechnung an. Ohne Stundensatz wird Zeit nur
   dokumentiert.
+
+## ADR-0076 · Projekt-Dashboard: was Angebote, Rechnungen und Verträge einbringen (2026-10-23)
+
+Phase 7c-5 (ZIELPROMPT §7.10). Ein vierter Reiter „Geschäft“ unter Auswertung zeigt die Kennzahlen aus
+Angeboten, Rechnungen und Wartungsverträgen, mit demselben Zeitraum, denselben Filtern und demselben
+CSV-Export (`teil=geschaeft`) wie die übrigen Dashboards.
+
+- **Angebotsvolumen**: Angebote, die im Zeitraum versendet wurden, netto bewertet: einmalige Positionen
+  plus zwölf Monate der laufenden. Ein angenommenes Angebot zählt mit der angenommenen Version und
+  Auswahl, sonst die zuletzt versendete Version mit der Standardauswahl.
+- **Annahmequote und Ø Zeit bis zur Annahme**: bezogen auf die im Zeitraum beantworteten Angebote
+  (angenommen oder abgelehnt); zurückgezogene und offene zählen nicht, sonst sänke die Quote mit jedem
+  frisch versendeten Angebot. Die Tage laufen vom Versand bis zur Online-Annahme.
+- **Umsatz**: ausgestellte Rechnungen nach Rechnungsdatum, netto abzüglich angerechneter Anzahlungen,
+  damit Teil- und Schlussrechnung nichts doppelt zählen. Ein Storno zählt negativ in seinem eigenen
+  Zeitraum, die stornierte Rechnung bleibt in ihrem. Aufgeteilt nach der Kampagne, über die der Kunde
+  kam; „Ohne Kampagne“ steht immer zuletzt.
+- **Offene Posten und MRR** sind aktueller Stand und hängen nicht vom Zeitraum ab: offene Beträge
+  ausgestellter Rechnungen (brutto, nach Zahlungen) mit dem überfälligen Anteil, und die monatlich
+  umgelegten Netto-Beträge der heute laufenden Wartungsverträge. Kunden mit Sperrvermerk zählen beim
+  MRR nicht, weil ihre Verträge nicht mehr abgerechnet werden.
+- Alle Abfragen laufen als Mandant und verbinden den Kunden, damit Kampagne, Branche, Region und Tag für
+  jede Zahl gelten. Trends vergleichen mit der gleich langen Vorperiode.

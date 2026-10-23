@@ -349,6 +349,17 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
     page.getByText("Rechnung Wartung: Neue Website für das Café freigeben").first(),
   ).toBeVisible();
 
+  // Project dashboard (7c-5): offers, revenue, open items and MRR at a glance.
+  await page.goto("/auswertung/geschaeft");
+  await expect(page.getByRole("link", { name: "Geschäft" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByText("Annahmequote")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Umsatz je Kampagne" })).toBeVisible();
+  await expectAccessible(page, "business dashboard");
+  if (shots) await page.screenshot({ path: `${shots}/business-dashboard.png`, fullPage: true });
+
   // Deletion request with issued invoices: everything else goes, the invoices stay (ADR-0071).
   await page.goto("/kunden");
   await page.getByRole("link", { name: "Café Müller" }).first().click();
