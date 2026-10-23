@@ -1344,7 +1344,8 @@ ruhiger Tage (Standard 60) zeigt sein Link deshalb eine Kurzseite (ZIELPROMPT §
 - **Funnel-Gedanke:** eine Botschaft, ein Ziel. Ehrlicher Grund statt künstlicher Verknappung, ein
   niedrigschwelliges Angebot (frischer, kostenloser Blick), ein Button zum Kontakt über dem Falz, das
   Gesicht des Owners als Vertrauenssignal, Vorher-nachher als stärkster Beweis, die Ideen nur als
-  Stichpunkte (Neugier statt Lesestoff) und danach sofort alle Kontaktwege. Preise, Inhaltsmenü und
-  PDF entfallen, weil sie zum alten Angebot gehören.
+  Stichpunkte (Neugier statt Lesestoff) und danach sofort alle Kontaktwege. Preise, Inhaltsmenü,
+  PDF und „Mit Kollegen teilen“ entfallen, weil sie zum alten Angebot gehören bzw. vom einen Ziel
+  ablenken; wer den Link trotzdem weitergibt, erscheint als direkter Besuch.
 - Die Kurzseite trägt nicht mehr das Theming des Prospects, sondern die Akzentfarbe der Agentur im Stil
   `editorial`; die Bilder des Sliders bleiben.

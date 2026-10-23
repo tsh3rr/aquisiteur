@@ -75,7 +75,8 @@ export function ExposeView({
       data-expose-theme
       data-expose-style={theme.style}
       data-expose-variant={variant}
-      lang={document.meta.lang}
+      // The short page's own copy is German, whatever the exposé's language.
+      lang={expired ? "de" : document.meta.lang}
       className={`${displayFont.variable} min-h-dvh bg-background pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-foreground`}
     >
       {mode === "public" ? <ExposeTracker slug={data.expose.slug} /> : null}

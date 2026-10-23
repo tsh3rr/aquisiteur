@@ -19,7 +19,7 @@ process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL;
 
 const { db, close } = createDatabase(process.env.TEST_DATABASE_URL ?? "", { max: 2 });
 
-const hanna = { id: "user-hanna", email: "hanna@h.test", name: "Hanna" };
+const owner = { id: "user-expiry", email: "ablauf@x.test", name: "Ida Ablauf" };
 let ws = "";
 let cafe: PublishResult;
 let other: PublishResult;
@@ -29,10 +29,10 @@ const PHONE =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 function publish(key: string, company: string) {
-  return withTenant(db, { userId: hanna.id, workspaceId: ws }, (tx) =>
+  return withTenant(db, { userId: owner.id, workspaceId: ws }, (tx) =>
     publishExpose(
       tx,
-      { workspaceId: ws, userId: hanna.id, source: "api" },
+      { workspaceId: ws, userId: owner.id, source: "api" },
       { document: minimalExpose(key, company), assets: [] },
     ),
   );
@@ -63,13 +63,13 @@ async function visit(result: PublishResult) {
 }
 
 beforeAll(async () => {
-  await db.insert(schema.users).values(hanna);
+  await db.insert(schema.users).values(owner);
   const created = await createWorkspace(db, {
-    userId: hanna.id,
-    name: "Agentur H",
-    slug: "agentur-h",
+    userId: owner.id,
+    name: "Agentur Ablauf",
+    slug: "agentur-ablauf",
   });
-  if (!created.ok) throw new Error("workspace setup failed");
+  if (!created.ok) throw new Error(`workspace setup failed: ${JSON.stringify(created)}`);
   ws = created.workspace.id;
   cafe = await publish("cafe-ablauf", "Café Ablauf");
   other = await publish("baeckerei-frisch", "Bäckerei Frisch");
@@ -137,6 +137,22 @@ describe("exposé expiry", () => {
     expect((await exposeExpiry(db, ws, cafe.exposeId, settings)).expired).toBe(false);
     const row = await visit(cafe);
     expect(row.onExpiredPage).toBe(false);
+  });
+
+  it("a new version makes it current again", async () => {
+    await age(other, 70);
+    expect((await exposeExpiry(db, ws, other.exposeId, settings)).expired).toBe(true);
+    other = await withTenant(db, { userId: owner.id, workspaceId: ws }, (tx) =>
+      publishExpose(
+        tx,
+        { workspaceId: ws, userId: owner.id, source: "api" },
+        {
+          document: minimalExpose("baeckerei-frisch", "Bäckerei Frisch", "Neue Ideen"),
+          assets: [],
+        },
+      ),
+    );
+    expect((await exposeExpiry(db, ws, other.exposeId, settings)).expired).toBe(false);
   });
 
   it("evaluates every exposé of the workspace in one go", async () => {
