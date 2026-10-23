@@ -108,6 +108,7 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Exposé-Vorschau im Brief: zweite Seite mit Vorher/Nachher im Handy, drei Ideen und verspieltem QR-Code (ADR-0055)
 - [x] Globale Suche, Command Palette (⌘K / Strg+K) und Tastaturkürzel im Cockpit (ZIELPROMPT §7.8, ADR-0061)
 - [x] Gestaltete PDF-Fassung des ganzen Exposés als Beilage oder Download (ZIELPROMPT §7.9, ADR-0059)
+- [x] Ablauf von Exposés: nach einstellbaren ruhigen Tagen eine Kurzseite mit Vorher-nachher, Ideen als Stichpunkten und allen Kontaktwegen (ZIELPROMPT §7.3, ADR-0078)
 - [x] Rückruf-Formular mit bekannter Nummer aus den Stammdaten vorausfüllen, maskiert (ZIELPROMPT §7.4, ADR-0058)
 - [ ] Messenger, SMS, Telegram, A/B-Varianten, KI-Assistent für Exposé-Entwürfe
 - [ ] SaaS-Launch: Registrierung, Teams, Stripe, Plattform-Admin, Landingpage

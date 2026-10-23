@@ -166,6 +166,15 @@ export const replaySettingsSchema = z.object({
   enabled: z.boolean().default(false),
 });
 
+/**
+ * Exposé expiry (§7.3): after this many days without activity the public
+ * link shows a short page instead of the full exposé (src/domain/expose/expiry.ts).
+ */
+export const exposeExpirySchema = z.object({
+  enabled: z.boolean().default(true),
+  afterDays: z.number().int().min(7).max(365).default(60),
+});
+
 /** An IANA time zone the runtime knows, e.g. "Europe/Berlin". */
 export const timezoneSchema = z.string().refine((zone) => {
   try {
@@ -196,6 +205,7 @@ export const workspaceSettingsSchema = z.object({
   replay: replaySettingsSchema.prefault({}),
   retention: retentionSchema.prefault({ eventsDays: 180, replaysDays: 30, optOutTrackingDays: 30 }),
   billing: billingSettingsSchema.prefault({}),
+  exposeExpiry: exposeExpirySchema.prefault({}),
 });
 
 export type WorkspaceSettings = z.infer<typeof workspaceSettingsSchema>;
@@ -208,3 +218,4 @@ export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 export type LetterSettings = z.infer<typeof letterSettingsSchema>;
 export type FollowUpSettings = z.infer<typeof followUpSettingsSchema>;
 export type ReplaySettings = z.infer<typeof replaySettingsSchema>;
+export type ExposeExpirySettings = z.infer<typeof exposeExpirySchema>;

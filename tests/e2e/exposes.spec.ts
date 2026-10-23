@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Download, type Page } from "@playwright/test";
+import postgres from "postgres";
 import { E2E } from "../../playwright.config";
 import {
   createApiToken,
@@ -216,4 +217,61 @@ test("the bold and soft exposé styles render accessibly in light and dark", asy
       await expectAccessible(page, `${folder} (${colorScheme})`);
     }
   }
+});
+
+test("an exposé without visits for the set days shows the short page until the owner resets it", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  expect(apiToken).not.toBe("");
+  const url = publishWithCli("exposes/physio-lindenhof", apiToken).match(
+    /Öffentlich:\s+(\S+)/,
+  )?.[1];
+  expect(url).toBeTruthy();
+  // Pretend the last activity was 100 days ago (default expiry: 60 days).
+  const sql = postgres(E2E.databaseUrl, { max: 1, onnotice: () => {} });
+  try {
+    await sql`
+      update expose_versions v set created_at = now() - interval '100 days'
+      from exposes e join prospects p on p.id = e.prospect_id
+      where v.expose_id = e.id and p.key = 'physio-lindenhof'`;
+    await sql`
+      update visits v set started_at = now() - interval '100 days'
+      from exposes e join prospects p on p.id = e.prospect_id
+      where v.expose_id = e.id and p.key = 'physio-lindenhof'`;
+  } finally {
+    await sql.end();
+  }
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto(url!);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Diese Ideen sind schon eine Weile her.",
+    );
+    await expectAccessible(page, `expired short page (${colorScheme})`);
+  }
+  await expect(page.getByRole("slider")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Was ich bei .* ändern würde/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lassen Sie uns kurz sprechen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Inhalt" })).toHaveCount(0);
+  // No PDF of the full version either; fetched in the page, which resolves the workspace host.
+  expect(await page.evaluate(async (pdf) => (await fetch(pdf)).status, `${url}/pdf`)).toBe(404);
+
+  await signIn(page);
+  await page.goto("/exposes");
+  await page.getByRole("link", { name: /^Physio/ }).click();
+  await expect(page.getByText("Abgelaufen", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Kurzseite nach Ablauf" }).click();
+  await expect(page.frameLocator("iframe").getByRole("heading", { level: 1 })).toHaveText(
+    "Diese Ideen sind schon eine Weile her.",
+  );
+  await expectAccessible(page, "exposé detail, expired");
+  await page.getByRole("button", { name: "Wieder voll anzeigen" }).click();
+  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+
+  await page.goto(url!);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Ihre Patienten buchen selbst",
+  );
 });

@@ -198,6 +198,10 @@ exposes/
 - „Als PDF speichern“ und „Mit Kollegen teilen“ (teilen erzeugt einen eigenen Touchpoint, damit Weiterleitungen sichtbar werden).
 - Gut sichtbarer, aber dezenter Link **„Kein Interesse, bitte nicht mehr kontaktieren“** → setzt Prospect auf „Kein Interesse“, sperrt Follow-ups, benachrichtigt den Owner. (Fairness und rechtliche Absicherung.)
 - Datenschutzhinweis und Impressum im Footer.
+- **Ablauf nach Inaktivität** (Owner-Wunsch 2026-10-23, ADR-0078): Wird ein Exposé eine einstellbare Zahl von Tagen nicht aufgerufen (Standard 60, pro Workspace abschaltbar), zeigt sein Link statt des ganzen Exposés eine **Kurzseite**. Gezählt wird ab dem letzten echten Besuch des ganzen Exposés, dem letzten verschickten Brief, dem Veröffentlichen der aktuellen Version oder „Wieder voll anzeigen“ im Cockpit, je nachdem, was zuletzt war. Besuche der Kurzseite werden getrackt und melden sich wie jeder Besuch, holen das Exposé aber nicht zurück.
+  - Inhalt, kurz und mit einem einzigen Ziel: ehrlicher Hinweis, dass die Vorschläge schon eine Weile her sind (Monat und Jahr), Angebot eines frischen, kostenlosen Blicks mit einem Button zum Kontakt und dem Gesicht des Owners; danach der erste Vorher-nachher-Slider ohne Einleitung, die Ideen nur als Überschriften (aus `proposal`, sonst `findings`, höchstens acht) und alle Kontaktwege. Keine Preise, kein Inhaltsmenü, kein PDF.
+  - Gestaltung neutral im Stil der Agentur (Akzentfarbe aus den Einstellungen, Stil `editorial`), nicht mehr im Theming des Prospects.
+  - Keine eigene Exposé-Version und nichts zusätzlich zu schreiben: Die Kurzseite wird aus der aktuellen Version abgeleitet und entsteht beim Aufruf. Das Cockpit zeigt beim Exposé „Abgelaufen“ mit Datum, eine Vorschau der Kurzseite und „Wieder voll anzeigen“.
 
 ### 7.4 Kontaktkanäle und Nudges
 

@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
 import { workspaces } from "@/db/schema";
+import { exposeExpiries } from "@/server/exposes/expiry";
 import { listExposes } from "@/server/exposes/list";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { requireCockpit } from "@/server/session";
+import { loadWorkspaceSettings } from "@/server/workspaces";
 
 export const metadata: Metadata = { title: "Exposés" };
 
@@ -16,7 +18,7 @@ const dateTime = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeSty
 
 export default async function ExposesPage() {
   const { workspace, tenant } = await requireCockpit();
-  const { rows, origin } = await tenant(async (tx) => {
+  const { rows, origin, expiries } = await tenant(async (tx) => {
     const [ws] = await tx
       .select({ id: workspaces.id, slug: workspaces.slug })
       .from(workspaces)
@@ -24,6 +26,11 @@ export default async function ExposesPage() {
     return {
       rows: await listExposes(tx, workspace.id),
       origin: await workspacePublicOrigin(tx, ws!),
+      expiries: await exposeExpiries(
+        tx,
+        workspace.id,
+        (await loadWorkspaceSettings(tx, workspace.id)).exposeExpiry,
+      ),
     };
   });
 
@@ -94,6 +101,8 @@ export default async function ExposesPage() {
                   <td className="px-5 py-3">
                     {row.unpublishedAt ? (
                       <Badge tone="warning">Offline</Badge>
+                    ) : expiries.get(row.id)?.expired ? (
+                      <Badge tone="warning">Abgelaufen</Badge>
                     ) : (
                       <Badge tone="success">Online</Badge>
                     )}

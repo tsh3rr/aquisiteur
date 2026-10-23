@@ -481,7 +481,12 @@ export default async function CustomerPage({
                                 <td className="py-2 pr-4 whitespace-nowrap">
                                   {dateTime.format(visit.startedAt)}
                                 </td>
-                                <td className="py-2 pr-4">{SOURCE[visit.source]}</td>
+                                <td className="py-2 pr-4">
+                                  {SOURCE[visit.source]}
+                                  {visit.onExpiredPage ? (
+                                    <span className="text-foreground-muted">, Kurzseite</span>
+                                  ) : null}
+                                </td>
                                 <td className="py-2 pr-4">
                                   {DEVICE[visit.device]}
                                   {visit.browser ? (

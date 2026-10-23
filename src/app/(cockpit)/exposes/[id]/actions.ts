@@ -34,6 +34,31 @@ export async function setExposeOnline(formData: FormData): Promise<void> {
   revalidatePath("/exposes");
 }
 
+/**
+ * „Wieder voll anzeigen“ (§7.3): restarts the expiry clock, so the link shows
+ * the full exposé again until it goes unvisited for the set number of days.
+ */
+export async function resetExposeExpiry(formData: FormData): Promise<void> {
+  const { actor, workspace, tenant } = await requireCockpit();
+  assertCan(actor, "exposes.manage", { workspaceId: workspace.id });
+  const id = z.uuid().parse(formData.get("id"));
+  await tenant(async (tx) => {
+    await tx
+      .update(exposes)
+      .set({ expiryResetAt: new Date() })
+      .where(and(eq(exposes.id, id), eq(exposes.workspaceId, workspace.id)));
+    await tx.insert(auditLog).values({
+      workspaceId: workspace.id,
+      actorUserId: actor.userId,
+      action: "expose.expiry_reset",
+      targetType: "expose",
+      targetId: id,
+    });
+  });
+  revalidatePath(`/exposes/${id}`);
+  revalidatePath("/exposes");
+}
+
 /** Input of the designed exposé PDF (§7.9) for one version, e.g. as a letter enclosure. */
 export async function loadExposePdf(id: string, version?: number): Promise<PrintableExpose | null> {
   const { workspace, actor, tenant } = await requireCockpit();

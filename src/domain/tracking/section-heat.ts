@@ -1,3 +1,4 @@
+import { EXPIRED_SECTION_NAMES } from "../expose/expiry";
 import type { ExposeOutline } from "../expose/outline";
 
 export interface SectionHeat {
@@ -37,10 +38,12 @@ export function sectionHeat(
     set.add(event.visitId);
     readers.set(event.blockId, set);
   }
-  return [...outline.blocks].map(([blockId, name]) => ({
-    blockId,
-    name,
-    seconds: seconds.get(blockId) ?? 0,
-    visits: readers.get(blockId)?.size ?? 0,
-  }));
+  return [...outline.blocks]
+    .map(([blockId, name]) => ({
+      blockId,
+      name,
+      seconds: seconds.get(blockId) ?? 0,
+      visits: readers.get(blockId)?.size ?? 0,
+    }))
+    .filter((row) => row.visits > 0 || !(row.blockId in EXPIRED_SECTION_NAMES));
 }

@@ -15,6 +15,7 @@ import {
 import { knownPhones, type KnownPhone } from "@/domain/expose/known-phones";
 import type { ExposeDocument } from "@/domain/expose/schema";
 import { workspaceSettingsSchema, type WorkspaceSettings } from "@/domain/workspace-settings";
+import { exposeExpiry, type ExposeExpiry } from "./expiry";
 
 /** Everything the renderer needs for one exposé version. */
 export interface ExposeViewData {
@@ -28,6 +29,8 @@ export interface ExposeViewData {
   ownerPhoto: ManifestEntry | null;
   /** Masked numbers the callback form may offer (§7.4); never the full number. */
   knownPhones: KnownPhone[];
+  /** Expired exposés show the short page on their public link (§7.3). */
+  expiry: ExposeExpiry;
 }
 
 type Reader = Database | Transaction;
@@ -134,6 +137,7 @@ export async function loadPublicExpose(
     settings,
     ownerPhoto,
     knownPhones: await phonesOf(db, workspaceId, row.prospect, settings),
+    expiry: await exposeExpiry(db, workspaceId, row.expose.id, settings.exposeExpiry),
   };
 }
 
@@ -179,5 +183,6 @@ export async function loadExposeVersionForPreview(
     settings,
     ownerPhoto,
     knownPhones: await phonesOf(tx, workspaceId, row.prospect, settings),
+    expiry: await exposeExpiry(tx, workspaceId, exposeId, settings.exposeExpiry),
   };
 }
