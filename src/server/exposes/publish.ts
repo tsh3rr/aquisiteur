@@ -420,9 +420,18 @@ async function upsertProspect(
     return created.id;
   }
   const [existing] = await tx
-    .select({ id: prospects.id })
+    .select({ id: prospects.id, restrictedAt: prospects.restrictedAt })
     .from(prospects)
     .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.key, prospect.key)));
   if (!existing) throw new Error("prospect upsert failed");
+  // Sperrvermerk (ADR-0071): the customer asked to be deleted; no new exposé.
+  if (existing.restrictedAt) {
+    throw new PublishError(409, [
+      {
+        path: "prospect.key",
+        message: "Für diesen Kunden gilt ein Sperrvermerk. Ein neues Exposé ist nicht möglich.",
+      },
+    ]);
+  }
   return existing.id;
 }

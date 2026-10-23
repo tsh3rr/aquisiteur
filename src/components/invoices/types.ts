@@ -25,4 +25,6 @@ export interface PrintableInvoice {
   offerNumber: string | null;
   /** EPC QR code („Zahlen mit Code“) as unit squares; null without IBAN. */
   qr: { size: number; path: string } | null;
+  /** The agency's look from Einstellungen → Marke: logo URL and an accent readable on white. */
+  brand: { logo: string | null; accent: string | null };
 }

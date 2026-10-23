@@ -1,7 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import {
-  assets,
   auditLog,
   contacts,
   exposes,
@@ -37,6 +36,7 @@ import { modulesPath, qrMatrix } from "@/domain/tracking/qr";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import type { AssetManifest } from "@/db/schema";
 import { printSource, resolveEntry } from "@/components/expose/render-context";
+import { brandPrintSource } from "../brand-images";
 import type { Database, Transaction } from "@/db";
 import { getInfra, type LetterDispatchProvider, type LetterProviderUpdate } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
@@ -404,8 +404,8 @@ export async function loadPrintableLetters(
       ),
     )
     .orderBy(desc(contacts.isPrimary), asc(contacts.createdAt));
-  const signatureUrl = await brandImageSrc(tx, workspaceId, settings.letter.signatureAssetId);
-  const senderLogo = await brandImageSrc(tx, workspaceId, settings.branding.logoAssetId);
+  const signatureUrl = await brandPrintSource(tx, workspaceId, settings.letter.signatureAssetId);
+  const senderLogo = await brandPrintSource(tx, workspaceId, settings.branding.logoAssetId);
   const documents = await currentDocuments(tx, workspaceId, [
     ...new Set(
       rows
@@ -414,7 +414,9 @@ export async function loadPrintableLetters(
     ),
   ]);
   const ownerPhoto =
-    documents.size > 0 ? await brandImageSrc(tx, workspaceId, settings.profile.photoAssetId) : null;
+    documents.size > 0
+      ? await brandPrintSource(tx, workspaceId, settings.profile.photoAssetId)
+      : null;
 
   return rows.map(({ letter, prospect, touchpoint }) => {
     const urls = touchpointUrls(origin, touchpoint);
@@ -479,15 +481,6 @@ export async function loadPrintableLetters(
 }
 
 /** Owner photo, agency logo or signature as a cockpit URL; the browser converts it for the PDF. */
-async function brandImageSrc(tx: Transaction, workspaceId: string, assetId: string | undefined) {
-  if (!assetId) return null;
-  const [row] = await tx
-    .select()
-    .from(assets)
-    .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
-  const image = row && resolveEntry({ ...row, assetId: row.id }, "/preview/assets", "");
-  return image ? printSource(image) : null;
-}
 
 const STATUS_TIMESTAMP: Partial<Record<LetterStatus, keyof typeof letters.$inferInsert>> = {
   queued: "queuedAt",

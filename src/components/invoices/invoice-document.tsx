@@ -1,9 +1,12 @@
-import { Document, Page, Path, pdf, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, Path, pdf, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { facturXml } from "@/domain/invoices/cii";
 import { formatIban } from "@/domain/invoices/epc";
 import { INVOICE_KIND_LABELS, WITHOUT_VAT } from "@/domain/invoices/schema";
 import { germanDate, servicePeriodLabel } from "@/domain/invoices/totals";
 import { formatCents, formatQuantity } from "@/domain/offers/totals";
 import "../letters/pdf-fonts";
+import { printableImage } from "../letters/pdf-image";
+import { embedFacturX } from "./facturx";
 import type { PrintableInvoice } from "./types";
 
 /**
@@ -27,6 +30,15 @@ const styles = StyleSheet.create({
   },
   firstPageTop: { position: "absolute", top: 0, left: 0, right: 0 },
   issuerName: { position: "absolute", top: mm(18), left: mm(25), fontSize: 14, fontWeight: 600 },
+  logo: {
+    position: "absolute",
+    top: mm(15),
+    left: mm(25),
+    height: mm(18),
+    maxWidth: mm(80),
+    objectFit: "contain",
+    objectPositionX: 0,
+  },
   returnAddress: {
     position: "absolute",
     top: mm(45 + 6),
@@ -57,7 +69,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   pos: { width: mm(9) },
-  item: { flexGrow: 1, flexShrink: 1, paddingRight: mm(3) },
+  item: { flexGrow: 1, flexShrink: 1, flexBasis: 0, paddingRight: mm(3) },
   qty: { width: mm(24), textAlign: "right" },
   price: { width: mm(24), textAlign: "right" },
   amount: { width: mm(26), textAlign: "right" },
@@ -126,9 +138,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TotalRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function TotalRow({
+  label,
+  value,
+  bold,
+  accent,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  accent?: string;
+}) {
   return (
-    <View style={bold ? styles.grandTotal : styles.totalRow}>
+    <View
+      style={bold ? [styles.grandTotal, accent ? { borderTopColor: accent } : {}] : styles.totalRow}
+    >
       <Text>{label}</Text>
       <Text>{value}</Text>
     </View>
@@ -141,10 +165,17 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
   const kindLabel = INVOICE_KIND_LABELS[invoice.kind];
   const deductions = document.deductions;
   const hasDiscount = totals.discountCents !== 0;
+  // Lines, headings and the payment box take the agency's accent; amounts stay black.
+  const accent = invoice.brand.accent ?? "#111111";
   return (
     <Page size="A4" style={styles.page}>
       <View style={styles.firstPageTop} fixed={false}>
-        <Text style={styles.issuerName}>{issuer.name}</Text>
+        {invoice.brand.logo ? (
+          // eslint-disable-next-line jsx-a11y/alt-text -- React-PDF image, not HTML
+          <Image src={invoice.brand.logo} style={styles.logo} />
+        ) : (
+          <Text style={[styles.issuerName, { color: accent }]}>{issuer.name}</Text>
+        )}
         <Text style={styles.returnAddress}>
           {[issuer.name, issuer.street, [issuer.postalCode, issuer.city].filter(Boolean).join(" ")]
             .filter(Boolean)
@@ -174,7 +205,7 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
       {invoice.status === "draft" ? (
         <Text style={styles.draft}>Entwurf – keine gültige Rechnung</Text>
       ) : null}
-      <Text style={styles.title}>
+      <Text style={[styles.title, { color: accent }]}>
         {kindLabel} {invoice.number ?? ""}
       </Text>
       {invoice.cancels ? (
@@ -182,7 +213,7 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
       ) : null}
       {document.intro ? <Text style={styles.paragraph}>{document.intro}</Text> : null}
 
-      <View style={styles.tableHead} fixed>
+      <View style={[styles.tableHead, { borderBottomColor: accent }]} fixed>
         <Text style={styles.pos}>Pos.</Text>
         <Text style={styles.item}>Leistung</Text>
         <Text style={styles.qty}>Menge</Text>
@@ -238,6 +269,7 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
           label={withoutVat ? "Gesamtbetrag" : "Gesamtbetrag brutto"}
           value={formatCents(totals.totalCents)}
           bold
+          accent={accent}
         />
         {deductions.length > 0 ? (
           <>
@@ -254,7 +286,12 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
                 />
               );
             })}
-            <TotalRow label="Noch zu zahlen" value={formatCents(totals.dueCents)} bold />
+            <TotalRow
+              label="Noch zu zahlen"
+              value={formatCents(totals.dueCents)}
+              bold
+              accent={accent}
+            />
           </>
         ) : null}
       </View>
@@ -262,7 +299,7 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
       {invoice.taxNote ? <Text style={styles.note}>{invoice.taxNote}</Text> : null}
 
       {invoice.kind !== "cancellation" && totals.dueCents > 0 ? (
-        <View style={styles.payment} wrap={false}>
+        <View style={[styles.payment, { borderColor: accent }]} wrap={false}>
           {invoice.qr ? (
             <Svg
               width={mm(26)}
@@ -311,14 +348,22 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
   );
 }
 
-export async function renderInvoicePdf(invoice: PrintableInvoice): Promise<Blob> {
-  return pdf(
-    <Document
-      title={`${INVOICE_KIND_LABELS[invoice.kind]} ${invoice.number ?? "Entwurf"}`}
-      author={invoice.issuer.name}
-      language="de"
-    >
+export async function renderInvoicePdf(input: PrintableInvoice): Promise<Blob> {
+  // react-pdf cannot read WebP; the logo goes through a canvas like the letters' images.
+  const logo = input.brand.logo ? await printableImage(input.brand.logo) : null;
+  const invoice = { ...input, brand: { ...input.brand, logo } };
+  const title = `${INVOICE_KIND_LABELS[invoice.kind]} ${invoice.number ?? "Entwurf"}`;
+  const blob = await pdf(
+    <Document title={title} author={invoice.issuer.name} language="de">
       <InvoicePages invoice={invoice} />
     </Document>,
   ).toBlob();
+  // Issued invoices carry the e-invoice (ZUGFeRD / Factur-X); a draft stays a plain preview.
+  if (!invoice.number) return blob;
+  const xml = facturXml({ ...invoice, number: invoice.number });
+  const bytes = await embedFacturX(await blob.arrayBuffer(), xml, {
+    title,
+    author: invoice.issuer.name,
+  });
+  return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }

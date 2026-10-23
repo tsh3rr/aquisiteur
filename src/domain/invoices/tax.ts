@@ -1,4 +1,5 @@
 import type { TaxMode } from "../billing";
+import { eInvoiceGaps } from "./cii";
 import type { InvoiceKind, InvoiceIssuer, InvoiceParty, TaxTreatment } from "./schema";
 import type { InvoiceTotals } from "./totals";
 
@@ -99,6 +100,8 @@ export interface IssueCheckInput {
   review: string | null;
   /** Deposit drafts of the same offer; a final invoice issued first would bill them twice. */
   pendingDeposits?: number;
+  /** VIES said the customer's UID is invalid (the last check for this UID). */
+  vatIdInvalid?: boolean;
   /** Small-business revenue of the year so far, gross, without this invoice. */
   smallBusinessRevenueCents?: number;
 }
@@ -155,6 +158,17 @@ export function issueIssues(input: IssueCheckInput): IssueIssue[] {
     if (input.recipient.country === "AT" || !EU_COUNTRIES.has(input.recipient.country)) {
       error("Reverse Charge gilt nur für Unternehmen in einem anderen EU-Land.", "treatment");
     }
+    if (input.vatIdInvalid) {
+      error(
+        "Die UID des Kunden ist laut VIES ungültig. Bitte im Rechnungsprofil prüfen.",
+        "recipient.vatId",
+      );
+    } else if (input.recipient.vatId && !input.recipient.vatCheck) {
+      warning(
+        "Die UID des Kunden ist noch nicht per VIES bestätigt. Speichern Sie das Rechnungsprofil erneut, um sie zu prüfen.",
+        "recipient.vatId",
+      );
+    }
   }
   if (input.kind === "final" && input.pendingDeposits) {
     error(
@@ -174,6 +188,9 @@ export function issueIssues(input: IssueCheckInput): IssueIssue[] {
   }
   if (!input.issuer.iban) {
     warning("Ohne IBAN fehlen Bankverbindung und QR-Code zum Bezahlen.", "issuer.iban");
+  }
+  for (const gap of eInvoiceGaps({ issuer: input.issuer, treatment: input.treatment })) {
+    warning(gap, "issuer.vatId");
   }
   if (input.review) warning(input.review, "treatment");
   return issues;

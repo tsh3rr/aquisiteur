@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, ne, notExists, or } from "drizzle-orm";
 import type { Database } from "@/db";
 import {
   auditLog,
@@ -8,6 +8,7 @@ import {
   chatThreads,
   events,
   intentScores,
+  invoices,
   prospects,
   rateLimits,
   sessionReplays,
@@ -30,6 +31,9 @@ import { getInfra } from "@/infra";
  *   `optOutTrackingDays` (default 30) its visits, events, consents,
  *   recordings and score are deleted. Chats and callback requests stay as
  *   correspondence, unlinked from the deleted visits.
+ * - A restricted prospect (Sperrvermerk, ADR-0071) is deleted with its
+ *   invoices, projects and offers once its newest issued invoice is past the
+ *   retention period of § 132 BAO (seven years from the end of its year).
  * - Expired sign-in rows and stale rate-limit counters are removed.
  */
 
@@ -38,6 +42,7 @@ const DAY = 24 * 3600 * 1000;
 export interface RetentionResult {
   eventsDeleted: number;
   prospectsPurged: number;
+  restrictedDeleted: number;
   authRowsDeleted: number;
 }
 
@@ -52,6 +57,7 @@ export async function runRetention(
     .where(onlyWorkspaceId ? eq(workspaceSettings.workspaceId, onlyWorkspaceId) : undefined);
   let eventsDeleted = 0;
   let prospectsPurged = 0;
+  let restrictedDeleted = 0;
   for (const row of rows) {
     const retention = workspaceSettingsSchema.shape.retention.parse(row.retention);
     const eventCutoff = new Date(now.getTime() - retention.eventsDays * DAY);
@@ -77,9 +83,10 @@ export async function runRetention(
       await purgeProspectTracking(db, row.workspaceId, prospect.id, now);
       prospectsPurged++;
     }
+    restrictedDeleted += await purgeRestrictedProspects(db, row.workspaceId, now);
   }
   const authRowsDeleted = onlyWorkspaceId ? 0 : await purgeAuthLeftovers(db, now);
-  return { eventsDeleted, prospectsPurged, authRowsDeleted };
+  return { eventsDeleted, prospectsPurged, restrictedDeleted, authRowsDeleted };
 }
 
 /** Deletes a prospect's tracking data and keeps the prospect as a block marker. */
@@ -145,6 +152,65 @@ export async function purgeProspectTracking(
       meta: { recordings: replays.length },
     });
   });
+}
+
+/** First day whose invoices are still kept: 1 January seven years back. */
+export function invoiceRetentionCutoff(now: Date): string {
+  return `${now.getUTCFullYear() - 7}-01-01`;
+}
+
+/**
+ * Deletes restricted prospects whose issued invoices are all past the
+ * retention period; the invoice trigger refuses anything younger.
+ */
+export async function purgeRestrictedProspects(
+  db: Database,
+  workspaceId: string,
+  now = new Date(),
+): Promise<number> {
+  const cutoff = invoiceRetentionCutoff(now);
+  const kept = db
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.workspaceId, workspaceId),
+        eq(invoices.prospectId, prospects.id),
+        ne(invoices.status, "draft"),
+        or(isNull(invoices.issueDate), gte(invoices.issueDate, cutoff)),
+      ),
+    );
+  const due = await db
+    .select({ id: prospects.id })
+    .from(prospects)
+    .where(
+      and(
+        eq(prospects.workspaceId, workspaceId),
+        isNotNull(prospects.restrictedAt),
+        notExists(kept),
+      ),
+    );
+  for (const prospect of due) {
+    await db.transaction(async (tx) => {
+      const removed = await tx
+        .delete(invoices)
+        .where(and(eq(invoices.workspaceId, workspaceId), eq(invoices.prospectId, prospect.id)))
+        .returning({ id: invoices.id });
+      // Projects, offers and payments go with the prospect and its invoices (on delete cascade).
+      await tx
+        .delete(prospects)
+        .where(and(eq(prospects.workspaceId, workspaceId), eq(prospects.id, prospect.id)));
+      await tx.insert(auditLog).values({
+        workspaceId,
+        actorUserId: null,
+        action: "prospect.retention_deleted",
+        targetType: "prospect",
+        targetId: prospect.id,
+        meta: { invoices: removed.length },
+      });
+    });
+  }
+  return due.length;
 }
 
 /** Recording chunks live in storage, outside the database's cascades. */

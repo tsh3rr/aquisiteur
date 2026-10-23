@@ -1,0 +1,1 @@
+ALTER TABLE "prospects" ADD COLUMN "restricted_at" timestamp with time zone;

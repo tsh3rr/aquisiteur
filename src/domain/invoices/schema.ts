@@ -117,6 +117,16 @@ export const billingProfileSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
   /** Days until payment; empty: the workspace default. */
   paymentTermsDays: z.number().int().min(0).max(120).optional(),
+  /** Last VIES answer for `vatId`, set by the server when the profile is saved (7c). */
+  vatCheck: z
+    .object({
+      vatId: z.string(),
+      valid: z.boolean(),
+      checkedAt: z.iso.datetime(),
+      name: z.string().nullable(),
+      consultationNumber: z.string().nullable(),
+    })
+    .optional(),
 });
 export type BillingProfile = z.output<typeof billingProfileSchema>;
 
@@ -128,9 +138,13 @@ export interface InvoiceParty {
   city: string | null;
   country: string;
   vatId: string | null;
+  /** VIES proof for the recipient's UID, frozen with the invoice (7c). */
+  vatCheck?: { checkedAt: string; consultationNumber: string | null } | null;
 }
 
 export interface InvoiceIssuer extends InvoiceParty {
+  /** Steuernummer; missing on invoices issued before phase 7c. */
+  taxNumber?: string | null;
   email: string | null;
   iban: string | null;
   bic: string | null;

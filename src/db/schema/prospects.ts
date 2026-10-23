@@ -102,6 +102,12 @@ export const prospects = pgTable(
      * against abuse (ADR-0066); visitor messages are refused while it is set.
      */
     chatBlockedAt: timestamp("chat_blocked_at", { withTimezone: true }),
+    /**
+     * Sperrvermerk (§7.10, 7c): a deletion request for a customer with issued
+     * invoices. Everything but the invoices, projects and offers is deleted;
+     * the rest goes once the retention period of § 132 BAO has passed.
+     */
+    restrictedAt: timestamp("restricted_at", { withTimezone: true }),
     estimatedValueCents: integer("estimated_value_cents"),
     /** Billing profile once the prospect becomes a customer (§7.10, phase 7b). */
     billing: jsonb("billing").$type<BillingProfile>(),

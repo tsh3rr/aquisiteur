@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assertCan } from "@/domain/authz";
+import { PROSPECT_ANCHORS } from "@/domain/notifications";
 import { canonicalViewQuery } from "@/domain/prospects/list-query";
 import {
   contactFormSchema,
@@ -18,6 +19,7 @@ import {
   addTouchpoint,
   createProspect,
   deleteProspect,
+  restrictProspect,
   setDoNotContact,
   deleteView,
   removeContact,
@@ -133,6 +135,23 @@ export async function deleteProspectAction(formData: FormData): Promise<void> {
   redirect("/kunden");
 }
 
+/**
+ * Deletion request for a customer with issued invoices (Sperrvermerk, §7.10):
+ * deletes all but the records that must be kept, see `restrictProspect`.
+ */
+export async function restrictProspectAction(formData: FormData): Promise<void> {
+  const { actor, tenant } = await manager();
+  const id = z.uuid().parse(formData.get("id"));
+  const result = await tenant(async (tx) => {
+    const restricted = await restrictProspect(tx, actor, id);
+    if (restricted !== "deletable") return restricted ? "restricted" : "missing";
+    return (await deleteProspect(tx, actor, id)) === true ? "deleted" : "missing";
+  });
+  revalidateCustomers(id);
+  if (result === "restricted") redirect(`/kunden/${id}#${PROSPECT_ANCHORS.privacy}`);
+  redirect("/kunden");
+}
+
 export async function addContactAction(_: FormState, formData: FormData): Promise<FormState> {
   const { actor, tenant } = await manager();
   const prospectId = z.uuid().safeParse(formData.get("prospectId"));
@@ -145,7 +164,8 @@ export async function addContactAction(_: FormState, formData: FormData): Promis
       errors: { lastName: "Bitte mindestens einen Namen oder eine Rolle angeben." },
     };
   }
-  await tenant((tx) => addContact(tx, actor, prospectId.data, parsed.data));
+  const added = await tenant((tx) => addContact(tx, actor, prospectId.data, parsed.data));
+  if (!added) return { ok: false, message: "Kunde nicht gefunden oder gesperrt." };
   revalidateCustomers(prospectId.data);
   return { ok: true, message: "Ansprechpartner hinzugefügt." };
 }

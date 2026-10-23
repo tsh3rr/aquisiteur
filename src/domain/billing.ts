@@ -31,6 +31,14 @@ export const billingSettingsSchema = z.object({
     .pipe(z.string().regex(AUSTRIAN_VAT_ID, "UID im Format ATU12345678."))
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  /** Steuernummer at the tax office („12 345/6789“); identifies a small business without UID in the e-invoice. */
+  taxNumber: z
+    .string()
+    .trim()
+    .max(20)
+    .regex(/^[0-9 /-]*$/, "Nur Ziffern, Leerzeichen, / und -.")
+    .optional()
+    .transform((value) => (value ? value : undefined)),
   smallBusinessNote: z.string().trim().min(10).max(300).default(SMALL_BUSINESS_NOTE),
   /** Days a new offer stays valid after sending. */
   offerValidDays: z.number().int().min(1).max(365).default(30),

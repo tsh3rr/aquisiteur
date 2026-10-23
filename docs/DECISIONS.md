@@ -1071,3 +1071,36 @@ echten Rechnung mit dem Steuerberater abgleichen.
 Verschoben nach 7c: eingebettetes ZUGFeRD/Factur-X, ZIP mit PDFs, VIES-Prüfung und Vormerkung für die
 Zusammenfassende Meldung, Sperrvermerk bei einer Datenschutz-Löschung (bis dahin wird das Löschen eines
 Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Versand per E-Mail.
+
+## ADR-0071 · Rechnungen: CI, E-Rechnung, ZIP, VIES und Sperrvermerk (2026-10-22, Phase 7c-1)
+
+- **CI im PDF**: Rechnungen zeigen das Logo aus den Briefeinstellungen (sonst den Namen in der
+  Akzentfarbe) und die Akzentfarbe an Titel, Tabellenkopf, Gesamtbetrag und Zahlungsbox.
+  `printableInvoice` lädt beides serverseitig; für die Schrift auf Weiß wird die Akzentfarbe mit
+  `readableOn` abgedunkelt, damit der Kontrast reicht.
+- **Factur-X / ZUGFeRD 2 (Profil EN 16931)**: Ausgestellte Rechnungen sind PDF/A-3b mit eingebetteter
+  `factur-x.xml` (CII, AFRelationship Alternative, sRGB-OutputIntent, XMP mit Factur-X-Erweiterung).
+  Das XML baut `facturXml` rein in `src/domain/invoices/cii.ts`, pdf-lib bettet es im Browser ein
+  (aliasiert wie react-pdf). Typcodes 380/386/381, Kategorien S, E, AE, O; Stornos mit positiven
+  Beträgen und Verweis auf die Originalrechnung. Ohne UID kennzeichnet die neue **Steuernummer** den
+  Verkäufer (BR-CO-26). Mit dem Mustang-Validator geprüft (PDF/A-3b konform, XML gültig).
+- **ZIP für den Steuerberater**: pro Monat CSV plus alle ausgestellten Rechnungen als PDF, im Browser
+  gerendert und mit fflate gepackt (ohne Kompression, PDFs sind schon komprimiert), höchstens 200.
+- **VIES**: neuer Port `VatCheckPort` (`vies`, `fake`, `none`; `VAT_CHECK_PROVIDER`, Standard `vies`).
+  Beim Speichern eines Rechnungsprofils mit UID wird geprüft; Ergebnis und Abfragenummer stehen im
+  Profil. Reverse Charge mit laut VIES ungültiger UID lässt sich nicht ausstellen, ohne Bestätigung gibt
+  es eine Warnung. VIES nicht erreichbar blockiert nichts.
+- **Zusammenfassende Meldung**: CSV je Quartal mit den Reverse-Charge-Bemessungsgrundlagen je Kunden-UID
+  (Stornos negativ, Schlussrechnungen ohne die schon gemeldeten Anzahlungen). Ist VIES beim Speichern
+  nicht erreichbar, bleibt die letzte Prüfung derselben UID stehen. Der Link erscheint nur, wenn es Reverse-Charge-Rechnungen gibt.
+- **Sperrvermerk statt Löschung**: Ein Löschwunsch für einen Kunden mit ausgestellten Rechnungen löscht
+  alles außer Firmenname, Projekten, Angeboten und ausgestellten Rechnungen (Exposé mit Links, Besuchen,
+  Chats und Rückrufen, Briefe, Aufzeichnungen, Aufgaben, Ansprechpartner, Kontaktdaten, Rechnungsprofil,
+  Rechnungsentwürfe) und sperrt Briefe, Chat und neue Rechnungen (`restricted_at`). Die Retention im
+  stündlichen Job löscht den Rest, sobald die jüngste ausgestellte Rechnung älter als sieben Jahre ab
+  Jahresende ist (§ 132 BAO). Der Trigger `app.invoices_immutable` erlaubt das Löschen erst ab dann.
+  Für die Löschung im Mandanten-Kontext bekommt `aquisiteur_app` DELETE auf `intent_scores` und
+  `notifications`; Besuche, Events und Chats gehen über die Kaskade des Exposés. Öffentliche
+  Angebotsseiten des Kunden sind danach nicht mehr erreichbar. Danach
+  lassen sich Stammdaten, Ansprechpartner und Rechnungsprofil nicht mehr ändern, der Sperrvermerk nicht
+  aufheben und kein neues Exposé für den Schlüssel veröffentlichen (409).

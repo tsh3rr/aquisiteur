@@ -5,10 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { assertCan } from "@/domain/authz";
 import { issuesByField } from "@/domain/chat";
-import { epcPayload } from "@/domain/invoices/epc";
+import { invoicesCsv } from "@/domain/invoices/csv";
 import { billingProfileSchema } from "@/domain/invoices/schema";
 import { parseEuroInput } from "@/domain/offers/totals";
-import { modulesPath } from "@/domain/tracking/qr";
 import {
   addPayment,
   cancelInvoice,
@@ -17,11 +16,16 @@ import {
   deleteInvoiceDraft,
   deletePayment,
   issueInvoice,
-  loadInvoice,
+  listInvoices,
+  monthCsvRows,
   saveBillingProfile,
   saveInvoiceDraft,
+  billingProfileFor,
 } from "@/server/invoices/manage";
+import { printableInvoice } from "@/server/invoices/printable";
+import { checkVatId, type VatCheckOutcome } from "@/server/invoices/vat-check";
 import { requireCockpit } from "@/server/session";
+import { loadWorkspaceSettings } from "@/server/workspaces";
 import type { PrintableInvoice } from "@/components/invoices/types";
 
 /** Cockpit side of invoices (§7.10, phase 7b). */
@@ -37,6 +41,8 @@ async function manager() {
   assertCan(context.actor, "prospects.manage", { workspaceId: context.workspace.id });
   return context;
 }
+
+const MONTH_ARCHIVE_LIMIT = 200;
 
 const id = z.uuid();
 const text = (formData: FormData, name: string) => {
@@ -248,9 +254,44 @@ export async function saveBillingProfileAction(
     if (errors.paymentTermsDays) errors.paymentTermsDays = "Bitte 0 bis 120 Tage angeben.";
     return { ok: false, message: "Bitte prüfen Sie die markierten Felder.", errors };
   }
-  const saved = await tenant((tx) => saveBillingProfile(tx, actor, prospectId.data, parsed.data));
+  const profile = parsed.data;
+  // Reverse charge needs a valid UID; VIES is asked whenever the UID is saved.
+  let check: VatCheckOutcome | null = null;
+  if (profile.vatId && profile.customerType === "business") {
+    const settings = await tenant((tx) => loadWorkspaceSettings(tx, actor.workspaceId));
+    check = await checkVatId(profile.vatId, settings.billing.vatId);
+    if (check.status === "valid" || check.status === "invalid") profile.vatCheck = check.check;
+  }
+  if (!profile.vatCheck && profile.vatId) {
+    // Without an answer from VIES, the last check of the same UID stays as proof.
+    const previous = await tenant((tx) =>
+      billingProfileFor(tx, actor.workspaceId, prospectId.data),
+    );
+    if (previous?.vatCheck?.vatId === profile.vatId) profile.vatCheck = previous.vatCheck;
+  }
+  const saved = await tenant((tx) => saveBillingProfile(tx, actor, prospectId.data, profile));
   if (!saved) return { ok: false, message: "Kunde nicht gefunden." };
   revalidatePath(`/kunden/${prospectId.data}`);
+  if (check?.status === "valid") {
+    return {
+      ok: true,
+      message: `Rechnungsprofil gespeichert. UID laut VIES gültig${check.check.consultationNumber ? ` (Abfrage ${check.check.consultationNumber})` : ""}.`,
+    };
+  }
+  if (check?.status === "invalid") {
+    return {
+      ok: false,
+      message: "Rechnungsprofil gespeichert, aber die UID ist laut VIES ungültig.",
+      errors: { vatId: "Laut VIES ungültig. Bitte beim Kunden nachfragen." },
+    };
+  }
+  if (check?.status === "unavailable") {
+    return {
+      ok: true,
+      message:
+        "Rechnungsprofil gespeichert. VIES ist gerade nicht erreichbar, bitte später erneut speichern.",
+    };
+  }
   return { ok: true, message: "Rechnungsprofil gespeichert." };
 }
 
@@ -259,32 +300,32 @@ export async function loadInvoicePdfAction(invoiceId: string): Promise<Printable
   const { workspace, tenant } = await requireCockpit();
   const parsed = id.safeParse(invoiceId);
   if (!parsed.success) return null;
-  const loaded = await tenant((tx) => loadInvoice(tx, workspace.id, parsed.data));
-  if (!loaded) return null;
-  const { invoice, issuer, recipient, totals, document } = loaded;
-  const payload =
-    issuer.iban && invoice.number && invoice.kind !== "cancellation"
-      ? epcPayload({
-          name: issuer.name,
-          iban: issuer.iban,
-          bic: issuer.bic,
-          amountCents: totals.dueCents,
-          reference: invoice.number,
-        })
-      : null;
-  return {
-    kind: invoice.kind,
-    status: invoice.status,
-    number: invoice.number,
-    issueDate: invoice.issueDate ?? loaded.today,
-    dueDate: invoice.dueDate,
-    document,
-    totals,
-    issuer,
-    recipient,
-    taxNote: loaded.taxNote,
-    cancels: loaded.cancels?.number ?? null,
-    offerNumber: loaded.offer?.number ?? null,
-    qr: payload ? modulesPath(payload) : null,
-  };
+  return tenant((tx) => printableInvoice(tx, workspace.id, parsed.data));
+}
+
+export type MonthArchive =
+  { ok: true; csv: string; invoices: PrintableInvoice[] } | { ok: false; message: string };
+
+/** „ZIP für Oktober 2026“: the CSV and every issued invoice of the month, rendered in the browser. */
+export async function loadMonthArchiveAction(month: string): Promise<MonthArchive> {
+  const { workspace, actor, tenant } = await requireCockpit();
+  assertCan(actor, "prospects.manage", { workspaceId: workspace.id });
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { ok: false, message: "Ungültiger Monat." };
+  return tenant(async (tx) => {
+    const rows = await monthCsvRows(tx, workspace.id, month);
+    const list = await listInvoices(tx, workspace.id, { month });
+    const issued = list.filter((row) => row.number);
+    if (issued.length > MONTH_ARCHIVE_LIMIT) {
+      return {
+        ok: false as const,
+        message: `Mehr als ${MONTH_ARCHIVE_LIMIT} Rechnungen in einem Monat: Bitte die PDFs einzeln laden.`,
+      };
+    }
+    const invoices: PrintableInvoice[] = [];
+    for (const row of issued) {
+      const printable = await printableInvoice(tx, workspace.id, row.id);
+      if (printable) invoices.push(printable);
+    }
+    return { ok: true as const, csv: invoicesCsv(rows), invoices };
+  });
 }

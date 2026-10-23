@@ -226,6 +226,26 @@ export interface GeocoderPort {
 }
 
 /**
+ * Phase 7c: EU VAT id check (VIES) for reverse charge (§7.10). With the
+ * requester's own UID, VIES returns a consultation number as proof.
+ */
+export interface VatCheckResult {
+  valid: boolean;
+  /** As registered, when the member state discloses it. */
+  name: string | null;
+  address: string | null;
+  /** VIES request identifier, only with a requester UID. */
+  consultationNumber: string | null;
+  checkedAt: Date;
+}
+
+export interface VatCheckPort {
+  readonly id: string;
+  /** Throws when VIES or the member state's service is unavailable. */
+  check(input: { vatId: string; requesterVatId?: string | null }): Promise<VatCheckResult>;
+}
+
+/**
  * Phase 6: error monitoring (§10 „Sentry EU“). Only the error, the route and
  * the request method and path leave the app: no query strings, bodies,
  * headers, cookies or IP addresses.
@@ -264,6 +284,8 @@ export interface Infra {
    * need the workspace's credentials and are null without them.
    */
   letters(provider: string, config?: LetterProviderConfig | null): LetterDispatchProvider | null;
+  /** Null when the VAT id check is switched off (VAT_CHECK_PROVIDER=none). */
+  vatCheck: VatCheckPort | null;
   /** Null when geocoding is switched off (GEOCODER_PROVIDER=none). */
   geocoder: GeocoderPort | null;
   monitor: MonitorPort;
