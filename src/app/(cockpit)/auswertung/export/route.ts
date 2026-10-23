@@ -1,6 +1,9 @@
 import { toCsv } from "@/domain/csv";
+import { assertCan } from "@/domain/authz";
+import { businessCsvRows } from "@/domain/analytics/business";
 import { blockLabel, CHANNEL_LABELS, NUDGE_LABELS } from "@/domain/analytics/content";
 import { isoDay, lastDay } from "@/domain/analytics/period";
+import { loadBusiness } from "@/server/analytics/business";
 import { loadContent } from "@/server/analytics/content";
 import { loadOverview } from "@/server/analytics/dashboard";
 import { readDashboardParams } from "@/server/analytics/params";
@@ -11,10 +14,13 @@ const percent = (value: number | null) => (value === null ? null : Math.round(va
 
 /** CSV of the dashboard behind the current filters (§7.8 „Export als CSV“). */
 export async function GET(request: Request) {
-  const { workspace, tenant } = await requireCockpit();
+  const { workspace, actor, tenant } = await requireCockpit();
   const raw = Object.fromEntries(new URL(request.url).searchParams);
   const { period, filter } = readDashboardParams(raw);
-  const part = raw.teil === "inhalte" ? "inhalte" : "uebersicht";
+  const part =
+    raw.teil === "inhalte" ? "inhalte" : raw.teil === "geschaeft" ? "geschaeft" : "uebersicht";
+  // Revenue, open items and MRR: as guarded as the invoice export.
+  if (part === "geschaeft") assertCan(actor, "prospects.manage", { workspaceId: workspace.id });
   const rows = await tenant(async (tx) => {
     if (part === "inhalte") {
       const data = await loadContent(tx, workspace.id, filter, period);
@@ -47,6 +53,16 @@ export async function GET(request: Request) {
       ];
     }
     const settings = await loadWorkspaceSettings(tx, workspace.id);
+    if (part === "geschaeft") {
+      const data = await loadBusiness(
+        tx,
+        workspace.id,
+        filter,
+        period,
+        settings.notifications.timezone,
+      );
+      return businessCsvRows(data);
+    }
     const data = await loadOverview(
       tx,
       workspace.id,
