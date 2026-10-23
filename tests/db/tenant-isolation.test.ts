@@ -200,7 +200,7 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     const sent = await sendOffer(tx, actor, offerId!);
     if (!sent.ok) throw new Error(`offer seed failed: ${sent.error}`);
   });
-  // A maintenance contract billing its first month (7c-3).
+  // A maintenance contract that billed its only month (7c-3).
   const [contract] = await db
     .insert(schema.maintenanceContracts)
     .values({
@@ -210,6 +210,8 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
       interval: "monthly",
       lines: [],
       startDate: "2026-10-01",
+      // Billed to its end, so the hourly job in other test files leaves it alone.
+      endDate: "2026-10-31",
       billedUntil: "2026-10-31",
     })
     .returning();
