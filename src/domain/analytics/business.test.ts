@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BucketTotals } from "../offers/totals";
 import {
   acceptance,
+  businessCsvRows,
   formatDays,
   monthlyCents,
   offerValueCents,
@@ -85,5 +86,28 @@ describe("sortRevenue", () => {
     ];
     expect(sortRevenue(rows).map((row) => row.name)).toEqual(["Physio", "Cafés", "Ohne Kampagne"]);
     expect(rows[0]?.campaignId).toBeNull();
+  });
+});
+
+describe("businessCsvRows", () => {
+  it("rounds the days and gives revenue per campaign its own header", () => {
+    const offers = { sent: 2, volumeCents: 411_600, rate: 2 / 3, avgDays: 3.4583 };
+    const rows = businessCsvRows({
+      offers,
+      previousOffers: { sent: 0, volumeCents: 0, rate: null, avgDays: null },
+      revenue: {
+        netCents: 300_000,
+        byCampaign: [{ campaignId: "a", name: "Cafés", netCents: 300_000, invoices: 3 }],
+      },
+      previousRevenue: { netCents: 0 },
+      open: { openCents: 260_000, overdueCents: 0 },
+      contracts: { mrrCents: 9_300 },
+    });
+    expect(rows).toContainEqual(["Kennzahl", "Ø Tage bis zur Annahme", 3.5, null]);
+    expect(rows).toContainEqual(["Kennzahl", "Annahmequote (%)", 66.7, null]);
+    expect(rows.slice(-2)).toEqual([
+      ["Umsatz je Kampagne", "Kampagne", "Umsatz netto (EUR)", "Rechnungen"],
+      ["Umsatz je Kampagne", "Cafés", 3_000, 3],
+    ]);
   });
 });

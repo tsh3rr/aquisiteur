@@ -1285,7 +1285,9 @@ CSV-Export (`teil=geschaeft`) wie die übrigen Dashboards.
 
 - **Angebotsvolumen**: Angebote, die im Zeitraum versendet wurden, netto bewertet: einmalige Positionen
   plus zwölf Monate der laufenden. Ein angenommenes Angebot zählt mit der angenommenen Version und
-  Auswahl, sonst die zuletzt versendete Version mit der Standardauswahl.
+  Auswahl, sonst die zuletzt versendete Version mit der Standardauswahl. Maßgeblich ist das
+  letzte Versanddatum: Wird ein Angebot nach einer Änderung erneut versendet, wandert es in den Zeitraum
+  des neuen Versands, so wie es auch inhaltlich das neue Angebot ist.
 - **Annahmequote und Ø Zeit bis zur Annahme**: bezogen auf die im Zeitraum beantworteten Angebote
   (angenommen oder abgelehnt); zurückgezogene und offene zählen nicht, sonst sänke die Quote mit jedem
   frisch versendeten Angebot. Die Tage laufen vom Versand bis zur Online-Annahme.

@@ -49,7 +49,11 @@ function valueOf(row: OfferRow): number {
 const OFFER_VERSION = sql`v.workspace_id = o.workspace_id
   and v.id = coalesce((o.acceptance ->> 'versionId')::uuid, o.current_version_id)`;
 
-async function offerFigures(tx: Transaction, scope: ReturnType<typeof prospectScope>, period: Period) {
+async function offerFigures(
+  tx: Transaction,
+  scope: ReturnType<typeof prospectScope>,
+  period: Period,
+) {
   const from = period.from.toISOString();
   const to = period.to.toISOString();
   const sent = await tx.execute<OfferRow>(sql`
@@ -147,7 +151,10 @@ async function recurring(tx: Transaction, scope: ReturnType<typeof prospectScope
   const mrr = rows.reduce(
     (sum, row) =>
       sum +
-      monthlyCents(row.interval, invoiceTotals(invoiceDocumentSchema.parse({ lines: row.lines })).netCents),
+      monthlyCents(
+        row.interval,
+        invoiceTotals(invoiceDocumentSchema.parse({ lines: row.lines })).netCents,
+      ),
     0,
   );
   return { contracts: rows.length, mrrCents: Math.round(mrr) };
@@ -172,7 +179,14 @@ export async function loadBusiness(
     openItems(tx, scope, today),
     recurring(tx, scope, today),
   ]);
-  return { offers, previousOffers, revenue: sales, previousRevenue: previousSales, open, contracts };
+  return {
+    offers,
+    previousOffers,
+    revenue: sales,
+    previousRevenue: previousSales,
+    open,
+    contracts,
+  };
 }
 
 export type BusinessData = Awaited<ReturnType<typeof loadBusiness>>;

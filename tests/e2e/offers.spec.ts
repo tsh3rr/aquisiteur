@@ -358,6 +358,8 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await expect(page.getByText("Annahmequote")).toBeVisible();
   await expect(page.getByRole("region", { name: "Umsatz je Kampagne" })).toBeVisible();
   await expectAccessible(page, "business dashboard");
+  const businessCsv = await page.request.get("/auswertung/export?teil=geschaeft");
+  expect(await businessCsv.text()).toContain("Umsatz je Kampagne;Kampagne;Umsatz netto (EUR)");
   if (shots) await page.screenshot({ path: `${shots}/business-dashboard.png`, fullPage: true });
 
   // Deletion request with issued invoices: everything else goes, the invoices stay (ADR-0071).

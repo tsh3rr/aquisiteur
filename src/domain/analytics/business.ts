@@ -70,3 +70,53 @@ export function sortRevenue(rows: CampaignRevenue[]): CampaignRevenue[] {
     a.campaignId === null ? 1 : b.campaignId === null ? -1 : b.netCents - a.netCents,
   );
 }
+
+interface OfferFigures {
+  sent: number;
+  volumeCents: number;
+  rate: number | null;
+  avgDays: number | null;
+}
+
+export interface BusinessFigures {
+  offers: OfferFigures;
+  previousOffers: OfferFigures;
+  revenue: { netCents: number; byCampaign: CampaignRevenue[] };
+  previousRevenue: { netCents: number };
+  open: { openCents: number; overdueCents: number };
+  contracts: { mrrCents: number };
+}
+
+type Cell = string | number | null;
+
+/** CSV rows of the project dashboard: the figures, then revenue per campaign under its own header. */
+export function businessCsvRows(data: BusinessFigures): Cell[][] {
+  const { offers: o, previousOffers: po } = data;
+  const euro = (cents: number) => cents / 100;
+  const percent = (value: number | null) => (value === null ? null : Math.round(value * 1000) / 10);
+  const days = (value: number | null) => (value === null ? null : Math.round(value * 10) / 10);
+  return [
+    ["Bereich", "Name", "Zeitraum", "Vorperiode"],
+    ["Kennzahl", "Versendete Angebote", o.sent, po.sent],
+    ["Kennzahl", "Angebotsvolumen netto (EUR)", euro(o.volumeCents), euro(po.volumeCents)],
+    ["Kennzahl", "Annahmequote (%)", percent(o.rate), percent(po.rate)],
+    ["Kennzahl", "Ø Tage bis zur Annahme", days(o.avgDays), days(po.avgDays)],
+    [
+      "Kennzahl",
+      "Umsatz netto (EUR)",
+      euro(data.revenue.netCents),
+      euro(data.previousRevenue.netCents),
+    ],
+    ["Stand heute", "Offene Posten (EUR)", euro(data.open.openCents), null],
+    ["Stand heute", "Davon überfällig (EUR)", euro(data.open.overdueCents), null],
+    ["Stand heute", "MRR netto (EUR)", euro(data.contracts.mrrCents), null],
+    [],
+    ["Umsatz je Kampagne", "Kampagne", "Umsatz netto (EUR)", "Rechnungen"],
+    ...data.revenue.byCampaign.map((row) => [
+      "Umsatz je Kampagne",
+      row.name,
+      euro(row.netCents),
+      row.invoices,
+    ]),
+  ];
+}

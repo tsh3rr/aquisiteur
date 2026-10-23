@@ -68,15 +68,9 @@ const item = (patch: Partial<OfferDocument["items"][number]>): OfferDocument["it
   ...patch,
 });
 
-const offer = (items: OfferDocument["items"]): OfferDocument => ({
-  title: "Neue Website",
-  intro: undefined,
-  outro: undefined,
-  validDays: 30,
-  discountPercent: 0,
-  variants: [],
-  items,
-  paymentPlan: [
+const offer = (
+  items: OfferDocument["items"],
+  paymentPlan: OfferDocument["paymentPlan"] = [
     {
       id: "m1",
       title: "Bei Auftrag",
@@ -84,6 +78,15 @@ const offer = (items: OfferDocument["items"]): OfferDocument => ({
       trigger: "acceptance",
     },
   ],
+): OfferDocument => ({
+  title: "Neue Website",
+  intro: undefined,
+  outro: undefined,
+  validDays: 30,
+  discountPercent: 0,
+  variants: [],
+  items,
+  paymentPlan,
   maintenance: {
     startOn: "acceptance",
     minimumMonths: 12,
@@ -113,11 +116,11 @@ async function customer(slug: string, name: string) {
   return { prospectId: published.prospectId, projectId: project!.id };
 }
 
-async function sent(projectId: string, document: OfferDocument) {
+async function sent(projectId: string, document: OfferDocument, at = sentAt) {
   return asBea(async (tx) => {
     const id = (await createOffer(tx, actor, projectId))!;
     await saveOfferDraft(tx, actor, id, document);
-    const result = await sendOffer(tx, actor, id, sentAt);
+    const result = await sendOffer(tx, actor, id, at);
     if (!result.ok) throw new Error(result.error);
     const [row] = await tx.select().from(schema.offers).where(eq(schema.offers.id, id));
     return { id, token: result.token, versionId: row!.currentVersionId! };
@@ -339,6 +342,86 @@ describe("project dashboard", () => {
     expect(data.offers.sent).toBe(0);
     expect(data.revenue).toEqual({ netCents: 0, invoices: 0, byCampaign: [] });
     expect(data.open).toEqual({ count: 0, openCents: 0, overdueCents: 0 });
+    expect(data.contracts).toEqual({ contracts: 0, mrrCents: 0 });
+  });
+
+  it("counts deposit and final invoice once and narrows by region and tag", async () => {
+    const workshop = await customer("tischlerei-geschaeft", "Tischlerei Span");
+    await db
+      .update(schema.prospects)
+      .set({ postalCode: "4020", city: "Linz", tags: ["handwerk"] })
+      .where(eq(schema.prospects.id, workshop.prospectId));
+    const november = new Date("2026-11-02T08:00:00Z");
+    const plan: OfferDocument["paymentPlan"] = [
+      {
+        id: "m1",
+        title: "Anzahlung",
+        share: { kind: "percent", value: 40 },
+        trigger: "acceptance",
+      },
+      { id: "m2", title: "Go-live", share: { kind: "percent", value: 60 }, trigger: "milestone" },
+    ];
+    const workshopOffer = await sent(
+      workshop.projectId,
+      offer([item({ unitPriceCents: 200_000 })], plan),
+      november,
+    );
+    const answer = await answerOffer(
+      db,
+      {
+        workspaceId: ws,
+        token: workshopOffer.token,
+        internal: false,
+        body: {
+          answer: "accept",
+          versionId: workshopOffer.versionId,
+          name: "Sepp Span",
+          confirmed: true,
+          selection: { variantId: null, optionalIds: [] },
+        },
+      },
+      november,
+    );
+    if (!("ok" in answer)) throw new Error("offer not accepted");
+    await asBea(async (tx) => {
+      await createInvoicesFromOffer(tx, actor, workshopOffer.id, november);
+      const drafts = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.offerId, workshopOffer.id))
+        .orderBy(schema.invoices.createdAt, schema.invoices.kind);
+      for (const draft of drafts) {
+        const issued = await issueInvoice(tx, actor, draft.id, november);
+        if (!issued.ok) throw new Error(`${draft.kind} not issued`);
+      }
+    });
+    const period: Period = {
+      from: new Date("2026-11-01T00:00:00Z"),
+      to: new Date("2026-12-01T00:00:00Z"),
+    };
+    for (const filter of [
+      { ...NO_FILTER, region: "40" },
+      { ...NO_FILTER, region: "linz" },
+      { ...NO_FILTER, tag: "handwerk" },
+    ]) {
+      const data = await asBea((tx) =>
+        loadBusiness(tx, ws, filter, period, "Europe/Vienna", later),
+      );
+      // 800 € deposit plus 2.000 € final less the 800 € deducted: 2.000 € once.
+      expect(data.revenue).toMatchObject({ netCents: 200_000, invoices: 2 });
+      expect(data.offers).toMatchObject({ sent: 1, accepted: 1, volumeCents: 200_000 });
+      expect(data.contracts.contracts).toBe(0);
+    }
+  });
+
+  it("leaves a restricted customer's contracts out of the MRR", async () => {
+    await db
+      .update(schema.prospects)
+      .set({ restrictedAt: new Date() })
+      .where(eq(schema.prospects.campaignId, campaignId));
+    const data = await asBea((tx) =>
+      loadBusiness(tx, ws, NO_FILTER, october, "Europe/Vienna", later),
+    );
     expect(data.contracts).toEqual({ contracts: 0, mrrCents: 0 });
   });
 });

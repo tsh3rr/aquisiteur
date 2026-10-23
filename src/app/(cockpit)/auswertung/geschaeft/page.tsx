@@ -17,6 +17,9 @@ export const metadata: Metadata = { title: "Geschäft · Auswertung" };
 const th = "py-2 pr-4 font-medium";
 const td = "py-2 pr-4 text-right tabular-nums";
 
+/** "1 Rechnung" / "3 Rechnungen". */
+const count = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
+
 /** Project dashboard (§7.10, 7c-5): offers, revenue, open items and MRR. */
 export default async function BusinessAnalyticsPage({
   searchParams,
@@ -48,12 +51,12 @@ export default async function BusinessAnalyticsPage({
         <h2 id="business-heading" className="sr-only">
           Kennzahlen zu Angeboten und Umsatz
         </h2>
-        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <KpiTile
             label="Angebotsvolumen"
             value={formatEuro(o.volumeCents, true)}
             trend={trend(o.volumeCents, po.volumeCents)}
-            hint={`${formatCount(o.sent)} Angebote versendet; netto, einmalig plus 12 Monate laufend`}
+            hint={`${count(o.sent, "Angebot", "Angebote")} versendet; netto, einmalig plus 12 Monate laufend`}
           />
           <KpiTile
             label="Annahmequote"
@@ -72,17 +75,17 @@ export default async function BusinessAnalyticsPage({
             label="Umsatz"
             value={formatEuro(revenue.netCents, true)}
             trend={trend(revenue.netCents, previousRevenue.netCents)}
-            hint={`Netto aus ${formatCount(revenue.invoices)} ausgestellten Rechnungen, Stornos abgezogen`}
+            hint={`Netto aus ${count(revenue.invoices, "ausgestellten Rechnung", "ausgestellten Rechnungen")}, Stornos abgezogen`}
           />
           <KpiTile
             label="Offene Posten"
             value={formatEuro(data.open.openCents, true)}
-            hint={`${formatCount(data.open.count)} Rechnungen, davon ${formatEuro(data.open.overdueCents, true)} überfällig (aktueller Stand)`}
+            hint={`${count(data.open.count, "Rechnung", "Rechnungen")}, davon ${formatEuro(data.open.overdueCents, true)} überfällig (aktueller Stand)`}
           />
           <KpiTile
             label="MRR"
             value={formatEuro(data.contracts.mrrCents, true)}
-            hint={`Monatlich wiederkehrend, netto, aus ${formatCount(data.contracts.contracts)} laufenden Wartungsverträgen (aktueller Stand)`}
+            hint={`Monatlich wiederkehrend, netto, aus ${count(data.contracts.contracts, "laufenden Wartungsvertrag", "laufenden Wartungsverträgen")} (aktueller Stand)`}
           />
         </dl>
         <p className="text-sm">
@@ -139,12 +142,15 @@ export default async function BusinessAnalyticsPage({
                 </thead>
                 <tbody>
                   {revenue.byCampaign.map((row) => (
-                    <tr key={row.campaignId ?? "none"} className="border-b border-border last:border-0">
+                    <tr
+                      key={row.campaignId ?? "none"}
+                      className="border-b border-border last:border-0"
+                    >
                       <th scope="row" className="py-2 pr-4 font-medium">
                         {row.campaignId ? (
                           <Link
                             href={`/kampagnen/${row.campaignId}`}
-                            className="underline-offset-4 hover:underline"
+                            className="text-accent underline-offset-4 hover:underline"
                           >
                             {row.name}
                           </Link>
