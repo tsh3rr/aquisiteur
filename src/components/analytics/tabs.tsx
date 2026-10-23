@@ -9,6 +9,7 @@ const TABS = [
   { href: "/auswertung", label: "Übersicht" },
   { href: "/auswertung/inhalte", label: "Inhalte" },
   { href: "/auswertung/karte", label: "Karte" },
+  { href: "/auswertung/geschaeft", label: "Geschäft" },
 ] as const;
 
 /** Dashboard sections; the filters travel along in the query string. */

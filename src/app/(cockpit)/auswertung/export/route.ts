@@ -1,6 +1,7 @@
 import { toCsv } from "@/domain/csv";
 import { blockLabel, CHANNEL_LABELS, NUDGE_LABELS } from "@/domain/analytics/content";
 import { isoDay, lastDay } from "@/domain/analytics/period";
+import { loadBusiness } from "@/server/analytics/business";
 import { loadContent } from "@/server/analytics/content";
 import { loadOverview } from "@/server/analytics/dashboard";
 import { readDashboardParams } from "@/server/analytics/params";
@@ -14,7 +15,8 @@ export async function GET(request: Request) {
   const { workspace, tenant } = await requireCockpit();
   const raw = Object.fromEntries(new URL(request.url).searchParams);
   const { period, filter } = readDashboardParams(raw);
-  const part = raw.teil === "inhalte" ? "inhalte" : "uebersicht";
+  const part =
+    raw.teil === "inhalte" ? "inhalte" : raw.teil === "geschaeft" ? "geschaeft" : "uebersicht";
   const rows = await tenant(async (tx) => {
     if (part === "inhalte") {
       const data = await loadContent(tx, workspace.id, filter, period);
@@ -47,6 +49,39 @@ export async function GET(request: Request) {
       ];
     }
     const settings = await loadWorkspaceSettings(tx, workspace.id);
+    if (part === "geschaeft") {
+      const data = await loadBusiness(
+        tx,
+        workspace.id,
+        filter,
+        period,
+        settings.notifications.timezone,
+      );
+      const { offers: o, previousOffers: po } = data;
+      const euro = (cents: number) => cents / 100;
+      return [
+        ["Bereich", "Name", "Zeitraum", "Vorperiode"],
+        ["Kennzahl", "Versendete Angebote", o.sent, po.sent],
+        ["Kennzahl", "Angebotsvolumen netto (EUR)", euro(o.volumeCents), euro(po.volumeCents)],
+        ["Kennzahl", "Annahmequote (%)", percent(o.rate), percent(po.rate)],
+        ["Kennzahl", "Ø Tage bis zur Annahme", o.avgDays, po.avgDays],
+        [
+          "Kennzahl",
+          "Umsatz netto (EUR)",
+          euro(data.revenue.netCents),
+          euro(data.previousRevenue.netCents),
+        ],
+        ["Stand heute", "Offene Posten (EUR)", euro(data.open.openCents), null],
+        ["Stand heute", "Davon überfällig (EUR)", euro(data.open.overdueCents), null],
+        ["Stand heute", "MRR netto (EUR)", euro(data.contracts.mrrCents), null],
+        ...data.revenue.byCampaign.map((row) => [
+          "Umsatz je Kampagne (EUR, Rechnungen)",
+          row.name,
+          euro(row.netCents),
+          row.invoices,
+        ]),
+      ];
+    }
     const data = await loadOverview(
       tx,
       workspace.id,
