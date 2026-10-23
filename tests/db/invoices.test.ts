@@ -98,11 +98,14 @@ async function dbError(query: PromiseLike<unknown>): Promise<string> {
 }
 
 async function invoicesOfOffer() {
-  return db
-    .select()
-    .from(schema.invoices)
-    .where(and(eq(schema.invoices.workspaceId, ws), eq(schema.invoices.offerId, offerId)))
-    .orderBy(schema.invoices.createdAt);
+  return (
+    db
+      .select()
+      .from(schema.invoices)
+      .where(and(eq(schema.invoices.workspaceId, ws), eq(schema.invoices.offerId, offerId)))
+      // Drafts of one call share created_at (transaction time); the kind keeps deposit before final.
+      .orderBy(schema.invoices.createdAt, schema.invoices.kind)
+  );
 }
 
 beforeAll(async () => {

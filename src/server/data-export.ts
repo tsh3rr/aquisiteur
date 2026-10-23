@@ -45,6 +45,7 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.offerVersions,
   schema.invoices,
   schema.invoicePayments,
+  schema.invoiceReminders,
   schema.invoiceShares,
   schema.outboundEmails,
   schema.maintenanceContracts,

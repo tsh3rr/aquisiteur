@@ -15,6 +15,7 @@ export interface TaskView {
   id: string;
   prospectId: string;
   invoiceId: string | null;
+  reminderId: string | null;
   companyName: string;
   title: string;
   note: string | null;
@@ -30,6 +31,7 @@ const view = {
   id: tasks.id,
   prospectId: tasks.prospectId,
   invoiceId: tasks.invoiceId,
+  reminderId: tasks.reminderId,
   companyName: prospects.companyName,
   title: tasks.title,
   note: tasks.note,
@@ -329,6 +331,7 @@ export function taskItemView(task: TaskView) {
     id: task.id,
     prospectId: task.prospectId,
     invoiceId: task.invoiceId,
+    reminderId: task.reminderId,
     companyName: task.companyName,
     title: task.title,
     note: task.note,

@@ -18,18 +18,60 @@ import {
 import { germanDate, servicePeriodLabel } from "@/domain/invoices/totals";
 import { formatCents, formatQuantity } from "@/domain/offers/totals";
 import { EMAIL_STATUS_LABELS, EMAIL_STATUS_TONES } from "@/domain/email";
+import { DUNNING_LEVEL_LABELS, formatRate, type DunningClaim } from "@/domain/invoices/dunning";
 import { loadInvoice } from "@/server/invoices/manage";
+import { loadInvoiceDunning } from "@/server/invoices/dunning";
 import { loadInvoiceDelivery } from "@/server/invoices/send";
+import { localDateString } from "@/domain/tasks";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteInvoiceDraftAction, deletePaymentAction, loadInvoicePdfAction } from "../actions";
 import { CancelInvoice, PaymentForm } from "./invoice-actions";
+import { DiscardReminderButton, PrepareReminderButton, SendReminder } from "./invoice-dunning";
 import { SendInvoice } from "./invoice-send";
 import { InvoiceEditorLazy } from "./invoice-editor-lazy";
 
 type Params = Promise<{ id: string }>;
 
 export const metadata: Metadata = { title: "Rechnung" };
+
+function Claim({
+  claim,
+}: {
+  claim: Pick<
+    DunningClaim,
+    "openCents" | "interestCents" | "interestRateBp" | "feeCents" | "totalCents"
+  >;
+}) {
+  return (
+    <dl className="grid max-w-sm gap-1 text-sm tabular-nums">
+      <div className="flex justify-between gap-4">
+        <dt className="text-foreground-muted">Offen</dt>
+        <dd>{formatCents(claim.openCents)}</dd>
+      </div>
+      {claim.interestCents > 0 ? (
+        <div className="flex justify-between gap-4">
+          <dt className="text-foreground-muted">
+            Verzugszinsen{claim.interestRateBp ? ` ${formatRate(claim.interestRateBp)}` : ""}
+          </dt>
+          <dd>{formatCents(claim.interestCents)}</dd>
+        </div>
+      ) : null}
+      {claim.feeCents > 0 ? (
+        <div className="flex justify-between gap-4">
+          <dt className="text-foreground-muted">Pauschale § 458 UGB</dt>
+          <dd>{formatCents(claim.feeCents)}</dd>
+        </div>
+      ) : null}
+      {claim.totalCents !== claim.openCents ? (
+        <div className="flex justify-between gap-4 font-semibold">
+          <dt>Forderung</dt>
+          <dd>{formatCents(claim.totalCents)}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
 
 function Party({ party }: { party: InvoiceParty }) {
   return (
@@ -57,6 +99,10 @@ export default async function InvoicePage({ params }: { params: Params }) {
     loaded.invoice.status === "draft"
       ? null
       : await tenant((tx) => loadInvoiceDelivery(tx, workspace.id, id));
+  const dunning =
+    loaded.invoice.status === "draft"
+      ? null
+      : await tenant((tx) => loadInvoiceDunning(tx, workspace.id, id));
   const { invoice, document, prospect, totals, issuer, recipient } = loaded;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const draft = invoice.status === "draft";
@@ -430,6 +476,118 @@ export default async function InvoicePage({ params }: { params: Params }) {
                 draft={delivery.draft}
               />
             ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {dunning ? (
+        <Card id="mahnungen" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>Mahnungen</CardTitle>
+            <CardDescription>
+              Zahlungserinnerung {loaded.settings.billing.dunningDays[0]} Tage nach Fälligkeit,
+              Mahnungen nach {loaded.settings.billing.dunningDays[1]} und{" "}
+              {loaded.settings.billing.dunningDays[2]} Tagen, jeweils erst nach Ablauf der Frist
+              davor. Ablauf, Zinsen und Pauschale in den{" "}
+              <Link href="/settings#angebote" className="text-accent underline underline-offset-4">
+                Einstellungen
+              </Link>
+              .
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            {dunning.reminders.filter((reminder) => reminder.status === "sent").length > 0 ? (
+              <ul className="grid gap-4 text-sm" aria-label="Versendete Mahnungen">
+                {dunning.reminders
+                  .filter((reminder) => reminder.status === "sent")
+                  .map((reminder) => (
+                    <li key={reminder.id} className="grid gap-2">
+                      <p>
+                        <span className="font-medium">{DUNNING_LEVEL_LABELS[reminder.level]}</span>
+                        {reminder.sentAt
+                          ? ` · gesendet am ${germanDate(localDateString(reminder.sentAt, loaded.settings.notifications.timezone))}`
+                          : ""}
+                        {` · Frist bis ${germanDate(reminder.deadline)}`}
+                      </p>
+                      <Claim
+                        claim={{
+                          ...reminder,
+                          totalCents:
+                            reminder.openCents + reminder.interestCents + reminder.feeCents,
+                        }}
+                      />
+                      {reminder.emails.map((mail) => (
+                        <p key={mail.id} className="flex flex-wrap items-center gap-2">
+                          <Badge tone={EMAIL_STATUS_TONES[mail.status]}>
+                            {EMAIL_STATUS_LABELS[mail.status]}
+                          </Badge>
+                          <span>an {mail.toAddress}</span>
+                          {mail.error ? (
+                            <span className="basis-full text-foreground-muted">{mail.error}</span>
+                          ) : null}
+                        </p>
+                      ))}
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
+            {dunning.draft ? (
+              <section aria-labelledby="dunning-draft-heading" className="grid gap-4">
+                <h3 id="dunning-draft-heading" className="text-base font-semibold">
+                  {DUNNING_LEVEL_LABELS[dunning.draft.reminder.level]} (Entwurf)
+                </h3>
+                {dunning.draft.openApproval ? (
+                  <p className="text-sm" role="status">
+                    Eine Aufgabe wartet auf die Freigabe; sie erledigt sich mit dem Versand.
+                  </p>
+                ) : null}
+                <Claim claim={dunning.draft.claim} />
+                {canManage && !prospect.restrictedAt ? (
+                  <>
+                    <SendReminder
+                      // A payment or a new day changes the text; the form starts over with it.
+                      key={dunning.draft.claimKey}
+                      invoiceId={invoice.id}
+                      reminderId={dunning.draft.reminder.id}
+                      label={DUNNING_LEVEL_LABELS[dunning.draft.reminder.level]}
+                      filename={filename}
+                      pdfStored={dunning.draft.pdfStored}
+                      claimKey={dunning.draft.claimKey}
+                      draft={dunning.draft.mail}
+                    />
+                    <DiscardReminderButton
+                      reminderId={dunning.draft.reminder.id}
+                      deadlineDays={loaded.settings.billing.dunningDeadlineDays}
+                    />
+                  </>
+                ) : null}
+              </section>
+            ) : dunning.next ? (
+              <div className="grid gap-3">
+                <p className="text-sm">
+                  Nächste Stufe: {DUNNING_LEVEL_LABELS[dunning.next.level]},{" "}
+                  {dunning.next.dueOn <= loaded.today
+                    ? "jetzt fällig"
+                    : `planmäßig am ${germanDate(dunning.next.dueOn)}`}
+                  {dunning.mode === "off"
+                    ? ". Der stündliche Job legt nichts an; Sie bereiten selbst vor."
+                    : "."}
+                </p>
+                {canManage && !prospect.restrictedAt ? (
+                  <PrepareReminderButton
+                    invoiceId={invoice.id}
+                    label={DUNNING_LEVEL_LABELS[dunning.next.level]}
+                  />
+                ) : null}
+              </div>
+            ) : !dunning.remindable ? (
+              <p className="text-sm text-foreground-muted">Nichts mehr offen.</p>
+            ) : (
+              <p className="text-sm text-foreground-muted">
+                Die letzte Mahnung ist versendet. Weitere Schritte, etwa ein Inkassobüro, liegen bei
+                Ihnen.
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : null}

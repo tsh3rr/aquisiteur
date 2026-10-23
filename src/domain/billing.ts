@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DUNNING_MODES } from "./invoices/dunning";
 import { INVOICE_EMAIL_BODY, INVOICE_EMAIL_SUBJECT, INVOICE_SEND_MODES } from "./invoices/email";
 import { normaliseIban } from "./invoices/epc";
 
@@ -21,6 +22,8 @@ export const SMALL_BUSINESS_NOTE =
 
 /** Austrian VAT id: ATU plus 8 digits. Other EU ids are accepted for customers later (7b). */
 export const AUSTRIAN_VAT_ID = /^ATU\d{8}$/;
+
+const dunningDay = z.number().int().min(1).max(180);
 
 export const billingSettingsSchema = z.object({
   taxMode: z.enum(TAX_MODES).default("small_business"),
@@ -106,6 +109,24 @@ export const billingSettingsSchema = z.object({
   invoiceSendMode: z.enum(INVOICE_SEND_MODES).default("approval"),
   invoiceEmailSubject: z.string().trim().min(3).max(200).default(INVOICE_EMAIL_SUBJECT),
   invoiceEmailBody: z.string().trim().min(10).max(4000).default(INVOICE_EMAIL_BODY),
+  /**
+   * Dunning (§7.10, 7c-4): the hourly job drafts each due level and follows
+   * this mode; "auto" falls back to approval when it cannot send.
+   */
+  dunningMode: z.enum(DUNNING_MODES).default("approval"),
+  /** Days after the due date: reminder, first and last dunning letter. */
+  dunningDays: z
+    .tuple([dunningDay, dunningDay, dunningDay])
+    .refine(([first, second, third]) => first < second && second < third, {
+      message: "Die Stufen müssen aufsteigen.",
+    })
+    .default([3, 14, 28]),
+  dunningDeadlineDays: z.number().int().min(1).max(60).default(7),
+  /** § 456 UGB and § 458 UGB, between businesses, from the first dunning letter on. */
+  lateInterest: z.boolean().default(false),
+  collectionFee: z.boolean().default(false),
+  /** Basiszinssatz of the OeNB; 1,53 % for the second half of 2026. */
+  baseRatePercent: z.number().min(-5).max(20).default(1.53),
 });
 export type BillingSettings = z.output<typeof billingSettingsSchema>;
 

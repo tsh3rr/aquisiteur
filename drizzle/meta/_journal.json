@@ -218,6 +218,20 @@
       "when": 1792728755289,
       "tag": "0030_maintenance_contracts_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792734263342,
+      "tag": "0031_invoice_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792734274061,
+      "tag": "0032_invoice_reminders_grants",
+      "breakpoints": true
     }
   ]
 }

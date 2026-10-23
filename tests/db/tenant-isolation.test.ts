@@ -61,6 +61,7 @@ const tenantTables = {
   offer_versions: schema.offerVersions,
   invoices: schema.invoices,
   invoice_payments: schema.invoicePayments,
+  invoice_reminders: schema.invoiceReminders,
   invoice_shares: schema.invoiceShares,
   outbound_emails: schema.outboundEmails,
   maintenance_contracts: schema.maintenanceContracts,
@@ -245,6 +246,16 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     subject: `Rechnung RE-2026-${tag}`,
     messageId: `<${tag}@mail.test>`,
     status: "sent",
+  });
+  // A sent payment reminder (7c-4).
+  await db.insert(schema.invoiceReminders).values({
+    workspaceId,
+    invoiceId: invoice!.id,
+    level: 1,
+    status: "sent",
+    asOf: "2026-10-20",
+    deadline: "2026-10-27",
+    openCents: 100,
   });
 }
 

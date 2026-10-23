@@ -38,9 +38,12 @@ export const INVOICE_EMAIL_PLACEHOLDERS = [
 ] as const;
 type Placeholder = (typeof INVOICE_EMAIL_PLACEHOLDERS)[number];
 
-export function fillTemplate(template: string, values: Record<Placeholder, string>): string {
+export function fillTemplate<K extends string>(
+  template: string,
+  values: Record<K, string>,
+): string {
   return template.replace(/\{([a-z]+)\}/g, (match, key: string) =>
-    key in values ? values[key as Placeholder] : match,
+    key in values ? values[key as K] : match,
   );
 }
 
@@ -77,24 +80,34 @@ export function invoiceEmailValues(input: Omit<InvoiceEmailInput, "subject" | "b
 }
 
 /** Subject, plain text and a minimal HTML twin; the link is clickable in both. */
+export function mailFromText(input: { subject: string; text: string; link: string }): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = input.subject.replace(/[\r\n]+/g, " ").trim();
+  const text = input.text.trim();
+  const link = escapeHtml(input.link);
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((paragraph) => {
+      const escaped = escapeHtml(paragraph).replace(/\n/g, "<br>");
+      return `<p>${escaped.split(link).join(`<a href="${link}">${link}</a>`)}</p>`;
+    })
+    .join("\n");
+  const html = `<!doctype html><html lang="de"><body style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a">${paragraphs}</body></html>`;
+  return { subject, text, html };
+}
+
 export function invoiceEmail(input: InvoiceEmailInput): {
   subject: string;
   text: string;
   html: string;
 } {
   const values = invoiceEmailValues(input);
-  const subject = fillTemplate(input.subject, values)
-    .replace(/[\r\n]+/g, " ")
-    .trim();
-  const text = fillTemplate(input.body, values).trim();
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((paragraph) => {
-      const escaped = escapeHtml(paragraph).replace(/\n/g, "<br>");
-      const link = escapeHtml(input.link);
-      return `<p>${escaped.split(link).join(`<a href="${link}">${link}</a>`)}</p>`;
-    })
-    .join("\n");
-  const html = `<!doctype html><html lang="de"><body style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a">${paragraphs}</body></html>`;
-  return { subject, text, html };
+  return mailFromText({
+    subject: fillTemplate(input.subject, values),
+    text: fillTemplate(input.body, values),
+    link: input.link,
+  });
 }

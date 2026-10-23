@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { timingSafeEqual } from "@/domain/tracking/signed-token";
 import { geocodePending } from "@/server/geocoding";
 import { runContractBilling } from "@/server/invoices/contracts";
+import { runDunning } from "@/server/invoices/dunning";
 import { runAutoFollowUps } from "@/server/letters/follow-up";
 import { syncLetterStatuses } from "@/server/letters/sync";
 import { runDigests } from "@/server/notifications/digest";
@@ -13,7 +14,7 @@ import { purgeExpiredReplays } from "@/server/tracking/replay";
 export const dynamic = "force-dynamic";
 
 /**
- * Hourly jobs: print API status and follow-up letters (§7.9), maintenance invoices (§7.10),
+ * Hourly jobs: print API status and follow-up letters (§7.9), maintenance invoices and dunning (§7.10),
  * task reminders (§7.8), daily digest (§7.7), retention of events, opt-outs and replays (§9), map
  * positions (§7.8). Called by the Cloudflare cron trigger
  * (worker.mjs) or any scheduler with `Authorization: Bearer $CRON_SECRET`.
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
   const followUps = await runAutoFollowUps(db);
   // Also before the reminders: an approval task for a new maintenance invoice is due today.
   const contracts = await runContractBilling(db);
+  const dunning = await runDunning(db);
   const reminders = await runTaskReminders(db);
   const digests = await runDigests(db);
   const replaysPurged = await purgeExpiredReplays(db);
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
     letterStatuses,
     followUps,
     contracts,
+    dunning,
     reminders,
     digests,
     replaysPurged,

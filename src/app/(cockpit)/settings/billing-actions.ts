@@ -46,12 +46,24 @@ export async function saveBillingSettings(
     invoiceSendMode: text(formData, "invoiceSendMode") || undefined,
     invoiceEmailSubject: text(formData, "invoiceEmailSubject") || undefined,
     invoiceEmailBody: text(formData, "invoiceEmailBody") || undefined,
+    dunningMode: text(formData, "dunningMode") || undefined,
+    dunningDays: [1, 2, 3].map((level) => Number(text(formData, `dunningDays${level}`))),
+    dunningDeadlineDays: Number(text(formData, "dunningDeadlineDays")),
+    lateInterest: formData.get("lateInterest") === "on",
+    collectionFee: formData.get("collectionFee") === "on",
+    baseRatePercent: Number(text(formData, "baseRatePercent").trim().replace(",", ".")),
   });
   if (!parsed.success) {
     const errors = issuesByField(parsed.error);
     if (errors.offerValidDays) errors.offerValidDays = "Bitte 1 bis 365 Tage angeben.";
     if (errors.smallBusinessNote) errors.smallBusinessNote = "Bitte mindestens 10 Zeichen angeben.";
     if (errors.paymentTermsDays) errors.paymentTermsDays = "Bitte 0 bis 120 Tage angeben.";
+    const dunningDays = Object.keys(errors).find((key) => key.startsWith("dunningDays"));
+    if (dunningDays) {
+      errors.dunningDays = "Bitte aufsteigende Tage von 1 bis 180 angeben.";
+    }
+    if (errors.dunningDeadlineDays) errors.dunningDeadlineDays = "Bitte 1 bis 60 Tage angeben.";
+    if (errors.baseRatePercent) errors.baseRatePercent = "Bitte einen Satz wie 1,53 angeben.";
     return { ok: false, message: "Bitte prüfen Sie die markierten Felder.", errors };
   }
   await tenant(async (tx) => {
