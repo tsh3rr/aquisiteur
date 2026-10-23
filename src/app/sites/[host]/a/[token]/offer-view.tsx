@@ -36,6 +36,11 @@ const MESSAGES: Record<number, string> = {
   429: "Zu viele Versuche. Bitte versuchen Sie es in einer Stunde noch einmal.",
 };
 
+/** The quota applies to the contract with the shortest interval. */
+function shortest(intervals: RecurringInterval[]): RecurringInterval {
+  return [...intervals].sort((a, b) => INTERVAL_MONTHS[a] - INTERVAL_MONTHS[b])[0] ?? "monthly";
+}
+
 const START_LABELS = {
   acceptance: "ab Auftrag",
   go_live: "ab Go-live",
@@ -463,6 +468,22 @@ export function OfferView({
                 ? `Danach mit ${months(terms.noticeMonths)} Frist kündbar.`
                 : "Jederzeit kündbar."}
             </li>
+            {terms.includedMinutes > 0 || terms.hourlyRateCents ? (
+              <li>
+                {terms.includedMinutes > 0
+                  ? `Enthalten sind ${formatQuantity(terms.includedMinutes / 60)} Stunden ${PER_INTERVAL[shortest(recurring)]}`
+                  : "Arbeitszeit ist nicht enthalten"}
+                {terms.hourlyRateCents
+                  ? `; weitere Stunden zu ${formatCents(terms.hourlyRateCents)} netto je Stunde, auf die Viertelstunde aufgerundet.`
+                  : "."}
+              </li>
+            ) : null}
+            {terms.indexed ? (
+              <li>
+                Die Preise sind nach dem Verbraucherpreisindex 2020 der Statistik Austria
+                wertgesichert und werden einmal jährlich angepasst, nach oben wie nach unten.
+              </li>
+            ) : null}
             {recurring.some((interval) => INTERVAL_MONTHS[interval] > 1) ? (
               <li>Bei längeren Intervallen wird der Betrag für den ganzen Zeitraum berechnet.</li>
             ) : null}

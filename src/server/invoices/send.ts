@@ -247,14 +247,15 @@ export interface PreparedMail {
   from: string;
   replyTo: string | null;
   mail: { subject: string; text: string; html: string };
-  pdfKey: string;
+  /** The stored invoice PDF to attach; null for a mail without attachment. */
+  pdfKey: string | null;
   /** The invoice number, the attachment's file name. */
   number: string;
 }
 
 /**
- * Hands a recorded mail with the stored invoice PDF to the provider, outside
- * any transaction, and marks the row sent or failed.
+ * Hands a recorded mail, with the stored invoice PDF if any, to the provider,
+ * outside any transaction, and marks the row sent or failed.
  */
 export async function transmitMail(
   tenant: <T>(fn: (tx: Transaction) => Promise<T>) => Promise<T>,
@@ -263,9 +264,12 @@ export async function transmitMail(
 ): Promise<{ ok: true } | { ok: false; detail: string }> {
   let providerId: string | null;
   try {
-    const stored = await getInfra().storage.get(prepared.pdfKey);
-    if (!stored) throw new Error("stored invoice PDF is missing");
-    const pdf = await readAll(stored.body);
+    let pdf: Uint8Array | null = null;
+    if (prepared.pdfKey) {
+      const stored = await getInfra().storage.get(prepared.pdfKey);
+      if (!stored) throw new Error("stored invoice PDF is missing");
+      pdf = await readAll(stored.body);
+    }
     ({ id: providerId } = await getInfra().email.send({
       to: prepared.to,
       from: prepared.from,
@@ -274,16 +278,23 @@ export async function transmitMail(
       text: prepared.mail.text,
       html: prepared.mail.html,
       headers: { "Message-ID": prepared.messageId },
-      attachments: [
-        { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
-      ],
+      ...(pdf
+        ? {
+            attachments: [
+              { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
+            ],
+          }
+        : {}),
     }));
-    await tenant((tx) =>
-      tx
-        .update(outboundEmails)
-        .set({ attachmentBytes: pdf.byteLength })
-        .where(eq(outboundEmails.id, prepared.id)),
-    );
+    if (pdf) {
+      const bytes = pdf.byteLength;
+      await tenant((tx) =>
+        tx
+          .update(outboundEmails)
+          .set({ attachmentBytes: bytes })
+          .where(eq(outboundEmails.id, prepared.id)),
+      );
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message.slice(0, 500) : "unknown error";
     await tenant((tx) =>

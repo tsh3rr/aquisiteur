@@ -1231,3 +1231,43 @@ Mahnungen, vom stündlichen Job vorbereitet und mit derselben Freigabe-Logik wie
   Entwürfe beiseite (Status `skipped`) und erledigen ihre Aufgabe; gelöscht wird keine Stufe, damit
   das Versand-Log einer Mail erhalten bleibt. Beim Senden wird erneut geprüft. Kunden mit Sperrvermerk bekommen keine
   Mahnungen; ihre versendeten Stufen bleiben als Beleg ohne Personendaten.
+
+## ADR-0075 · Wertsicherung nach VPI und Stundenkontingent im Wartungsvertrag (2026-10-23)
+
+Phase 7c-3b (ZIELPROMPT §7.10). Wartungsverträge können ihre Preise einmal jährlich an den
+Verbraucherpreisindex binden und ein Stundenkontingent je Zeitraum enthalten, mit Mehrstunden zum
+Stundensatz.
+
+- **Indexwerte trägt der Owner ein**: Statistik Austria bietet keine stabile, kostenlose API für den
+  VPI 2020; die Werte erscheinen monatlich und ändern sich danach nicht mehr. Der Vertrag speichert die
+  Basis (Monat und Wert in Zehnteln, 128,7 → 1287), den Monat der jährlichen Anpassung (Standard Jänner)
+  und einen Schwellenwert in ganzen Prozent (Standard 0). Die Rechenlogik ist rein
+  (`src/domain/invoices/indexation.ts`).
+- **Zyklus**: Die erste Anpassung frühestens zwölf Monate nach Beginn am Ersten des Anpassungsmonats,
+  danach einmal im Jahr, nie näher als elf Monate an der letzten. Wirksam wird sie mit dem ersten
+  Zeitraum, der nach der Ankündigungsfrist beginnt (Einstellung, Standard 30 Tage) und noch nicht
+  abgerechnet ist; ein Zeitraum hat nie zwei Preise.
+- **Zweiseitig**: Die Klausel wirkt nach oben und unten, wie es § 6 Abs. 1 Z 5 KSchG für Verbraucher
+  verlangt; ein sinkender Index senkt den Preis. Liegt die Änderung unter dem Schwellenwert, wird der
+  Zyklus als „keine Anpassung“ festgehalten, die Basis bleibt und Änderungen summieren sich.
+- **Ankündigung**: Der Owner trägt Monat und Wert ein, die Seite zeigt Änderung, neue Preise und Stichtag.
+  Die Mail (Art `contract_notice`, ohne Anhang, Text editierbar mit Platzhaltern) geht an die
+  Rechnungsadresse; erst wenn der Provider sie angenommen hat, gilt die Anpassung als angekündigt,
+  sonst bleibt der Zyklus offen. Eine Ankündigung lässt sich zurückziehen, solange keine Rechnung sie
+  angewendet hat; den Kunden informiert dann der Owner selbst. `contract_adjustments` hält je Zyklus
+  alte und neue Positionen, Werte und Status (keine Anpassung, angekündigt, angewendet, zurückgezogen).
+- **Anwendung**: Die Abrechnung des ersten Zeitraums ab dem Stichtag übernimmt die neuen Positionen in
+  den Vertrag und setzt die Basis auf den neuen Wert, unter der Sperre des Vertrags. Weil sich die
+  Positionen ändern, geht diese Rechnung im Automatikmodus über die Freigabe (ADR-0073).
+- **Erinnerung**: Der stündliche Job legt zwei Wochen vor dem Tag, an dem die Ankündigung spätestens
+  hinaus muss, die Aufgabe „Wertsicherung prüfen“ am Vertrag an, einmal je Zyklus
+  (`tasks.contract_id`); sie erledigt sich mit der Eintragung.
+- **Stundenkontingent**: Minuten je Zeitraum und ein Stundensatz am Vertrag, aus dem Angebot übernommen
+  (nur für das kürzeste Intervall, sonst zählte das Kontingent doppelt). Zeit wird am Vertrag erfasst
+  (`contract_time_entries`). Was über das Kontingent geht, wird auf die Viertelstunde aufgerundet und als
+  Position „Zusätzliche Stunden“ mit der Liste der Tätigkeiten berechnet: im Voraus mit der Rechnung des
+  folgenden Zeitraums, nachträglich mit der des Zeitraums selbst. Angebrochene Zeiträume bekommen das
+  Kontingent anteilig nach Tagen; nicht genutzte Stunden verfallen. Abgerechnete Einträge
+  (`overage_billed_until`) sind gesperrt. Nach dem Ende eines im Voraus abgerechneten Vertrags legt der
+  Job für die Stunden des letzten Zeitraums eine eigene Rechnung an. Ohne Stundensatz wird Zeit nur
+  dokumentiert.

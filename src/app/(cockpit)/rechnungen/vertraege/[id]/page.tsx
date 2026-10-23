@@ -12,6 +12,15 @@ import {
   CONTRACT_TIMING_LABELS,
   INTERVAL_PERIOD_LABELS,
 } from "@/domain/invoices/maintenance";
+import { formatHours } from "@/domain/invoices/hour-quota";
+import {
+  ADJUSTMENT_STATUS_LABELS,
+  INDEX_NAME,
+  INDEX_SOURCE_URL,
+  formatChange,
+  formatIndex,
+  monthLabel,
+} from "@/domain/invoices/indexation";
 import { germanDate, servicePeriodLabel } from "@/domain/invoices/totals";
 import { BILLING_LABELS } from "@/domain/offers/schema";
 import { formatCents, formatQuantity } from "@/domain/offers/totals";
@@ -20,6 +29,14 @@ import { listInvoices } from "@/server/invoices/manage";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../../chat/live-refresh";
 import { ContractNoticeForm, ContractSettingsForm } from "../contract-forms";
+import {
+  AnnounceAdjustmentForm,
+  DeleteTimeEntryButton,
+  IndexationSettingsForm,
+  QuotaForm,
+  TimeEntryForm,
+  WithdrawAdjustmentButton,
+} from "../indexation-forms";
 
 type Params = Promise<{ id: string }>;
 
@@ -41,6 +58,8 @@ export default async function ContractPage({ params }: { params: Params }) {
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const restricted = prospect.restrictedAt !== null;
   const interval = loaded.terms.interval;
+  const pendingAdjustment =
+    loaded.adjustments.find((adjustment) => adjustment.status === "announced") ?? null;
 
   const facts: [string, string][] = [
     [
@@ -193,6 +212,193 @@ export default async function ContractPage({ params }: { params: Params }) {
           </Card>
         </div>
       ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card aria-labelledby="index-heading" id="wertsicherung" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle id="index-heading">Wertsicherung</CardTitle>
+            <CardDescription>
+              Die Preise folgen einmal jährlich dem {INDEX_NAME}, nach oben wie nach unten. Die
+              Werte veröffentlicht die{" "}
+              <a
+                href={INDEX_SOURCE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4"
+              >
+                Statistik Austria
+              </a>
+              ; die Ankündigung geht {loaded.indexNoticeDays} Tage vor dem neuen Preis an den
+              Kunden.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            {/* Live: announcing or withdrawing replaces the form whose message would say so. */}
+            {contract.indexed && contract.indexBaseMonth && contract.indexBaseTenths ? (
+              <p className="text-sm" aria-live="polite">
+                Basis {formatIndex(contract.indexBaseTenths)} ({monthLabel(contract.indexBaseMonth)}
+                )
+                {contract.indexThresholdPercent > 0
+                  ? `, Schwellenwert ${contract.indexThresholdPercent} %`
+                  : ""}
+                .{" "}
+                {pendingAdjustment
+                  ? `Angekündigt: ${formatChange(pendingAdjustment.changeBp / 100)} ab ${germanDate(pendingAdjustment.effectiveFrom!)}.`
+                  : loaded.indexDue
+                    ? `Nächste Anpassung frühestens ab ${germanDate(loaded.indexDue)}.`
+                    : "Keine weitere Anpassung vor dem Vertragsende."}
+              </p>
+            ) : (
+              <p className="text-sm text-foreground-muted">
+                {contract.indexed
+                  ? "Bitte den Ausgangswert (Basis) eintragen."
+                  : "Nicht wertgesichert."}
+              </p>
+            )}
+            {canManage && !restricted && pendingAdjustment ? (
+              <WithdrawAdjustmentButton
+                contractId={contract.id}
+                adjustmentId={pendingAdjustment.id}
+              />
+            ) : null}
+            {canManage &&
+            !restricted &&
+            contract.indexed &&
+            contract.indexBaseMonth &&
+            contract.indexBaseTenths &&
+            loaded.indexDue ? (
+              <section aria-labelledby="announce-heading" className="grid gap-3">
+                <h3 id="announce-heading" className="font-medium">
+                  Neuen Indexwert eintragen
+                </h3>
+                <AnnounceAdjustmentForm
+                  contractId={contract.id}
+                  lines={contract.lines}
+                  interval={interval}
+                  baseMonth={contract.indexBaseMonth}
+                  baseTenths={contract.indexBaseTenths}
+                  thresholdPercent={contract.indexThresholdPercent}
+                  dueOn={loaded.indexDue}
+                  today={today}
+                  noticeDays={loaded.indexNoticeDays}
+                  billedUntil={contract.billedUntil}
+                  recipient={loaded.recipient}
+                />
+              </section>
+            ) : null}
+            {loaded.adjustments.length > 0 ? (
+              <section aria-labelledby="adjustments-heading" className="grid gap-2">
+                <h3 id="adjustments-heading" className="font-medium">
+                  Verlauf
+                </h3>
+                <ul className="grid gap-2 text-sm">
+                  {loaded.adjustments.map((adjustment) => (
+                    <li key={adjustment.id} className="flex flex-wrap items-center gap-2">
+                      <Badge tone={adjustment.status === "applied" ? "accent" : "neutral"}>
+                        {ADJUSTMENT_STATUS_LABELS[adjustment.status]}
+                      </Badge>
+                      <span>
+                        {monthLabel(adjustment.indexMonth)}: {formatIndex(adjustment.indexTenths)} (
+                        {formatChange(adjustment.changeBp / 100)} zu{" "}
+                        {formatIndex(adjustment.baseTenths)})
+                        {adjustment.effectiveFrom && adjustment.status !== "withdrawn"
+                          ? `, ab ${germanDate(adjustment.effectiveFrom)}`
+                          : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {canManage && !restricted ? (
+              <details className="grid gap-3">
+                <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium">
+                  Einstellungen der Wertsicherung
+                </summary>
+                <IndexationSettingsForm
+                  contractId={contract.id}
+                  indexed={contract.indexed}
+                  indexMonth={contract.indexMonth}
+                  baseMonth={contract.indexBaseMonth}
+                  baseTenths={contract.indexBaseTenths}
+                  thresholdPercent={contract.indexThresholdPercent}
+                  baseLocked={pendingAdjustment !== null}
+                />
+              </details>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card aria-labelledby="hours-heading" id="stunden" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle id="hours-heading">Stundenkontingent</CardTitle>
+            <CardDescription>
+              {contract.hourlyRateCents
+                ? `Mehrstunden zu ${formatCents(contract.hourlyRateCents)} netto, auf die Viertelstunde aufgerundet, mit der ${contract.timing === "advance" ? "nächsten" : "selben"} Rechnung. Nicht genutzte Stunden verfallen mit dem Zeitraum.`
+                : "Ohne Stundensatz wird erfasste Zeit nur dokumentiert, nicht berechnet."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            {loaded.usage ? (
+              <p className="text-sm">
+                {servicePeriodLabel(loaded.usage.span)}: {formatHours(loaded.usage.usedMinutes)}{" "}
+                erfasst
+                {loaded.usage.includedMinutes > 0
+                  ? ` von ${formatHours(loaded.usage.includedMinutes)} enthalten`
+                  : ""}
+                .
+              </p>
+            ) : null}
+            {canManage && !restricted && contract.startDate ? (
+              <TimeEntryForm contractId={contract.id} today={today} />
+            ) : null}
+            {loaded.timeEntries.length > 0 ? (
+              <ul className="grid gap-1 text-sm" aria-label="Erfasste Zeiten">
+                {loaded.timeEntries.map((entry) => {
+                  const billed =
+                    contract.overageBilledUntil !== null &&
+                    entry.workDate <= contract.overageBilledUntil;
+                  const label = `${germanDate(entry.workDate)} ${formatHours(entry.minutes)} ${entry.description}`;
+                  return (
+                    <li key={entry.id} className="flex items-start justify-between gap-3">
+                      <span className="py-2.5">
+                        <span className="tabular-nums">{germanDate(entry.workDate)}</span> ·{" "}
+                        <span className="tabular-nums">{formatHours(entry.minutes)}</span> ·{" "}
+                        {entry.description}
+                        {billed ? (
+                          <span className="text-foreground-muted"> · abgerechnet</span>
+                        ) : null}
+                      </span>
+                      {canManage && !restricted && !billed ? (
+                        <DeleteTimeEntryButton
+                          contractId={contract.id}
+                          entryId={entry.id}
+                          label={label}
+                        />
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-sm text-foreground-muted">Noch keine Zeit erfasst.</p>
+            )}
+            {canManage && !restricted ? (
+              <details className="grid gap-3">
+                <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-medium">
+                  Kontingent und Stundensatz
+                </summary>
+                <QuotaForm
+                  contractId={contract.id}
+                  includedMinutes={contract.includedMinutes}
+                  hourlyRateCents={contract.hourlyRateCents}
+                  interval={interval}
+                />
+              </details>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card aria-labelledby="invoices-heading">
         <CardHeader>

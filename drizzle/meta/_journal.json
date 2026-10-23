@@ -232,6 +232,20 @@
       "when": 1792734274061,
       "tag": "0032_invoice_reminders_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792746620170,
+      "tag": "0033_contract_indexation",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792746634606,
+      "tag": "0034_contract_indexation_grants",
+      "breakpoints": true
     }
   ]
 }

@@ -92,7 +92,15 @@ const offerDocument: OfferDocument = {
       trigger: "acceptance",
     },
   ],
-  maintenance: { startOn: "acceptance", minimumMonths: 12, noticeMonths: 3, timing: "advance" },
+  maintenance: {
+    startOn: "acceptance",
+    minimumMonths: 12,
+    noticeMonths: 3,
+    timing: "advance",
+    indexed: false,
+    includedMinutes: 120,
+    hourlyRateCents: 8_500,
+  },
 };
 
 async function contractByInterval(interval: "monthly" | "yearly") {
@@ -209,6 +217,10 @@ describe("maintenance contracts", () => {
     expect(monthly.title).toBe("Wartung monatlich: Website mit Betreuung");
     expect(monthly.startDate).toBe("2026-10-15");
     expect([monthly.minimumMonths, monthly.noticeMonths]).toEqual([12, 3]);
+    // The hour quota goes with the shortest interval only (7c-3b).
+    expect([monthly.includedMinutes, monthly.hourlyRateCents]).toEqual([120, 8_500]);
+    const yearly = await contractByInterval("yearly");
+    expect([yearly.includedMinutes, yearly.hourlyRateCents]).toEqual([0, null]);
     // The offer's Gesamtrabatt applies to one-off lines only.
     expect(monthly.lines).toEqual([
       expect.objectContaining({ id: "care", unitPriceCents: 9_300, discountPercent: 0 }),

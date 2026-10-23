@@ -102,6 +102,8 @@ const draft = (overrides: Partial<OfferDocument> = {}): OfferDocument => ({
     minimumMonths: 12,
     noticeMonths: 3,
     timing: "advance",
+    indexed: false,
+    includedMinutes: 0,
   },
   ...overrides,
 });

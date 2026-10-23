@@ -1019,6 +1019,56 @@ export function OfferEditor({
                     <option value="arrears">nachträglich</option>
                   </Select>
                 </Field>
+                <Field
+                  label="Enthaltene Stunden je Zeitraum"
+                  hint="Gilt für den kürzesten Abrechnungszeitraum; 0 für keine."
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={200}
+                    step={0.25}
+                    inputMode="decimal"
+                    value={draft.maintenance.includedMinutes / 60}
+                    onChange={(event) =>
+                      update((c) => ({
+                        ...c,
+                        maintenance: {
+                          ...c.maintenance,
+                          includedMinutes: Math.min(
+                            12_000,
+                            Math.max(0, Math.round((Number(event.target.value) || 0) * 4) * 15),
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+                <Field label="Stundensatz für weitere Stunden in €" hint="Leer: keine Mehrstunden.">
+                  <EuroInput
+                    cents={draft.maintenance.hourlyRateCents ?? 0}
+                    onChange={(cents) =>
+                      update((c) => ({
+                        ...c,
+                        maintenance: { ...c.maintenance, hourlyRateCents: cents || undefined },
+                      }))
+                    }
+                  />
+                </Field>
+                <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-accent"
+                    checked={draft.maintenance.indexed}
+                    onChange={(event) =>
+                      update((c) => ({
+                        ...c,
+                        maintenance: { ...c.maintenance, indexed: event.target.checked },
+                      }))
+                    }
+                  />
+                  Wertgesichert nach dem Verbraucherpreisindex (VPI 2020)
+                </label>
               </CardContent>
             </Card>
           ) : null}

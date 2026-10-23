@@ -127,6 +127,8 @@ export const billingSettingsSchema = z.object({
   collectionFee: z.boolean().default(false),
   /** Basiszinssatz of the OeNB; 1,53 % for the second half of 2026. */
   baseRatePercent: z.number().min(-5).max(20).default(1.53),
+  /** Wertsicherung (7c-3b): days between the announcement and the first period at the new price. */
+  indexNoticeDays: z.number().int().min(0).max(90).default(30),
 });
 export type BillingSettings = z.output<typeof billingSettingsSchema>;
 

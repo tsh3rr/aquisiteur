@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
-import { invoiceReminders, invoices } from "./projects";
+import { invoiceReminders, invoices, maintenanceContracts } from "./projects";
 import { prospects } from "./prospects";
 import { workspaces } from "./tenancy";
 
@@ -40,6 +40,8 @@ export const tasks = pgTable(
     invoiceId: uuid("invoice_id"),
     /** Set for „Zahlungserinnerung/Mahnung freigeben“ (7c-4); closes once that reminder is sent. */
     reminderId: uuid("reminder_id"),
+    /** Set for „Wertsicherung prüfen“ (7c-3b); closes once that cycle's adjustment is decided. */
+    contractId: uuid("contract_id"),
     title: text("title").notNull(),
     note: text("note"),
     dueDate: date("due_date", { mode: "string" }).notNull(),
@@ -76,9 +78,15 @@ export const tasks = pgTable(
       columns: [t.workspaceId, t.reminderId],
       foreignColumns: [invoiceReminders.workspaceId, invoiceReminders.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "tasks_contract_fk",
+      columns: [t.workspaceId, t.contractId],
+      foreignColumns: [maintenanceContracts.workspaceId, maintenanceContracts.id],
+    }).onDelete("cascade"),
     index("tasks_prospect_idx").on(t.workspaceId, t.prospectId),
     index("tasks_invoice_idx").on(t.workspaceId, t.invoiceId),
     index("tasks_invoice_reminder_idx").on(t.workspaceId, t.reminderId),
+    index("tasks_contract_idx").on(t.workspaceId, t.contractId),
     // The hourly job looks across workspaces for reminders that are due.
     index("tasks_reminder_idx")
       .on(t.remindAt)
