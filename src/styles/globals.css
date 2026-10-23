@@ -308,3 +308,16 @@
 [data-expose-style="bold"] [data-block="before_after"] .rounded-full {
   box-shadow: 0 0 0 2px var(--aq-border);
 }
+[data-expose-style="bold"] [data-block="before_after"] [data-handle] {
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--aq-border);
+}
+
+/* The chat panel and the nudge card share the square, offset look of the bold buttons. */
+[data-expose-style="bold"] :is([data-chat-panel], [data-chat-nudge]) {
+  border-radius: 0;
+  box-shadow: 6px 6px 0 var(--aq-border);
+}
+[data-expose-style="bold"] :is([data-chat-panel], [data-chat-nudge]) button.rounded-full {
+  border-radius: 0;
+}
