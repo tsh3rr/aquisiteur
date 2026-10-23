@@ -36,6 +36,7 @@ import type { EmailEvent } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { publish, workspaceTopic } from "@/server/realtime";
 import { loadWorkspaceSettings } from "@/server/workspaces";
+import { withdrawUndelivered } from "./indexation";
 
 /**
  * Invoices by e-mail (§7.10, phase 7c-2, ADR-0072). The PDF is rendered in
@@ -247,14 +248,15 @@ export interface PreparedMail {
   from: string;
   replyTo: string | null;
   mail: { subject: string; text: string; html: string };
-  pdfKey: string;
+  /** The stored invoice PDF to attach; null for a mail without attachment. */
+  pdfKey: string | null;
   /** The invoice number, the attachment's file name. */
   number: string;
 }
 
 /**
- * Hands a recorded mail with the stored invoice PDF to the provider, outside
- * any transaction, and marks the row sent or failed.
+ * Hands a recorded mail, with the stored invoice PDF if any, to the provider,
+ * outside any transaction, and marks the row sent or failed.
  */
 export async function transmitMail(
   tenant: <T>(fn: (tx: Transaction) => Promise<T>) => Promise<T>,
@@ -263,9 +265,12 @@ export async function transmitMail(
 ): Promise<{ ok: true } | { ok: false; detail: string }> {
   let providerId: string | null;
   try {
-    const stored = await getInfra().storage.get(prepared.pdfKey);
-    if (!stored) throw new Error("stored invoice PDF is missing");
-    const pdf = await readAll(stored.body);
+    let pdf: Uint8Array | null = null;
+    if (prepared.pdfKey) {
+      const stored = await getInfra().storage.get(prepared.pdfKey);
+      if (!stored) throw new Error("stored invoice PDF is missing");
+      pdf = await readAll(stored.body);
+    }
     ({ id: providerId } = await getInfra().email.send({
       to: prepared.to,
       from: prepared.from,
@@ -274,16 +279,23 @@ export async function transmitMail(
       text: prepared.mail.text,
       html: prepared.mail.html,
       headers: { "Message-ID": prepared.messageId },
-      attachments: [
-        { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
-      ],
+      ...(pdf
+        ? {
+            attachments: [
+              { filename: `${prepared.number}.pdf`, content: pdf, contentType: "application/pdf" },
+            ],
+          }
+        : {}),
     }));
-    await tenant((tx) =>
-      tx
-        .update(outboundEmails)
-        .set({ attachmentBytes: pdf.byteLength })
-        .where(eq(outboundEmails.id, prepared.id)),
-    );
+    if (pdf) {
+      const bytes = pdf.byteLength;
+      await tenant((tx) =>
+        tx
+          .update(outboundEmails)
+          .set({ attachmentBytes: bytes })
+          .where(eq(outboundEmails.id, prepared.id)),
+      );
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message.slice(0, 500) : "unknown error";
     await tenant((tx) =>
@@ -532,7 +544,42 @@ export async function recordEmailEvents(
         .where(
           and(eq(outboundEmails.workspaceId, mail.workspaceId), eq(outboundEmails.id, mail.id)),
         );
-      if (!EMAIL_PROBLEMS.has(next) || !mail.invoiceId) return;
+      if (!EMAIL_PROBLEMS.has(next)) return;
+      if (mail.kind === "contract_notice" && mail.contractId) {
+        const withdrawn = await withdrawUndelivered(
+          tx,
+          mail.workspaceId,
+          mail.contractId,
+          mail.createdAt,
+        );
+        const settings = await loadWorkspaceSettings(tx, mail.workspaceId);
+        await tx.insert(tasks).values({
+          workspaceId: mail.workspaceId,
+          prospectId: mail.prospectId,
+          contractId: mail.contractId,
+          title: `Ankündigung der Wertsicherung nicht zugestellt: Adresse ${mail.toAddress} prüfen`,
+          note: [
+            withdrawn
+              ? "Die Anpassung wurde zurückgezogen; bitte mit der richtigen Adresse neu ankündigen."
+              : null,
+            event.detail,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          dueDate: localDateString(now, settings.notifications.timezone),
+          reminder: "at_due",
+        });
+        await tx.insert(auditLog).values({
+          workspaceId: mail.workspaceId,
+          actorUserId: null,
+          action: "contract.notice_undelivered",
+          targetType: "prospect",
+          targetId: mail.prospectId,
+          meta: { contractId: mail.contractId, status: next, withdrawn },
+        });
+        return;
+      }
+      if (!mail.invoiceId) return;
       const [invoice] = await tx
         .select({ number: invoices.number })
         .from(invoices)

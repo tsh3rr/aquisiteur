@@ -123,6 +123,11 @@ export const maintenanceTermsSchema = z
     noticeMonths: z.number().int().min(0).max(12).default(3),
     /** Billed at the start of each period (usual) or after it. */
     timing: z.enum(["advance", "arrears"]).default("advance"),
+    /** Wertsicherung (7c-3b): prices follow the VPI once a year, both ways. */
+    indexed: z.boolean().default(false),
+    /** Stundenkontingent (7c-3b): minutes included per period, and the rate for more. */
+    includedMinutes: z.number().int().min(0).max(12_000).default(0),
+    hourlyRateCents: z.number().int().min(0).max(10_000_000).optional(),
   })
   .strict();
 export type MaintenanceTerms = z.output<typeof maintenanceTermsSchema>;

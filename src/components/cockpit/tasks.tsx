@@ -42,6 +42,8 @@ export interface TaskItemView {
   invoiceId?: string | null;
   /** „Zahlungserinnerung/Mahnung freigeben“ links to the invoice's dunning section (7c-4). */
   reminderId?: string | null;
+  /** „Wertsicherung prüfen“ links to the contract (7c-3b). */
+  contractId?: string | null;
   companyName: string;
   title: string;
   note: string | null;
@@ -198,6 +200,14 @@ function TaskItem({
               className="inline-flex min-h-6 items-center font-medium text-accent underline-offset-4 hover:underline"
             >
               Rechnung öffnen
+            </Link>
+          ) : null}
+          {task.contractId ? (
+            <Link
+              href={`/rechnungen/vertraege/${task.contractId}#wertsicherung`}
+              className="inline-flex min-h-6 items-center font-medium text-accent underline-offset-4 hover:underline"
+            >
+              Vertrag öffnen
             </Link>
           ) : null}
           {overdue ? (

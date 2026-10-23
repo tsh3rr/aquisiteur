@@ -12,12 +12,16 @@ import {
 import { EMAIL_STATUSES } from "../../domain/email";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
-import { invoiceReminders, invoices, projects } from "./projects";
+import { invoiceReminders, invoices, maintenanceContracts, projects } from "./projects";
 import { prospects } from "./prospects";
 import { workspaces } from "./tenancy";
 
 export const emailStatus = pgEnum("email_status", EMAIL_STATUSES);
-export const outboundEmailKind = pgEnum("outbound_email_kind", ["invoice", "reminder"]);
+export const outboundEmailKind = pgEnum("outbound_email_kind", [
+  "invoice",
+  "reminder",
+  "contract_notice",
+]);
 
 /**
  * Every mail sent to a customer (§7.10, phase 7c-2), with the Message-ID it
@@ -38,6 +42,8 @@ export const outboundEmails = pgTable(
     invoiceId: uuid("invoice_id"),
     /** For kind "reminder": the reminder or dunning letter (7c-4). */
     reminderId: uuid("reminder_id"),
+    /** For kind "contract_notice": the contract whose price change it announces (7c-3b). */
+    contractId: uuid("contract_id"),
     toAddress: text("to_address").notNull(),
     subject: text("subject").notNull(),
     /** Our Message-ID header, `<id@sending-domain>`. */
@@ -73,9 +79,15 @@ export const outboundEmails = pgTable(
       columns: [t.workspaceId, t.reminderId],
       foreignColumns: [invoiceReminders.workspaceId, invoiceReminders.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "outbound_emails_contract_fk",
+      columns: [t.workspaceId, t.contractId],
+      foreignColumns: [maintenanceContracts.workspaceId, maintenanceContracts.id],
+    }).onDelete("cascade"),
     index("outbound_emails_prospect_idx").on(t.workspaceId, t.prospectId),
     index("outbound_emails_invoice_idx").on(t.workspaceId, t.invoiceId),
     index("outbound_emails_reminder_idx").on(t.workspaceId, t.reminderId),
+    index("outbound_emails_contract_idx").on(t.workspaceId, t.contractId),
     // Webhooks look a mail up by the provider's id across workspaces.
     uniqueIndex("outbound_emails_provider_idx").on(t.providerId),
     uniqueIndex("outbound_emails_message_idx").on(t.messageId),

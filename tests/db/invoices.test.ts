@@ -84,7 +84,14 @@ const offerDocument: OfferDocument = {
     { id: "m1", title: "Anzahlung", share: { kind: "percent", value: 40 }, trigger: "acceptance" },
     { id: "m2", title: "Go-live", share: { kind: "percent", value: 60 }, trigger: "milestone" },
   ],
-  maintenance: { startOn: "go_live", minimumMonths: 12, noticeMonths: 3, timing: "advance" },
+  maintenance: {
+    startOn: "go_live",
+    minimumMonths: 12,
+    noticeMonths: 3,
+    timing: "advance",
+    indexed: false,
+    includedMinutes: 0,
+  },
 };
 
 /** The Postgres message behind drizzle's "Failed query" wrapper. */

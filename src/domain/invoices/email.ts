@@ -80,19 +80,19 @@ export function invoiceEmailValues(input: Omit<InvoiceEmailInput, "subject" | "b
 }
 
 /** Subject, plain text and a minimal HTML twin; the link is clickable in both. */
-export function mailFromText(input: { subject: string; text: string; link: string }): {
+export function mailFromText(input: { subject: string; text: string; link?: string }): {
   subject: string;
   text: string;
   html: string;
 } {
   const subject = input.subject.replace(/[\r\n]+/g, " ").trim();
   const text = input.text.trim();
-  const link = escapeHtml(input.link);
+  const link = input.link ? escapeHtml(input.link) : null;
   const paragraphs = text
     .split(/\n{2,}/)
     .map((paragraph) => {
       const escaped = escapeHtml(paragraph).replace(/\n/g, "<br>");
-      return `<p>${escaped.split(link).join(`<a href="${link}">${link}</a>`)}</p>`;
+      return `<p>${link ? escaped.split(link).join(`<a href="${link}">${link}</a>`) : escaped}</p>`;
     })
     .join("\n");
   const html = `<!doctype html><html lang="de"><body style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a">${paragraphs}</body></html>`;

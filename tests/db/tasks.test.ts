@@ -117,7 +117,15 @@ describe("tasks", () => {
     const foreign = await withTenant(
       db,
       { userId: uli.id, workspaceId: actorU.workspaceId },
-      (tx) => createTask(tx, actorU, gym.prospectId, form({ title: "Uli ruft an" })),
+      // A fixed clock: saved after its reminder time, the task would count as reminded already.
+      (tx) =>
+        createTask(
+          tx,
+          actorU,
+          gym.prospectId,
+          form({ title: "Uli ruft an" }),
+          new Date("2026-10-20T10:00:00Z"),
+        ),
     );
     expect(await asTom((tx) => setTaskDone(tx, actorT, foreign!, true))).toBe(false);
     expect(await asTom((tx) => snoozeTask(tx, actorT, foreign!, "2026-11-02"))).toBe(false);

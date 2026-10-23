@@ -310,6 +310,35 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await expect(page.getByText("Läuft", { exact: true })).toBeVisible();
   await expectAccessible(page, "maintenance contract");
   if (shots) await page.screenshot({ path: `${shots}/maintenance-contract.png`, fullPage: true });
+
+  // Wertsicherung and Stundenkontingent (7c-3b): base, announcement by mail, time entry.
+  const indexCard = page.locator("#wertsicherung");
+  await indexCard.getByText("Einstellungen der Wertsicherung").click();
+  await indexCard.getByLabel("Preise nach dem VPI 2020 wertsichern").check();
+  await indexCard.getByLabel("Basis: Monat").fill("2025-09");
+  await indexCard.getByLabel("Basis: Indexwert").fill("128,7");
+  await indexCard.getByRole("button", { name: "Speichern" }).click();
+  await expect(indexCard.getByText("Gespeichert.")).toBeVisible();
+  await indexCard.getByLabel("Indexmonat").fill("2026-09");
+  await indexCard.getByLabel("Indexwert", { exact: true }).fill("132,6");
+  await expect(indexCard.getByText(/Änderung \+3,03 %/)).toBeVisible();
+  await indexCard.getByRole("button", { name: "Ankündigen und senden" }).click();
+  await expect(indexCard.getByText(/Angekündigt: \+3,03 % ab/)).toBeVisible();
+  await expect(indexCard.getByRole("button", { name: "Ankündigung zurückziehen" })).toBeVisible();
+  const hoursCard = page.locator("#stunden");
+  await hoursCard.getByLabel("Dauer").fill("1:30");
+  await hoursCard.getByLabel("Tätigkeit").fill("Plugin-Updates");
+  await hoursCard.getByRole("button", { name: "Zeit erfassen" }).click();
+  await expect(hoursCard.getByText("1,5 Std. erfasst.", { exact: true })).toBeVisible();
+  await expect(hoursCard.getByRole("list", { name: "Erfasste Zeiten" })).toContainText(
+    "Plugin-Updates",
+  );
+  await expectAccessible(page, "contract indexation and hours");
+  if (shots) {
+    await indexCard.screenshot({ path: `${shots}/contract-indexation.png` });
+    await hoursCard.screenshot({ path: `${shots}/contract-hours.png` });
+  }
+
   await page.goto("/rechnungen/vertraege");
   await expect(
     page.getByRole("link", { name: /Wartung: Neue Website für das Café/ }),

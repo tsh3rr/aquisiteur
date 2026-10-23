@@ -52,6 +52,7 @@ export async function saveBillingSettings(
     lateInterest: formData.get("lateInterest") === "on",
     collectionFee: formData.get("collectionFee") === "on",
     baseRatePercent: Number(text(formData, "baseRatePercent").trim().replace(",", ".")),
+    indexNoticeDays: Number(text(formData, "indexNoticeDays")),
   });
   if (!parsed.success) {
     const errors = issuesByField(parsed.error);
@@ -63,6 +64,7 @@ export async function saveBillingSettings(
       errors.dunningDays = "Bitte aufsteigende Tage von 1 bis 180 angeben.";
     }
     if (errors.dunningDeadlineDays) errors.dunningDeadlineDays = "Bitte 1 bis 60 Tage angeben.";
+    if (errors.indexNoticeDays) errors.indexNoticeDays = "Bitte 0 bis 90 Tage angeben.";
     if (errors.baseRatePercent) errors.baseRatePercent = "Bitte einen Satz wie 1,53 angeben.";
     return { ok: false, message: "Bitte prüfen Sie die markierten Felder.", errors };
   }

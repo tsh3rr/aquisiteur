@@ -305,6 +305,24 @@ export function BillingSettingsForm({
         </div>
       </fieldset>
 
+      <fieldset className="grid gap-4 sm:grid-cols-3" disabled={disabled}>
+        <legend className="mb-3 text-base font-semibold">Wartungsverträge</legend>
+        <Field
+          label="Ankündigung der Wertsicherung in Tagen"
+          hint="So lange vor dem neuen Preis erfährt der Kunde davon."
+          error={e("indexNoticeDays")}
+        >
+          <Input
+            name="indexNoticeDays"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={90}
+            defaultValue={billing.indexNoticeDays}
+          />
+        </Field>
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={disabled}>
           {pending ? "Wird gespeichert …" : "Speichern"}

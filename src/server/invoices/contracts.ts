@@ -1,8 +1,9 @@
 import "server-only";
-import { and, asc, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { withTenant, type Database, type Transaction } from "@/db";
 import {
   auditLog,
+  contractAdjustments,
   invoices,
   maintenanceContracts,
   offers,
@@ -26,6 +27,7 @@ import {
   type ContractState,
   type ContractTerms,
 } from "@/domain/invoices/maintenance";
+import { nextCycle } from "@/domain/invoices/indexation";
 import { invoiceDocumentSchema, type InvoiceLine } from "@/domain/invoices/schema";
 import { invoiceTotals } from "@/domain/invoices/totals";
 import { BILLING_LABELS, offerDocumentSchema } from "@/domain/offers/schema";
@@ -35,7 +37,14 @@ import { serverEnv } from "@/config/env";
 import { loadWorkspaceSettings, workspaceOwner } from "@/server/workspaces";
 import { changed, emptyDocument, issueInvoice, loadProspect } from "./manage";
 import { renderInvoicePdfOnServer } from "./pdf";
-import { loadInvoiceDelivery, requestInvoiceApproval, sendInvoiceEmail } from "./send";
+import { applyDueAdjustments, listAdjustments } from "./indexation";
+import {
+  defaultRecipient,
+  loadInvoiceDelivery,
+  requestInvoiceApproval,
+  sendInvoiceEmail,
+} from "./send";
+import { currentUsage, hoursLockedUntil, listTimeEntries, overageFor } from "./time-entries";
 
 /**
  * Maintenance contracts (§7.10, phase 7c-3, ADR-0073). Created from the
@@ -104,7 +113,7 @@ export async function createContractsFromOffer(
         : null;
   const intervals = CONTRACT_INTERVALS.filter((interval) => totals.buckets[interval]);
   let created = 0;
-  for (const interval of intervals) {
+  for (const [position, interval] of intervals.entries()) {
     const lines: InvoiceLine[] = totals.lines
       .filter((line) => line.billing === interval)
       .map((line) => ({
@@ -135,6 +144,10 @@ export async function createContractsFromOffer(
         startDate,
         minimumMonths: terms.minimumMonths,
         noticeMonths: terms.noticeMonths,
+        indexed: terms.indexed,
+        // The hour quota belongs to the shortest interval (the offer says so).
+        includedMinutes: position === 0 ? terms.includedMinutes : 0,
+        hourlyRateCents: position === 0 ? (terms.hourlyRateCents ?? null) : null,
         createdBy: actor.userId,
       })
       .onConflictDoNothing()
@@ -276,6 +289,7 @@ export async function loadContract(
   const today = localDateString(now, settings.notifications.timezone);
   const terms = termsOf(row.contract);
   const next = nextPeriod(terms);
+  const adjustments = await listAdjustments(tx, workspaceId, contractId);
   return {
     ...row,
     terms,
@@ -284,6 +298,16 @@ export async function loadContract(
     periodNetCents: periodNet(row.contract.lines),
     next: next ? { ...next, billingDate: billingDate(next, terms.timing) } : null,
     workspaceSendMode: settings.billing.invoiceSendMode,
+    adjustments,
+    /** The cycle the next index value is for; null while one is announced. */
+    indexDue: adjustments.some((adjustment) => adjustment.status === "announced")
+      ? null
+      : nextCycle(row.contract, adjustments),
+    indexNoticeDays: settings.billing.indexNoticeDays,
+    recipient: await defaultRecipient(tx, row.prospect),
+    timeEntries: await listTimeEntries(tx, workspaceId, contractId),
+    usage: await currentUsage(tx, row.contract, today),
+    hoursLockedUntil: await hoursLockedUntil(tx, row.contract),
   };
 }
 
@@ -397,6 +421,20 @@ export async function setContractEnd(
     .update(maintenanceContracts)
     .set({ noticeReceivedOn: input.noticeReceivedOn, endDate })
     .where(eq(maintenanceContracts.id, contractId));
+  if (endDate) {
+    // A price that would only apply after the end never comes (7c-3b).
+    await tx
+      .update(contractAdjustments)
+      .set({ status: "withdrawn" })
+      .where(
+        and(
+          eq(contractAdjustments.workspaceId, actor.workspaceId),
+          eq(contractAdjustments.contractId, contractId),
+          eq(contractAdjustments.status, "announced"),
+          gt(contractAdjustments.effectiveFrom, endDate),
+        ),
+      );
+  }
   await tx.insert(auditLog).values({
     workspaceId: actor.workspaceId,
     actorUserId: actor.userId,
@@ -414,6 +452,7 @@ async function billPeriod(
   actor: Actor,
   contractId: string,
   period: ContractPeriod,
+  now: Date,
 ): Promise<string | null> {
   const contract = await lockContract(tx, actor.workspaceId, contractId);
   if (!contract) return null;
@@ -422,6 +461,9 @@ async function billPeriod(
   const prospect = await loadProspect(tx, actor.workspaceId, contract.prospectId);
   if (!prospect || prospect.restrictedAt) return null;
   const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
+  // An announced index change that is effective now becomes the price (7c-3b).
+  const lines = await applyDueAdjustments(tx, contract, period.from, now);
+  const overage = await overageFor(tx, contract, period);
   const [invoice] = await tx
     .insert(invoices)
     .values({
@@ -433,7 +475,7 @@ async function billPeriod(
       contractPeriodFrom: period.from,
       document: emptyDocument(settings, prospect, {
         title: contract.title,
-        lines: periodLines(contract.lines, period),
+        lines: [...periodLines(lines, period), ...(overage?.line ? [overage.line] : [])],
         servicePeriod: { from: period.from, to: period.to },
       }),
       createdBy: actor.userId,
@@ -441,7 +483,16 @@ async function billPeriod(
     .returning({ id: invoices.id });
   await tx
     .update(maintenanceContracts)
-    .set({ billedUntil: period.to })
+    .set({
+      billedUntil: period.to,
+      ...(overage
+        ? {
+            overageBilledFrom: overage.span.from,
+            overageBilledUntil: overage.span.to,
+            overageInvoiceId: invoice!.id,
+          }
+        : {}),
+    })
     .where(eq(maintenanceContracts.id, contractId));
   await changed(actor.workspaceId, invoice!.id, contract.prospectId);
   return invoice!.id;
@@ -586,7 +637,7 @@ export async function runContractBilling(db: Database, now = new Date()) {
         const invoiceId = await withTenant(
           db,
           { userId: owner, workspaceId: contract.workspaceId },
-          (tx) => billPeriod(tx, actor, contract.id, period),
+          (tx) => billPeriod(tx, actor, contract.id, period, now),
         );
         if (!invoiceId) break;
         result.drafted++;
@@ -619,6 +670,113 @@ export async function runContractBilling(db: Database, now = new Date()) {
       }
     } catch (error) {
       console.error("contract billing failed", contract.id, error);
+    }
+  }
+  return result;
+}
+
+/**
+ * After the end of a contract billed in advance, its last period's extra
+ * hours have no next invoice: one draft carries only them (7c-3b).
+ */
+async function billFinalOverage(
+  tx: Transaction,
+  actor: Actor,
+  contractId: string,
+  today: string,
+): Promise<string | null> {
+  const contract = await lockContract(tx, actor.workspaceId, contractId);
+  if (!contract?.endDate || contract.timing !== "advance" || today <= contract.endDate) return null;
+  if (!contract.billedUntil || contract.billedUntil < contract.endDate) return null;
+  if (contract.overageBilledUntil && contract.overageBilledUntil >= contract.endDate) return null;
+  const prospect = await loadProspect(tx, actor.workspaceId, contract.prospectId);
+  if (!prospect || prospect.restrictedAt) return null;
+  const after = addDays(contract.endDate, 1);
+  const overage = await overageFor(tx, contract, { from: after, to: after });
+  if (!overage) return null;
+  await tx
+    .update(maintenanceContracts)
+    .set({
+      overageBilledFrom: overage.span.from,
+      overageBilledUntil: overage.span.to,
+      overageInvoiceId: null,
+    })
+    .where(eq(maintenanceContracts.id, contractId));
+  if (!overage.line) return null;
+  const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
+  const [invoice] = await tx
+    .insert(invoices)
+    .values({
+      workspaceId: actor.workspaceId,
+      prospectId: contract.prospectId,
+      projectId: contract.projectId,
+      offerId: contract.offerId,
+      contractId,
+      document: emptyDocument(settings, prospect, {
+        title: `${contract.title}: zusätzliche Stunden`,
+        lines: [overage.line],
+        servicePeriod: overage.span,
+      }),
+      createdBy: actor.userId,
+    })
+    .returning({ id: invoices.id });
+  await tx
+    .update(maintenanceContracts)
+    .set({ overageInvoiceId: invoice!.id })
+    .where(eq(maintenanceContracts.id, contractId));
+  await changed(actor.workspaceId, invoice!.id, contract.prospectId);
+  return invoice!.id;
+}
+
+/** Hourly job: the final extra-hours invoice of ended advance contracts. */
+export async function runFinalOverage(db: Database, now = new Date()) {
+  const candidates = await db
+    .select({ contract: maintenanceContracts })
+    .from(maintenanceContracts)
+    .innerJoin(
+      prospects,
+      and(
+        eq(prospects.workspaceId, maintenanceContracts.workspaceId),
+        eq(prospects.id, maintenanceContracts.prospectId),
+      ),
+    )
+    .where(
+      and(
+        eq(maintenanceContracts.timing, "advance"),
+        isNotNull(maintenanceContracts.hourlyRateCents),
+        isNotNull(maintenanceContracts.endDate),
+        isNull(prospects.restrictedAt),
+        sql`${maintenanceContracts.billedUntil} >= ${maintenanceContracts.endDate}`,
+        sql`${maintenanceContracts.endDate} < ${now.toISOString().slice(0, 10)}::date`,
+        or(
+          isNull(maintenanceContracts.overageBilledUntil),
+          lt(maintenanceContracts.overageBilledUntil, maintenanceContracts.endDate),
+        ),
+      ),
+    )
+    .limit(500);
+  const result = { drafted: 0, approvals: 0 };
+  for (const { contract } of candidates) {
+    try {
+      const settings = await loadWorkspaceSettings(db, contract.workspaceId);
+      const today = localDateString(now, settings.notifications.timezone);
+      const owner = await workspaceOwner(db, contract.workspaceId);
+      if (!owner) continue;
+      const actor = { userId: owner, role: "owner" as const, workspaceId: contract.workspaceId };
+      const invoiceId = await withTenant(
+        db,
+        { userId: owner, workspaceId: contract.workspaceId },
+        (tx) => billFinalOverage(tx, actor, contract.id, today),
+      );
+      if (!invoiceId) continue;
+      result.drafted++;
+      if ((contract.sendMode ?? settings.billing.invoiceSendMode) === "manual") continue;
+      await withTenant(db, { userId: owner, workspaceId: contract.workspaceId }, (tx) =>
+        requestInvoiceApproval(tx, contract.workspaceId, invoiceId, now),
+      );
+      result.approvals++;
+    } catch (error) {
+      console.error("final overage billing failed", contract.id, error);
     }
   }
   return result;

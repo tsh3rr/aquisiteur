@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  boolean,
   date,
   foreignKey,
   index,
@@ -18,6 +19,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { DunningLevel, ReminderStatus } from "../../domain/invoices/dunning";
 import type { InvoiceSendMode } from "../../domain/invoices/email";
+import type { AdjustmentStatus } from "../../domain/invoices/indexation";
 import type { ContractTiming } from "../../domain/invoices/maintenance";
 import type {
   InvoiceDocument,
@@ -259,6 +261,26 @@ export const maintenanceContracts = pgTable(
     /** Null: the workspace's setting. */
     sendMode: text("send_mode").$type<InvoiceSendMode>(),
     billedUntil: date("billed_until", { mode: "string" }),
+    /** Wertsicherung (7c-3b): prices follow the VPI once a year, from the base below. */
+    indexed: boolean("indexed").notNull().default(false),
+    /** Month (1–12) the yearly adjustment is due. */
+    indexMonth: smallint("index_month").notNull().default(1),
+    /** Base of the next adjustment: index month (YYYY-MM) and value in tenths. */
+    indexBaseMonth: text("index_base_month"),
+    indexBaseTenths: integer("index_base_tenths"),
+    /** Changes below this many percent are ignored and accumulate. */
+    indexThresholdPercent: integer("index_threshold_percent").notNull().default(0),
+    /** Stundenkontingent (7c-3b): hours included per period and the rate for more. */
+    includedMinutes: integer("included_minutes").notNull().default(0),
+    hourlyRateCents: integer("hourly_rate_cents"),
+    /**
+     * The span of extra hours on the latest invoice and that invoice. Entries up to
+     * the end are locked, except those of this span while the invoice is a draft:
+     * adding one there updates the draft.
+     */
+    overageBilledFrom: date("overage_billed_from", { mode: "string" }),
+    overageBilledUntil: date("overage_billed_until", { mode: "string" }),
+    overageInvoiceId: uuid("overage_invoice_id"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     ...timestamps,
   },
@@ -282,6 +304,77 @@ export const maintenanceContracts = pgTable(
     uniqueIndex("maintenance_contracts_offer_interval_idx").on(t.offerId, t.interval),
     index("maintenance_contracts_prospect_idx").on(t.workspaceId, t.prospectId),
     index("maintenance_contracts_project_idx").on(t.workspaceId, t.projectId),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+/**
+ * Index adjustments of a contract (§7.10, phase 7c-3b, ADR-0075), one per
+ * yearly cycle (`due_on`). "skipped": the change stayed inside the threshold;
+ * "announced": mailed to the customer, applied by the first invoice from
+ * `effective_from`; "withdrawn" frees the cycle for a new announcement.
+ */
+export const contractAdjustments = pgTable(
+  "contract_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id").notNull(),
+    dueOn: date("due_on", { mode: "string" }).notNull(),
+    status: text("status").$type<AdjustmentStatus>().notNull(),
+    baseMonth: text("base_month").notNull(),
+    baseTenths: integer("base_tenths").notNull(),
+    indexMonth: text("index_month").notNull(),
+    indexTenths: integer("index_tenths").notNull(),
+    /** Signed change in basis points (303 = +3,03 %). */
+    changeBp: integer("change_bp").notNull(),
+    effectiveFrom: date("effective_from", { mode: "string" }),
+    oldLines: jsonb("old_lines").$type<InvoiceLine[]>().notNull(),
+    newLines: jsonb("new_lines").$type<InvoiceLine[]>().notNull(),
+    announcedAt: timestamp("announced_at", { withTimezone: true }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: "contract_adjustments_contract_fk",
+      columns: [t.workspaceId, t.contractId],
+      foreignColumns: [maintenanceContracts.workspaceId, maintenanceContracts.id],
+    }).onDelete("cascade"),
+    unique("contract_adjustments_workspace_id_id_key").on(t.workspaceId, t.id),
+    uniqueIndex("contract_adjustments_cycle_idx")
+      .on(t.contractId, t.dueOn)
+      .where(sql`${t.status} <> 'withdrawn'`),
+    index("contract_adjustments_contract_idx").on(t.workspaceId, t.contractId),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
+/** Work logged against a contract's Stundenkontingent (7c-3b). */
+export const contractTimeEntries = pgTable(
+  "contract_time_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id").notNull(),
+    workDate: date("work_date", { mode: "string" }).notNull(),
+    minutes: integer("minutes").notNull(),
+    description: text("description").notNull(),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: "contract_time_entries_contract_fk",
+      columns: [t.workspaceId, t.contractId],
+      foreignColumns: [maintenanceContracts.workspaceId, maintenanceContracts.id],
+    }).onDelete("cascade"),
+    index("contract_time_entries_contract_idx").on(t.workspaceId, t.contractId, t.workDate),
     workspaceIsolation(t.workspaceId),
   ],
 ).enableRLS();

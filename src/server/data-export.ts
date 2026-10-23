@@ -49,6 +49,8 @@ export const WORKSPACE_TABLES: PgTable[] = [
   schema.invoiceShares,
   schema.outboundEmails,
   schema.maintenanceContracts,
+  schema.contractAdjustments,
+  schema.contractTimeEntries,
   schema.numberSeries,
   schema.intentScores,
   schema.notificationRules,
@@ -148,6 +150,21 @@ export async function exportProspect(
     schema.invoiceShares,
     schema.invoiceShares.invoiceId,
     ids("invoices"),
+  );
+  tables.invoice_reminders = await byParent(
+    schema.invoiceReminders,
+    schema.invoiceReminders.invoiceId,
+    ids("invoices"),
+  );
+  tables.contract_adjustments = await byParent(
+    schema.contractAdjustments,
+    schema.contractAdjustments.contractId,
+    ids("maintenance_contracts"),
+  );
+  tables.contract_time_entries = await byParent(
+    schema.contractTimeEntries,
+    schema.contractTimeEntries.contractId,
+    ids("maintenance_contracts"),
   );
   tables.audit_log = await byParent(schema.auditLog, schema.auditLog.targetId, [
     prospectId,

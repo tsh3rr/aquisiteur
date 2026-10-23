@@ -65,6 +65,8 @@ const tenantTables = {
   invoice_shares: schema.invoiceShares,
   outbound_emails: schema.outboundEmails,
   maintenance_contracts: schema.maintenanceContracts,
+  contract_adjustments: schema.contractAdjustments,
+  contract_time_entries: schema.contractTimeEntries,
   number_series: schema.numberSeries,
 } satisfies Record<string, PgTable>;
 
@@ -216,6 +218,27 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
       billedUntil: "2026-10-31",
     })
     .returning();
+  // A skipped index adjustment and a time entry (7c-3b).
+  await db.insert(schema.contractAdjustments).values({
+    workspaceId,
+    contractId: contract!.id,
+    dueOn: "2027-01-01",
+    status: "skipped",
+    baseMonth: "2025-10",
+    baseTenths: 1287,
+    indexMonth: "2026-10",
+    indexTenths: 1290,
+    changeBp: 23,
+    oldLines: [],
+    newLines: [],
+  });
+  await db.insert(schema.contractTimeEntries).values({
+    workspaceId,
+    contractId: contract!.id,
+    workDate: "2026-10-05",
+    minutes: 30,
+    description: `Update ${tag}`,
+  });
   // An issued invoice with a payment: immutable, yet gone with its workspace.
   const [invoice] = await db
     .insert(schema.invoices)
