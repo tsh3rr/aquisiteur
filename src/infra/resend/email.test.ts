@@ -28,4 +28,36 @@ describe("resendEmail", () => {
       "Resend error: Domain not verified",
     );
   });
+
+  it("sends headers and attachments as base64", async () => {
+    const fetcher = vi.fn(async () => Response.json({ id: "mail-2" }));
+    const port = resendEmail("re_key", "a@b.de", fetcher as typeof fetch);
+    await port.send({
+      to: "x@y.de",
+      subject: "Rechnung",
+      text: "T",
+      html: "",
+      replyTo: "owner@studio.test",
+      headers: { "Message-ID": "<1@b.de>" },
+      attachments: [
+        {
+          filename: "RE-2026-0001.pdf",
+          content: new TextEncoder().encode("%PDF-1.7"),
+          contentType: "application/pdf",
+        },
+      ],
+    });
+    const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      reply_to: "owner@studio.test",
+      headers: { "Message-ID": "<1@b.de>" },
+      attachments: [
+        {
+          filename: "RE-2026-0001.pdf",
+          content: btoa("%PDF-1.7"),
+          content_type: "application/pdf",
+        },
+      ],
+    });
+  });
 });

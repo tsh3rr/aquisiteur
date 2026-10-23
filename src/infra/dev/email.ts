@@ -12,18 +12,27 @@ export function logEmail(): EmailPort {
       if (process.env.NODE_ENV === "production" && process.env.ALLOW_LOG_EMAIL !== "1") {
         throw new Error("EMAIL_PROVIDER=log is not allowed in production");
       }
+      const attachments = (message.attachments ?? []).map((file) => ({
+        filename: file.filename,
+        contentType: file.contentType,
+        bytes: file.content.byteLength,
+      }));
       console.info(
-        `\n[email] to=${message.to}\n[email] subject=${message.subject}\n${message.text}\n`,
+        `\n[email] to=${message.to}\n[email] subject=${message.subject}\n${attachments
+          .map((file) => `[email] attachment=${file.filename} (${file.bytes} bytes)\n`)
+          .join("")}${message.text}\n`,
       );
+      // An id like a provider's, so delivery status can be simulated in tests.
+      const id = `log_${crypto.randomUUID()}`;
       const file = process.env.EMAIL_LOG_FILE;
       if (file) {
         const { appendFile } = await import("node:fs/promises");
         await appendFile(
           file,
-          `${JSON.stringify({ ...message, sentAt: new Date().toISOString() })}\n`,
+          `${JSON.stringify({ ...message, attachments, id, sentAt: new Date().toISOString() })}\n`,
         );
       }
-      return { id: null };
+      return { id };
     },
   };
 }

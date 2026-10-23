@@ -14,6 +14,7 @@ import { pingenLetters } from "./pingen/letters";
 import { diskStorage } from "./disk/storage";
 import { urlDatabase } from "./portable/database";
 import { resendEmail } from "./resend/email";
+import { resendWebhook } from "./resend/webhook";
 import { s3Storage } from "./s3/storage";
 import { sentryMonitor } from "./sentry/monitor";
 import { supabaseRealtime } from "./supabase/realtime";
@@ -89,6 +90,10 @@ export function getInfra(): Infra {
         ? cloudflareDatabase(env.DATABASE_URL)
         : urlDatabase(env.DATABASE_URL),
     email,
+    emailWebhook:
+      env.EMAIL_PROVIDER === "resend" && env.RESEND_WEBHOOK_SECRET
+        ? resendWebhook(env.RESEND_WEBHOOK_SECRET)
+        : null,
     storage,
     realtime,
     push,

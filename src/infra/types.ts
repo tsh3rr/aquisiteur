@@ -29,10 +29,38 @@ export interface EmailMessage {
   /** Overrides the default sender, e.g. a workspace's verified sender domain. */
   from?: string;
   replyTo?: string;
+  /** Extra headers, e.g. `Message-ID` so replies can be matched later. */
+  headers?: Record<string, string>;
+  attachments?: EmailAttachment[];
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: Uint8Array;
+  contentType: string;
 }
 
 export interface EmailPort {
   send(message: EmailMessage): Promise<{ id: string | null }>;
+}
+
+/** What a delivery webhook reports about a sent mail (phase 7c-2). */
+export interface EmailEvent {
+  /** The id `EmailPort.send` returned. */
+  providerId: string;
+  status: "sent" | "delivered" | "delayed" | "bounced" | "complained" | "failed";
+  at: Date;
+  /** Bounce or failure reason, when the provider gives one. */
+  detail: string | null;
+}
+
+/**
+ * Verifies and reads the provider's delivery webhook. Throws an error with
+ * `status` 401 for a bad signature. Unknown event types (later also inbound
+ * mail) come back as an empty list.
+ */
+export interface EmailWebhookPort {
+  parse(body: string, headers: Headers): Promise<EmailEvent[]>;
 }
 
 export interface RateLimitResult {
@@ -276,6 +304,8 @@ export interface Infra {
   readonly profile: HostingProfile;
   readonly database: DatabasePort;
   readonly email: EmailPort;
+  /** Null without a webhook secret (and with the log provider). */
+  readonly emailWebhook: EmailWebhookPort | null;
   readonly storage: StoragePort;
   readonly realtime: RealtimePort;
   readonly push: PushPort;

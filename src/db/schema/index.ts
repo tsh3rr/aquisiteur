@@ -9,3 +9,4 @@ export * from "./letters";
 export * from "./replay";
 export * from "./tasks";
 export * from "./projects";
+export * from "./mail";

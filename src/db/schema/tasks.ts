@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { workspaceIsolation } from "../rls";
 import { users } from "./auth";
+import { invoices } from "./projects";
 import { prospects } from "./prospects";
 import { workspaces } from "./tenancy";
 
@@ -35,6 +36,8 @@ export const tasks = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     prospectId: uuid("prospect_id").notNull(),
+    /** Set for „Rechnung freigeben“ (§7.10, 7c-2); the task closes itself once the invoice is sent. */
+    invoiceId: uuid("invoice_id"),
     title: text("title").notNull(),
     note: text("note"),
     dueDate: date("due_date", { mode: "string" }).notNull(),
@@ -61,7 +64,13 @@ export const tasks = pgTable(
     index("tasks_open_idx")
       .on(t.workspaceId, t.dueDate, t.dueTime)
       .where(sql`${t.doneAt} is null`),
+    foreignKey({
+      name: "tasks_invoice_fk",
+      columns: [t.workspaceId, t.invoiceId],
+      foreignColumns: [invoices.workspaceId, invoices.id],
+    }).onDelete("cascade"),
     index("tasks_prospect_idx").on(t.workspaceId, t.prospectId),
+    index("tasks_invoice_idx").on(t.workspaceId, t.invoiceId),
     // The hourly job looks across workspaces for reminders that are due.
     index("tasks_reminder_idx")
       .on(t.remindAt)

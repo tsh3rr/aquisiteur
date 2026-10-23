@@ -4,6 +4,14 @@ import type { EmailPort } from "../types";
  * Resend over its REST API with plain fetch. The SDK pulled ~400 KB of
  * parsers and webhook code into every route chunk of the Worker (ADR-0035).
  */
+function base64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 export function resendEmail(
   apiKey: string,
   defaultFrom: string,
@@ -21,6 +29,16 @@ export function resendEmail(
           html: message.html,
           text: message.text,
           ...(message.replyTo ? { reply_to: message.replyTo } : {}),
+          ...(message.headers ? { headers: message.headers } : {}),
+          ...(message.attachments?.length
+            ? {
+                attachments: message.attachments.map((file) => ({
+                  filename: file.filename,
+                  content: base64(file.content),
+                  content_type: file.contentType,
+                })),
+              }
+            : {}),
         }),
       });
       const data = (await response.json().catch(() => null)) as {
