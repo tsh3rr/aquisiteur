@@ -4,6 +4,7 @@ import type { Transaction } from "@/db";
 import { assets } from "@/db/schema";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import { printSource, resolveEntry } from "@/components/expose/render-context";
+import { getInfra } from "@/infra";
 
 export type BrandImageKind = "photo" | "logo" | "signature";
 
@@ -64,4 +65,29 @@ export async function brandPrintSource(
     .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
   const image = row && resolveEntry({ ...row, assetId: row.id }, "/preview/assets", "");
   return image ? printSource(image) : null;
+}
+
+/**
+ * The largest PNG rendition of a brand image as a data URL, for PDFs the
+ * server renders (ADR-0073): react-pdf reads PNG and JPEG, not WebP, and the
+ * server has no image library. Null when the image has no PNG rendition yet
+ * (uploaded before 7c-3) or the file is missing.
+ */
+export async function brandPrintPng(
+  tx: Transaction,
+  workspaceId: string,
+  assetId: string,
+): Promise<string | null> {
+  const [row] = await tx
+    .select({ variants: assets.variants })
+    .from(assets)
+    .where(and(eq(assets.workspaceId, workspaceId), eq(assets.id, assetId)));
+  const png = row?.variants
+    .filter((variant) => variant.format === "png")
+    .sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0];
+  if (!png) return null;
+  const file = await getInfra().storage.get(png.key);
+  if (!file) return null;
+  const bytes = new Uint8Array(await new Response(file.body).arrayBuffer());
+  return `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
 }

@@ -384,6 +384,8 @@ export async function requestInvoiceApproval(
   workspaceId: string,
   invoiceId: string,
   now = new Date(),
+  /** Why it was not sent automatically, shown first in the task's note. */
+  reason?: string,
 ): Promise<boolean> {
   const [row] = await db
     .select({
@@ -412,7 +414,14 @@ export async function requestInvoiceApproval(
     title: `${INVOICE_KIND_LABELS[row.kind]} ${row.number ?? title ?? ""} freigeben`
       .replace(/\s+/g, " ")
       .trim(),
-    note: "Prüfen, ausstellen und per E-Mail senden. Die Aufgabe erledigt sich mit dem Versand.",
+    note: [
+      reason,
+      row.number
+        ? "Prüfen und per E-Mail senden. Die Aufgabe erledigt sich mit dem Versand."
+        : "Prüfen, ausstellen und per E-Mail senden. Die Aufgabe erledigt sich mit dem Versand.",
+    ]
+      .filter(Boolean)
+      .join(" "),
     dueDate: localDateString(now, settings.notifications.timezone),
     reminder: "at_due",
   });

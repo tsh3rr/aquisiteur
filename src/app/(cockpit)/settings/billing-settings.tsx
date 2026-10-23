@@ -175,14 +175,11 @@ export function BillingSettingsForm({
         <legend className="mb-3 text-base font-semibold">Versand per E-Mail</legend>
         <Field
           label="Versand"
-          hint="Gilt für Rechnungen, die das System selbst vorbereitet, ab den Wartungsverträgen: Mit Freigabe legt der stündliche Job den Entwurf und eine Aufgabe „Rechnung freigeben“ an, die sich mit dem Versand erledigt. Rechnungen, die Sie selbst anlegen, senden Sie immer direkt."
+          hint="Gilt für Wartungsrechnungen, die der stündliche Job vorbereitet; jeder Vertrag kann abweichen. Mit Freigabe entstehen Entwurf und Aufgabe „Rechnung freigeben“, die sich mit dem Versand erledigt. Automatisch gehen nur volle Zeiträume mit denselben Positionen wie die letzte Rechnung hinaus, sonst entsteht die Aufgabe. Rechnungen, die Sie selbst anlegen, senden Sie immer direkt."
           error={e("invoiceSendMode")}
         >
           <Select name="invoiceSendMode" defaultValue={billing.invoiceSendMode}>
-            {/* "auto" needs maintenance contracts and a server-side PDF (7c-3). */}
-            {INVOICE_SEND_MODES.filter(
-              (mode) => mode !== "auto" || billing.invoiceSendMode === "auto",
-            ).map((mode) => (
+            {INVOICE_SEND_MODES.map((mode) => (
               <option key={mode} value={mode}>
                 {INVOICE_SEND_MODE_LABELS[mode]}
               </option>

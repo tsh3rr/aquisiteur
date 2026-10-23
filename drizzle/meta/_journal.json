@@ -204,6 +204,20 @@
       "when": 1792704333022,
       "tag": "0028_outbound_email_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792728746794,
+      "tag": "0029_maintenance_contracts",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792728755289,
+      "tag": "0030_maintenance_contracts_grants",
+      "breakpoints": true
     }
   ]
 }

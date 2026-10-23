@@ -1141,3 +1141,45 @@ Kunden mit ausgestellter Rechnung verweigert und die Seite erklärt warum), Vers
   Stufe braucht ein serverseitig erzeugtes PDF und kommt mit 7c-3; bis dahin ist sie in den
   Einstellungen nicht wählbar.
 - Ohne `EMAIL_PROVIDER=resend` landen Rechnungsmails im Log, wie Anmeldelinks.
+
+## ADR-0073 · Wartungsverträge mit stündlicher Abrechnung und Server-PDF (2026-10-23)
+
+Phase 7c-3 (ZIELPROMPT §7.10). Die wiederkehrenden Positionen eines angenommenen Angebots werden zu
+Wartungsverträgen, die der stündliche Job abrechnet.
+
+- **Vertrag** (`maintenance_contracts`): einer pro Intervall der angenommenen Auswahl („Wartungsvertrag
+  anlegen“ im Angebot, ein zweiter Klick legt nichts doppelt an). Er übernimmt Positionen (Preis pro
+  vollem Zeitraum, Gesamtrabatt gilt wie im Angebot nur für Einmaliges), Abrechnung im Voraus oder
+  nachträglich, Mindestlaufzeit und Kündigungsfrist. Der Beginn folgt dem Angebot: Annahmetag, festes
+  Datum oder offen bis zum Go-live; dann trägt der Owner ihn im Vertrag ein. Nach der ersten Rechnung
+  steht er fest.
+- **Zeiträume** (`src/domain/invoices/maintenance.ts`, rein): Kalendermonat, -quartal, -halbjahr, -jahr.
+  Erster und letzter Zeitraum sind tagesgenau anteilig (Preis × Tage / Tage des Zeitraums, Hinweis in
+  der Position). Im Voraus wird am ersten Tag des Zeitraums abgerechnet, nachträglich am Tag danach.
+  Höchstens zwölf Zeiträume pro Vertrag und Lauf holen eine Lücke auf.
+- **Fortschritt** über `billed_until` am Vertrag, nicht über vorhandene Rechnungen: Löscht der Owner
+  einen Entwurf, entsteht er nicht neu (wie bei den Folgebriefen, ADR-0062). Ein eindeutiger Index
+  `(contract_id, contract_period_from)` ohne Stornos verhindert doppelte Rechnungen, die Zeile des
+  Vertrags wird pro Zeitraum gesperrt.
+- **Kündigung**: frühestes Ende ist das Monatsende nach Ablauf der Kündigungsfrist, nicht vor Ende der
+  Mindestlaufzeit; ein späteres Ende ist wählbar, eines vor dem schon Abgerechneten nicht. Die
+  Kündigung lässt sich zurücknehmen.
+- **Versand**: Modus pro Vertrag, sonst der des Workspaces (Standard: Freigabe). Manuell legt nur den
+  Entwurf an, Freigabe zusätzlich die Aufgabe „Rechnung … freigeben“. Automatisch geht eine Rechnung
+  nur hinaus, wenn der Zeitraum voll ist und die Positionen genau denen der letzten ausgestellten
+  Rechnung des Vertrags gleichen; die erste Rechnung, ein anteiliger Zeitraum oder ein geänderter
+  Preis brauchen also immer einen Blick. Dann stellt der Job die Rechnung aus, erzeugt das PDF und
+  sendet es wie in ADR-0072. Jeder Fehler auf dem Weg (unvollständig, keine Adresse, PDF, Versand)
+  fällt auf die Freigabe-Aufgabe zurück, mit dem Grund vorne in der Notiz.
+- **PDF auf dem Server** (Entscheidung des Owners): Auf dem Node-Profil rendert react-pdf dieselbe
+  `InvoicePages`-Komponente wie im Browser, inklusive Factur-X (`invoicePdfBytes`); Schriften kommen
+  dort von der Platte. Das Worker-Bundle (`pnpm cf:build` setzt `HOSTING_PROFILE=cloudflare` beim
+  Build) hält den Renderer weiter per Alias draußen (ADR-0035, ADR-0037); dort fällt „automatisch“ auf
+  die Freigabe zurück. react-pdf liest kein WebP und der Server hat keine Bildbibliothek, daher lädt
+  der Browser beim Logo zusätzlich ein PNG der größten Breite hoch. Ein vorher hochgeladenes Logo ohne
+  PNG führt zur Freigabe mit dem Hinweis, das Logo neu hochzuladen, statt stillschweigend ohne Logo
+  zu drucken.
+- Der Job schreibt als erster Owner des Workspaces in `withTenant` (`workspaceOwner`), Kunden mit
+  Sperrvermerk werden übersprungen.
+- VPI-Indexierung und Stundenkontingent folgen als eigener Schritt 7c-3b (Entscheidung des Owners);
+  bis dahin lassen sich Preise nur über einen neuen Vertrag ändern.

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { withTenant, type Database } from "@/db";
-import { letters, memberships, prospects, tasks } from "@/db/schema";
+import { letters, prospects, tasks } from "@/db/schema";
 import {
   FOLLOW_UP_TASK_TITLE,
   FOLLOW_UP_WINDOW_DAYS,
@@ -11,7 +11,7 @@ import {
 import { localDateString } from "@/domain/tasks";
 import { createLetters } from "@/server/letters/manage";
 import { createTask } from "@/server/tasks";
-import { loadWorkspaceSettings } from "@/server/workspaces";
+import { loadWorkspaceSettings, workspaceOwner } from "@/server/workspaces";
 
 const DAY = 24 * 3600 * 1000;
 /** The largest `afterDays` the settings allow, plus the window. */
@@ -162,14 +162,4 @@ export async function runAutoFollowUps(db: Database, now = new Date()) {
     }
   }
   return { checked: candidates.length, prepared };
-}
-
-async function workspaceOwner(db: Database, workspaceId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ userId: memberships.userId })
-    .from(memberships)
-    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.role, "owner")))
-    .orderBy(asc(memberships.createdAt))
-    .limit(1);
-  return row?.userId ?? null;
 }

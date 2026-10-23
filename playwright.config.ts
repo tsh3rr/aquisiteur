@@ -8,6 +8,7 @@ export const E2E = {
     "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur_e2e",
   mailLog: "test-results/mails.jsonl",
   pushLog: "test-results/pushes.jsonl",
+  cronSecret: "e2e-cron-secret-e2e-cron-secret",
 };
 
 // Locally a preinstalled Chromium can be used instead of `playwright install`.
@@ -56,6 +57,7 @@ export default defineConfig({
       PUSH_LOG_FILE: E2E.pushLog,
       GEOCODER_PROVIDER: "fake",
       VAT_CHECK_PROVIDER: "fake",
+      CRON_SECRET: E2E.cronSecret,
       // Fixed test key, so Pingen credentials can be stored (tests/e2e/pingen.spec.ts).
       INTEGRATIONS_ENCRYPTION_KEY: "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
     },

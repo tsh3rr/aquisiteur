@@ -92,7 +92,10 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] 7b: Rechnungsprofil am Kunden (Adresse, Land, UID, Rechnungs-E-Mail, Zahlungsziel), Rechnungen nach österreichischem Recht (Kleinunternehmer und Regelbesteuerung), Anzahlungs- und Schlussrechnungen aus Tranchen, Rechnungs-PDF mit EPC-QR, Nummernkreis, Storno, Zahlungen, CSV-Export (ADR-0070)
 - [x] 7c-1: Logo und Akzentfarbe im Rechnungs-PDF, ZUGFeRD/Factur-X im PDF, ZIP mit PDFs für den Steuerberater, VIES-Prüfung und Zusammenfassende Meldung, Sperrvermerk statt Löschung (ADR-0071)
 - [x] 7c-2: Versand per E-Mail mit PDF im Anhang, Rechnungsseite `/r/<token>`, Zustellstatus per Webhook, Freigabe-Aufgabe (ADR-0072)
-- [ ] 7c: Wartungsverträge mit periodischer Abrechnung und automatischem Versand, Zahlungserinnerungen
+- [x] 7c-3: Wartungsverträge aus angenommenen Angeboten, Abrechnung je Kalenderzeitraum im Voraus oder nachträglich mit anteiligem Anfang und Ende, Kündigung, stündlicher Job mit Freigabe-Aufgabe oder automatischem Versand mit PDF vom Server (ADR-0073)
+- [ ] 7c-4: Mahnwesen (Zahlungserinnerung, Mahnungen, optional § 456/§ 458 UGB)
+- [ ] 7c-3b: VPI-Indexierung mit Vorankündigung und Stundenkontingent im Wartungsvertrag
+- [ ] 7c-5: Projekt-Dashboard
 - [ ] Später: eigene Rechnungsvorlagen, E-Rechnung (ebInterface/ZUGFeRD), Bankabgleich
 
 ## Später

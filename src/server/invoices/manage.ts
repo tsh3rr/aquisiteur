@@ -115,7 +115,7 @@ function treatmentInput(settings: WorkspaceSettings, prospect: ProspectRow) {
   };
 }
 
-async function changed(workspaceId: string, invoiceId: string, prospectId: string) {
+export async function changed(workspaceId: string, invoiceId: string, prospectId: string) {
   await publish([workspaceTopic(workspaceId)], "invoice.changed", { invoiceId, prospectId });
 }
 
@@ -137,6 +137,7 @@ export interface InvoiceListItem {
   projectId: string | null;
   projectName: string | null;
   offerId: string | null;
+  contractId: string | null;
   issueDate: string | null;
   dueDate: string | null;
   totalCents: number;
@@ -149,7 +150,13 @@ export interface InvoiceListItem {
 export async function listInvoices(
   tx: Transaction,
   workspaceId: string,
-  filter: { prospectId?: string; projectId?: string; offerId?: string; month?: string } = {},
+  filter: {
+    prospectId?: string;
+    projectId?: string;
+    offerId?: string;
+    contractId?: string;
+    month?: string;
+  } = {},
   now = new Date(),
 ): Promise<InvoiceListItem[]> {
   const settings = await loadWorkspaceSettings(tx, workspaceId);
@@ -158,6 +165,7 @@ export async function listInvoices(
   if (filter.prospectId) conditions.push(eq(invoices.prospectId, filter.prospectId));
   if (filter.projectId) conditions.push(eq(invoices.projectId, filter.projectId));
   if (filter.offerId) conditions.push(eq(invoices.offerId, filter.offerId));
+  if (filter.contractId) conditions.push(eq(invoices.contractId, filter.contractId));
   if (filter.month) {
     const from = `${filter.month}-01`;
     const [year, month] = filter.month.split("-").map(Number) as [number, number];
@@ -197,6 +205,7 @@ export async function listInvoices(
       projectId: invoice.projectId,
       projectName,
       offerId: invoice.offerId,
+      contractId: invoice.contractId,
       issueDate: invoice.issueDate,
       dueDate: invoice.dueDate,
       totalCents: totals.totalCents,
@@ -383,7 +392,7 @@ export async function loadInvoice(
   };
 }
 
-function emptyDocument(
+export function emptyDocument(
   settings: WorkspaceSettings,
   prospect: ProspectRow,
   patch: Partial<InvoiceDocument> = {},
@@ -399,7 +408,7 @@ function emptyDocument(
   });
 }
 
-async function loadProspect(tx: Transaction, workspaceId: string, prospectId: string) {
+export async function loadProspect(tx: Transaction, workspaceId: string, prospectId: string) {
   const [prospect] = await tx
     .select()
     .from(prospects)
@@ -774,6 +783,8 @@ export async function cancelInvoice(
       projectId: original.projectId,
       offerId: original.offerId,
       milestoneId: original.milestoneId,
+      contractId: original.contractId,
+      contractPeriodFrom: original.contractPeriodFrom,
       kind: "cancellation",
       status: "issued",
       number,

@@ -9,7 +9,8 @@ import { createApiToken, expectAccessible, publishWithCli, signInWithWorkspace }
  * customer counts as won and the timeline shows it.
  * Phase 7b: invoices from the instalments → issue with a number → PDF →
  * partial payment → storno. Phase 7c: VIES check, Factur-X, month ZIP,
- * deletion request with retained invoices.
+ * deletion request with retained invoices, e-mail with the invoice page, a
+ * maintenance contract billed by the hourly job.
  */
 
 const account = {
@@ -237,6 +238,42 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await page.getByRole("button", { name: /^ZIP für / }).click();
   expect((await zip).suggestedFilename()).toMatch(/^rechnungen-\d{4}-\d{2}\.zip$/);
   await expect(page.getByText("ZIP mit 2 Rechnungen erstellt.")).toBeVisible();
+
+  // Maintenance (7c-3): the monthly line becomes a contract; the hourly job drafts its
+  // first, prorated invoice and asks for approval with a task.
+  await page.goto("/angebote");
+  await page.getByRole("link", { name: /Neue Website für das Café/ }).click();
+  await page.getByRole("button", { name: "Wartungsvertrag anlegen" }).click();
+  // The page refreshes with the new contract, and the button goes away with it.
+  await expect(page.getByRole("button", { name: "Wartungsvertrag anlegen" })).toHaveCount(0);
+  await page.getByRole("link", { name: /Wartung: Neue Website für das Café/ }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Wartung: Neue Website für das Café" }),
+  ).toBeVisible();
+  await expect(page.getByText("Beginn offen")).toBeVisible();
+  const today = new Date().toISOString().slice(0, 10);
+  await page.getByLabel("Beginn", { exact: true }).fill(today);
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Gespeichert.")).toBeVisible();
+  const job = await page.request.post("/api/jobs/hourly", {
+    headers: { authorization: `Bearer ${E2E.cronSecret}` },
+  });
+  expect(job.ok()).toBe(true);
+  expect((await job.json()).contracts).toMatchObject({ drafted: 1, approvals: 1 });
+  await page.reload();
+  await expect(page.getByRole("link", { name: /Entwurf · Rechnung/ })).toBeVisible();
+  await expect(page.getByText("Läuft", { exact: true })).toBeVisible();
+  await expectAccessible(page, "maintenance contract");
+  if (shots) await page.screenshot({ path: `${shots}/maintenance-contract.png`, fullPage: true });
+  await page.goto("/rechnungen/vertraege");
+  await expect(
+    page.getByRole("link", { name: /Wartung: Neue Website für das Café/ }),
+  ).toBeVisible();
+  await expectAccessible(page, "maintenance contract list");
+  await page.goto("/aufgaben");
+  await expect(
+    page.getByText("Rechnung Wartung: Neue Website für das Café freigeben").first(),
+  ).toBeVisible();
 
   // Deletion request with issued invoices: everything else goes, the invoices stay (ADR-0071).
   await page.goto("/kunden");

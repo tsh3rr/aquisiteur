@@ -117,3 +117,14 @@ export async function loadWorkspaceSettings(db: Database | Transaction, workspac
     .where(eq(workspaceSettings.workspaceId, workspaceId));
   return workspaceSettingsSchema.parse(row ?? {});
 }
+
+/** The workspace's first owner: the jobs write tenant data as this user. */
+export async function workspaceOwner(db: Database, workspaceId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .where(and(eq(memberships.workspaceId, workspaceId), eq(memberships.role, "owner")))
+    .orderBy(asc(memberships.createdAt))
+    .limit(1);
+  return row?.userId ?? null;
+}

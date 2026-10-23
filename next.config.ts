@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 import { hstsHeader, staticSecurityHeaders } from "./src/lib/security-headers";
 
 const isHttps = (process.env.APP_URL ?? "").startsWith("https:");
+// `pnpm cf:build` sets it; the Node image and `pnpm build` leave it at "node".
+const workerBuild = process.env.HOSTING_PROFILE === "cloudflare";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -20,12 +22,20 @@ const nextConfig: NextConfig = {
       config.resolve ??= {};
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@react-pdf/renderer$": false,
         // Next treats react-pdf as an external server package, which an alias cannot
         // replace; dropping the one module that imports it keeps it out instead.
         [path.join(process.cwd(), "src/components/letters/letter-document.tsx")]: false,
         [path.join(process.cwd(), "src/components/expose-pdf/expose-document.tsx")]: false,
-        [path.join(process.cwd(), "src/components/invoices/invoice-document.tsx")]: false,
+        // On Node the server renders the invoices the hourly job sends (ADR-0073);
+        // the Worker build (cf:build) keeps the renderer out.
+        ...(workerBuild
+          ? {
+              "@react-pdf/renderer$": false,
+              [path.join(process.cwd(), "src/components/invoices/invoice-document.tsx")]: false,
+              // The server imports it through the "@/" path, which resolves without the extension.
+              [path.join(process.cwd(), "src/components/invoices/invoice-document")]: false,
+            }
+          : {}),
         // Exposé layers that only an effect in the browser imports (ADR-0065):
         // the consent notice and the contact layer with its chat panel.
         [path.join(process.cwd(), "src/components/expose/consent-notice.tsx")]: false,

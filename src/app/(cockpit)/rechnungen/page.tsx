@@ -1,4 +1,4 @@
-import { Download, Receipt, Users } from "lucide-react";
+import { Download, Receipt, Repeat, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MonthZipButton } from "@/components/invoices/month-zip-button";
@@ -85,6 +85,12 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
           open.length > 0
             ? `${open.length} offen, zusammen ${formatCents(openCents)}${overdue > 0 ? `, ${overdue} überfällig` : ""}.`
             : "Rechnungen entstehen aus angenommenen Angeboten oder direkt im Projekt."
+        }
+        actions={
+          <Link href="/rechnungen/vertraege" className={linkButton}>
+            <Repeat aria-hidden className="size-4" />
+            Wartungsverträge
+          </Link>
         }
       />
 

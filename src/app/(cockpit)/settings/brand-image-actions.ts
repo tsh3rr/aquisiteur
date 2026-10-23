@@ -24,6 +24,16 @@ const TARGET = {
 
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
+function concat(parts: Uint8Array[]): Uint8Array {
+  const all = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0));
+  let offset = 0;
+  for (const part of parts) {
+    all.set(part, offset);
+    offset += part.byteLength;
+  }
+  return all;
+}
+
 function isKind(value: unknown): value is BrandImageKind {
   return value === "photo" || value === "logo" || value === "signature";
 }
@@ -103,6 +113,8 @@ export async function uploadBrandImage(formData: FormData): Promise<BrandImageRe
     });
   }
   const largest = variants.reduce((a, b) => (b.width! > a.width! ? b : a));
+  // Over every rendition, so a re-upload that adds the logo's PNG is a new asset.
+  const sha256 = await sha256Hex(concat(variants.map((variant) => variant.data!)));
 
   try {
     const done = await asSettingsEditor(async (tx, workspaceId, userId) => {
@@ -112,7 +124,7 @@ export async function uploadBrandImage(formData: FormData): Promise<BrandImageRe
         { workspaceId, userId, source: "cockpit" },
         {
           path: `assets/${TARGET[kind].fileName}.${largest.format}`,
-          sha256: await sha256Hex(largest.data!),
+          sha256,
           width: largest.width,
           height: largest.height,
           variants,
