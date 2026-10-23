@@ -131,10 +131,7 @@ afterAll(async () => {
       indexed: false,
     })
     .where(eq(schema.maintenanceContracts.workspaceId, ws));
-  await db
-    .update(schema.tasks)
-    .set({ doneAt: new Date() })
-    .where(eq(schema.tasks.workspaceId, ws));
+  await db.update(schema.tasks).set({ doneAt: new Date() }).where(eq(schema.tasks.workspaceId, ws));
   await close();
 });
 
