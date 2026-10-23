@@ -28,6 +28,8 @@
   --aq-danger-foreground: oklch(99% 0.005 25);
   --aq-danger-soft: oklch(95% 0.03 25);
   --aq-danger-soft-foreground: oklch(44% 0.17 25);
+  --aq-chart1: oklch(50% 0.24 275);
+  --aq-chart2: oklch(62% 0.15 45);
   --aq-radius-sm: 0.375rem;
   --aq-radius-md: 0.625rem;
   --aq-radius-lg: 0.875rem;
@@ -79,6 +81,8 @@
   --aq-danger-foreground: oklch(17% 0.03 25);
   --aq-danger-soft: oklch(28% 0.06 25);
   --aq-danger-soft-foreground: oklch(86% 0.08 25);
+  --aq-chart1: oklch(64% 0.18 275);
+  --aq-chart2: oklch(66% 0.15 50);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -110,5 +114,7 @@
     --aq-danger-foreground: oklch(17% 0.03 25);
     --aq-danger-soft: oklch(28% 0.06 25);
     --aq-danger-soft-foreground: oklch(86% 0.08 25);
+    --aq-chart1: oklch(64% 0.18 275);
+    --aq-chart2: oklch(66% 0.15 50);
   }
 }

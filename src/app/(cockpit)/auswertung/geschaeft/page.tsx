@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AgingChart } from "@/components/analytics/aging-chart";
 import { FilterBar } from "@/components/analytics/filter-bar";
+import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { KpiTile } from "@/components/analytics/kpi-tile";
+import { RevenueChart } from "@/components/analytics/revenue-chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollRegion } from "@/components/ui/misc";
-import { formatDays } from "@/domain/analytics/business";
+import { formatDays, offerFunnel } from "@/domain/analytics/business";
 import { formatCount, formatEuro, formatPercent } from "@/domain/analytics/format";
 import { trend } from "@/domain/analytics/period";
 import { loadBusiness } from "@/server/analytics/business";
@@ -107,6 +110,71 @@ export default async function BusinessAnalyticsPage({
 
       <Card>
         <CardHeader>
+          <CardTitle>Umsatz je Monat</CardTitle>
+          <CardDescription>
+            Netto-Umsatz der letzten zwölf Monate bis zum Ende des Zeitraums, getrennt nach Projekt-
+            und Wartungsrechnungen; Stornos sind abgezogen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RevenueChart months={data.byMonth} label="Umsatz je Monat" />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Angebote im Zeitraum</CardTitle>
+            <CardDescription>
+              Was aus den im Zeitraum versendeten Angeboten wurde
+              {o.sent > o.viewed
+                ? `; ${count(o.sent - o.viewed, "Angebot wurde", "Angebote wurden")} noch nicht online angesehen`
+                : ""}
+              .
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {o.sent === 0 ? (
+              <p className="text-sm text-foreground-muted">
+                Im Zeitraum wurde kein Angebot versendet. Wählen Sie einen längeren Zeitraum oder{" "}
+                <Link href="/angebote" className="text-accent underline underline-offset-4">
+                  versenden Sie ein Angebot
+                </Link>
+                .
+              </p>
+            ) : (
+              <FunnelChart
+                rows={offerFunnel({ sent: o.sent, viewed: o.viewed, accepted: o.acceptedOfSent })}
+                label="Angebots-Funnel"
+              />
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Offene Posten nach Alter</CardTitle>
+            <CardDescription>
+              Offene Beträge ausgestellter Rechnungen nach Tagen seit Fälligkeit (aktueller Stand).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {data.open.count === 0 ? (
+              <p className="text-sm text-foreground-muted">
+                Alle Rechnungen sind bezahlt. Neue Zahlungen erfassen Sie in den{" "}
+                <Link href="/rechnungen" className="text-accent underline underline-offset-4">
+                  Rechnungen
+                </Link>
+                .
+              </p>
+            ) : (
+              <AgingChart rows={data.open.aging} label="Offene Posten nach Alter" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Umsatz je Kampagne</CardTitle>
           <CardDescription>
             Netto-Umsatz der Rechnungen im Zeitraum, nach der Kampagne, über die der Kunde kam.
@@ -116,7 +184,7 @@ export default async function BusinessAnalyticsPage({
           {revenue.byCampaign.length === 0 ? (
             <p className="text-sm text-foreground-muted">
               Im Zeitraum wurde keine Rechnung ausgestellt. Wählen Sie einen längeren Zeitraum oder{" "}
-              <Link href="/rechnungen" className="text-accent underline-offset-4 hover:underline">
+              <Link href="/rechnungen" className="text-accent underline underline-offset-4">
                 stellen Sie eine Rechnung aus
               </Link>
               .

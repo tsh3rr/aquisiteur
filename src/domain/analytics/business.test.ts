@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { BucketTotals } from "../offers/totals";
 import {
   acceptance,
+  agingBucket,
+  buildAging,
   businessCsvRows,
+  fillMonths,
+  monthsUntil,
+  offerFunnel,
   formatDays,
   monthlyCents,
   offerValueCents,
@@ -108,6 +113,66 @@ describe("businessCsvRows", () => {
     expect(rows.slice(-2)).toEqual([
       ["Umsatz je Kampagne", "Kampagne", "Umsatz netto (EUR)", "Rechnungen"],
       ["Umsatz je Kampagne", "Cafés", 3_000, 3],
+    ]);
+  });
+});
+
+describe("months", () => {
+  it("lists the twelve months up to the period's last day, across the year", () => {
+    const months = monthsUntil("2026-02-14");
+    expect(months).toHaveLength(12);
+    expect([months[0], months.at(-1)]).toEqual(["2025-03", "2026-02"]);
+  });
+
+  it("fills empty months and sums the two series", () => {
+    expect(
+      fillMonths(
+        ["2026-09", "2026-10"],
+        [
+          { month: "2026-10", recurring: false, netCents: 300_000 },
+          { month: "2026-10", recurring: true, netCents: 9_300 },
+          { month: "2026-10", recurring: false, netCents: -80_000 },
+          { month: "2025-01", recurring: false, netCents: 1 },
+        ],
+      ),
+    ).toEqual([
+      { month: "2026-09", oneOffCents: 0, recurringCents: 0 },
+      { month: "2026-10", oneOffCents: 220_000, recurringCents: 9_300 },
+    ]);
+  });
+});
+
+describe("aging", () => {
+  it("buckets by days since the due date", () => {
+    expect([0, -3, 1, 30, 31, 60, 61].map(agingBucket)).toEqual([
+      "current",
+      "current",
+      "d30",
+      "d30",
+      "d60",
+      "d60",
+      "older",
+    ]);
+    const rows = buildAging([
+      { daysOverdue: -2, openCents: 100 },
+      { daysOverdue: 45, openCents: 200 },
+      { daysOverdue: 50, openCents: 300 },
+    ]);
+    expect(rows.map((row) => [row.label, row.count, row.openCents])).toEqual([
+      ["Noch nicht fällig", 1, 100],
+      ["1–30 Tage überfällig", 0, 0],
+      ["31–60 Tage überfällig", 2, 500],
+      ["Über 60 Tage überfällig", 0, 0],
+    ]);
+  });
+});
+
+describe("offerFunnel", () => {
+  it("gives each stage its share of the sent offers and the drop-off", () => {
+    expect(offerFunnel({ sent: 4, viewed: 3, accepted: 1 })).toEqual([
+      { stage: "sent", label: "Versendet", count: 4, rate: 1, dropOff: null },
+      { stage: "viewed", label: "Online angesehen", count: 3, rate: 0.75, dropOff: 0.25 },
+      { stage: "accepted", label: "Angenommen", count: 1, rate: 0.25, dropOff: 2 / 3 },
     ]);
   });
 });

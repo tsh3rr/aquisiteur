@@ -4,13 +4,16 @@ import type { Transaction } from "@/db";
 import type { TaxMode } from "@/domain/billing";
 import {
   acceptance,
+  buildAging,
+  fillMonths,
   monthlyCents,
+  monthsUntil,
   offerValueCents,
   sortRevenue,
   type AnsweredOffer,
   type CampaignRevenue,
 } from "@/domain/analytics/business";
-import { isoDay, previousPeriod, type Period } from "@/domain/analytics/period";
+import { isoDay, lastDay, previousPeriod, type Period } from "@/domain/analytics/period";
 import { invoiceDocumentSchema, type InvoiceLine } from "@/domain/invoices/schema";
 import { invoiceTotals } from "@/domain/invoices/totals";
 import type { OfferAcceptance } from "@/domain/offers/acceptance";
@@ -29,6 +32,7 @@ interface OfferRow extends Record<string, unknown> {
   status: string;
   sent_at: Date | string;
   answered_at: Date | string | null;
+  first_viewed_at: Date | string | null;
   acceptance: OfferAcceptance | null;
   document: unknown;
   tax_mode: string;
@@ -57,7 +61,8 @@ async function offerFigures(
   const from = period.from.toISOString();
   const to = period.to.toISOString();
   const sent = await tx.execute<OfferRow>(sql`
-    select o.status, o.sent_at, o.answered_at, o.acceptance, v.document, v.tax_mode
+    select o.status, o.sent_at, o.answered_at, o.first_viewed_at, o.acceptance, v.document,
+           v.tax_mode
     from offers o
     join prospects p on p.workspace_id = o.workspace_id and p.id = o.prospect_id
     join offer_versions v on ${OFFER_VERSION}
@@ -80,6 +85,11 @@ async function offerFigures(
   return {
     sent: sent.length,
     volumeCents: sent.reduce((sum, row) => sum + valueOf(row), 0),
+    // An answer implies the offer was seen, also when it was answered in the cockpit.
+    viewed: sent.filter(
+      (row) => row.first_viewed_at !== null || ["accepted", "declined"].includes(row.status),
+    ).length,
+    acceptedOfSent: sent.filter((row) => row.status === "accepted").length,
     ...acceptance(offers),
   };
 }
@@ -117,9 +127,9 @@ async function revenue(tx: Transaction, scope: ReturnType<typeof prospectScope>,
 
 /** Today's open items: issued invoices with something left to pay. */
 async function openItems(tx: Transaction, scope: ReturnType<typeof prospectScope>, today: string) {
-  const [row] = await tx.execute<{ count: string; open: string | null; overdue: string | null }>(
-    sql`
-    with open_invoices as (
+  const rows = await tx.execute<{ days: number; open: string }>(sql`
+    select (${today}::date - i.due_date) as days, open
+    from (
       select i.due_date,
              (i.totals ->> 'dueCents')::bigint - coalesce(
                (select sum(pay.amount_cents) from invoice_payments pay
@@ -127,17 +137,51 @@ async function openItems(tx: Transaction, scope: ReturnType<typeof prospectScope
       from invoices i
       join prospects p on p.workspace_id = i.workspace_id and p.id = i.prospect_id
       where ${scope} and i.status = 'issued' and i.kind <> 'cancellation'
-    )
-    select count(*) filter (where open > 0) as count,
-           sum(open) filter (where open > 0) as open,
-           sum(open) filter (where open > 0 and due_date < ${today}) as overdue
-    from open_invoices`,
-  );
+    ) i
+    where open > 0`);
+  const invoices = rows.map((row) => ({
+    daysOverdue: Number(row.days),
+    openCents: Number(row.open),
+  }));
+  const aging = buildAging(invoices);
   return {
-    count: Number(row?.count ?? 0),
-    openCents: Number(row?.open ?? 0),
-    overdueCents: Number(row?.overdue ?? 0),
+    count: invoices.length,
+    openCents: invoices.reduce((sum, row) => sum + row.openCents, 0),
+    overdueCents: aging
+      .filter((row) => row.bucket !== "current")
+      .reduce((sum, row) => sum + row.openCents, 0),
+    aging,
   };
+}
+
+/**
+ * Net revenue per calendar month over the twelve months up to the period's
+ * end, split into project and maintenance invoices. A cancellation counts
+ * with the kind of the invoice it cancels.
+ */
+async function monthlyRevenue(
+  tx: Transaction,
+  scope: ReturnType<typeof prospectScope>,
+  months: string[],
+) {
+  const first = `${months[0]}-01`;
+  const last = months.at(-1)!;
+  const after = new Date(Date.UTC(Number(last.slice(0, 4)), Number(last.slice(5, 7)), 1));
+  const rows = await tx.execute<{ month: string; recurring: boolean; net: string }>(sql`
+    select to_char(i.issue_date, 'YYYY-MM') as month,
+           coalesce(orig.contract_id, i.contract_id) is not null as recurring,
+           sum((i.totals ->> 'netCents')::bigint
+             - coalesce((i.totals ->> 'deductedNetCents')::bigint, 0)) as net
+    from invoices i
+    join prospects p on p.workspace_id = i.workspace_id and p.id = i.prospect_id
+    left join invoices orig on orig.workspace_id = i.workspace_id and orig.id = i.cancels_invoice_id
+    where ${scope} and i.status <> 'draft' and i.issue_date >= ${first}
+      and i.issue_date < ${isoDay(after)}
+    group by 1, 2`);
+  return fillMonths(
+    months,
+    rows.map((row) => ({ month: row.month, recurring: row.recurring, netCents: Number(row.net) })),
+  );
 }
 
 /** MRR today: running maintenance contracts, each period's net spread over its months. */
@@ -171,14 +215,17 @@ export async function loadBusiness(
   const scope = prospectScope(workspaceId, filter);
   const today = localDateString(now, timezone);
   const previous = previousPeriod(period);
-  const [offers, previousOffers, sales, previousSales, open, contracts] = await Promise.all([
-    offerFigures(tx, scope, period),
-    offerFigures(tx, scope, previous),
-    revenue(tx, scope, period),
-    revenue(tx, scope, previous),
-    openItems(tx, scope, today),
-    recurring(tx, scope, today),
-  ]);
+  const months = monthsUntil(lastDay(period));
+  const [offers, previousOffers, sales, previousSales, open, contracts, byMonth] =
+    await Promise.all([
+      offerFigures(tx, scope, period),
+      offerFigures(tx, scope, previous),
+      revenue(tx, scope, period),
+      revenue(tx, scope, previous),
+      openItems(tx, scope, today),
+      recurring(tx, scope, today),
+      monthlyRevenue(tx, scope, months),
+    ]);
   return {
     offers,
     previousOffers,
@@ -186,6 +233,7 @@ export async function loadBusiness(
     previousRevenue: previousSales,
     open,
     contracts,
+    byMonth,
   };
 }
 

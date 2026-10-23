@@ -285,6 +285,8 @@ describe("project dashboard", () => {
       accepted: 1,
       rate: 0.5,
       avgDays: 2,
+      viewed: 2,
+      acceptedOfSent: 1,
     });
     expect(data.previousOffers).toMatchObject({ sent: 0, volumeCents: 0, answered: 0, rate: null });
   });
@@ -309,7 +311,14 @@ describe("project dashboard", () => {
       loadBusiness(tx, ws, NO_FILTER, october, "Europe/Vienna", later),
     );
     // 3.600 € gross less 1.000 € paid; due on 24 October, so overdue on 20 November.
-    expect(data.open).toEqual({ count: 1, openCents: 260_000, overdueCents: 260_000 });
+    expect(data.open).toMatchObject({ count: 1, openCents: 260_000, overdueCents: 260_000 });
+    // Due on 24 October: 27 days overdue on 20 November.
+    expect(data.open.aging.map((row) => [row.bucket, row.count, row.openCents])).toEqual([
+      ["current", 0, 0],
+      ["d30", 1, 260_000],
+      ["d60", 0, 0],
+      ["older", 0, 0],
+    ]);
     expect(data.contracts).toEqual({ contracts: 1, mrrCents: 9_300 });
     const early = await asBea((tx) =>
       loadBusiness(tx, ws, NO_FILTER, october, "Europe/Vienna", new Date("2026-10-16T09:00:00Z")),
@@ -317,12 +326,66 @@ describe("project dashboard", () => {
     expect(early.open.overdueCents).toBe(0);
   });
 
+  it("splits the twelve months up to the period into project and maintenance revenue", async () => {
+    await asBea(async (tx) => {
+      const [contract] = await tx
+        .select()
+        .from(schema.maintenanceContracts)
+        .where(eq(schema.maintenanceContracts.workspaceId, ws));
+      const draftId = (await createInvoice(
+        tx,
+        actor,
+        { prospectId: contract!.prospectId },
+        new Date("2026-10-12T09:00:00Z"),
+      ))!;
+      await tx
+        .update(schema.invoices)
+        .set({ contractId: contract!.id })
+        .where(eq(schema.invoices.id, draftId));
+      const [draft] = await tx
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, draftId));
+      await saveInvoiceDraft(tx, actor, draftId, {
+        ...draft!.document,
+        title: "Wartung Oktober",
+        lines: [
+          {
+            id: "care",
+            title: "Wartung",
+            description: undefined,
+            quantity: 1,
+            unit: "Monat",
+            unitPriceCents: 9_300,
+            discountPercent: 0,
+            vatRate: 20,
+          },
+        ],
+      });
+      const issued = await issueInvoice(tx, actor, draftId, new Date("2026-10-12T09:00:00Z"));
+      if (!issued.ok) throw new Error("maintenance invoice not issued");
+    });
+    const data = await asBea((tx) =>
+      loadBusiness(tx, ws, NO_FILTER, october, "Europe/Vienna", later),
+    );
+    expect(data.byMonth).toHaveLength(12);
+    expect(data.byMonth[0]!.month).toBe("2025-11");
+    // The bakery's 800 € and its cancellation cancel out within October.
+    expect(data.byMonth.at(-1)).toEqual({
+      month: "2026-10",
+      oneOffCents: 300_000,
+      recurringCents: 9_300,
+    });
+    expect(data.revenue.netCents).toBe(309_300);
+  });
+
   it("applies the campaign filter to every figure", async () => {
     const filter = { ...NO_FILTER, campaignId };
     const data = await asBea((tx) => loadBusiness(tx, ws, filter, october, "Europe/Vienna", later));
     expect(data.offers).toMatchObject({ sent: 1, volumeCents: 411_600, answered: 1, rate: 1 });
     expect(data.revenue.byCampaign.map((row) => row.name)).toEqual(["Cafés Graz"]);
-    expect(data.open.count).toBe(1);
+    // The café's project invoice and its maintenance invoice.
+    expect(data.open.count).toBe(2);
     expect(data.contracts.contracts).toBe(1);
     const none = await asBea((tx) =>
       loadBusiness(tx, ws, { ...NO_FILTER, industry: "Kfz" }, october, "Europe/Vienna", later),
@@ -341,7 +404,10 @@ describe("project dashboard", () => {
     );
     expect(data.offers.sent).toBe(0);
     expect(data.revenue).toEqual({ netCents: 0, invoices: 0, byCampaign: [] });
-    expect(data.open).toEqual({ count: 0, openCents: 0, overdueCents: 0 });
+    expect(data.open).toMatchObject({ count: 0, openCents: 0, overdueCents: 0 });
+    expect(data.byMonth.every((row) => row.oneOffCents === 0 && row.recurringCents === 0)).toBe(
+      true,
+    );
     expect(data.contracts).toEqual({ contracts: 0, mrrCents: 0 });
   });
 

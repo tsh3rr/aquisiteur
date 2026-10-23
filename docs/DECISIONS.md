@@ -1301,3 +1301,21 @@ CSV-Export (`teil=geschaeft`) wie die übrigen Dashboards.
   MRR nicht, weil ihre Verträge nicht mehr abgerechnet werden.
 - Alle Abfragen laufen als Mandant und verbinden den Kunden, damit Kampagne, Branche, Region und Tag für
   jede Zahl gelten. Trends vergleichen mit der gleich langen Vorperiode.
+
+## ADR-0077 · Diagramme im Projekt-Dashboard (2026-10-23)
+
+Der Reiter „Geschäft“ (ADR-0076) bekommt drei Diagramme, auf Wunsch des Owners.
+
+- **Umsatz je Monat**: gestapelte Balken über die zwölf Kalendermonate bis zum Ende des gewählten
+  Zeitraums, damit auch ein kurzer Zeitraum den Verlauf zeigt. Projekte unten, Wartung oben; eine
+  Rechnung zählt als Wartung, wenn sie oder die stornierte Rechnung zu einem Wartungsvertrag gehört.
+  Ein Monat, in dem Stornos überwiegen, zeigt keinen Balken; die Tabelle darunter zeigt jeden Wert.
+  Die MRR bleibt eine Kachel: als Linie auf derselben Achse läge sie am Boden, eine zweite Achse wäre
+  irreführend.
+- **Angebots-Funnel**: Versendet → online angesehen → angenommen für die im Zeitraum versendeten
+  Angebote, mit derselben Darstellung wie der Kampagnen-Funnel. Eine Antwort zählt als angesehen, auch
+  wenn sie im Cockpit erfasst wurde.
+- **Offene Posten nach Alter**: noch nicht fällig, 1–30, 31–60 und über 60 Tage überfällig, mit Symbol,
+  Betrag und Anzahl als Text, damit die Statusfarbe nie allein trägt.
+- Zwei neue Farbtokens `chart1` (Indigo) und `chart2` (Orange) je Schema; das Paar ist für
+  Farbsehschwächen geprüft (ΔE über 24 in hell und dunkel) und erreicht 3:1 gegen die Fläche.
