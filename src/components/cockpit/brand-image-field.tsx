@@ -11,9 +11,13 @@ import type { BrandImageKind, BrandImagePreview } from "@/server/brand-images";
 const MAX_INPUT_BYTES = 20 * 1024 * 1024;
 
 /** Square crop for the photo (shown round), original aspect ratio for the logo. */
-const SHAPES: Record<BrandImageKind, { widths: number[]; square: boolean; png?: true }> = {
+const SHAPES: Record<
+  BrandImageKind,
+  { widths: number[]; square: boolean; png?: true; printPng?: true }
+> = {
   photo: { widths: [240, 480], square: true },
-  logo: { widths: [480, 960], square: false },
+  // Plus a PNG of the largest size: invoices the server renders cannot read WebP (ADR-0073).
+  logo: { widths: [480, 960], square: false, printPng: true },
   // PNG only: the letter PDF cannot embed WebP.
   signature: { widths: [600], square: false, png: true },
 };
@@ -77,6 +81,10 @@ async function renditions(file: File, kind: BrandImageKind) {
     if (!blob) throw new Error("no-blob");
     const format = blob.type === "image/webp" ? "webp" : "png";
     form.append("variant", blob, `${width}.${format}`);
+    if (format === "webp" && SHAPES[kind].printPng && width === Math.max(...targets)) {
+      const png = await toBlob(canvas, "image/png");
+      if (png) form.append("variant", png, `${width}.png`);
+    }
     if (width > largest.width) largest = { width, height };
   }
   form.set("width", String(largest.width));

@@ -258,7 +258,7 @@ Fehler im Log der App in Coolify.
 
 ## 9. Stündlicher Job
 
-Erinnerungen an Aufgaben, Tageszusammenfassung, automatische Löschung nach Fristen und die Karte brauchen einen stündlichen
+Erinnerungen an Aufgaben, Wartungsrechnungen, Tageszusammenfassung, automatische Löschung nach Fristen und die Karte brauchen einen stündlichen
 Aufruf (ADR-0032, ADR-0043). In der App **Scheduled Tasks → Add**:
 
 | Feld      | Wert               |

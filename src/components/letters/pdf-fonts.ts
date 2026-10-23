@@ -5,24 +5,28 @@ import type { ExposeStyle } from "@/domain/expose/schema";
 /**
  * Fonts of the printed pages (letter, teaser, exposé PDF), registered once.
  * React-PDF reads WOFF, not WOFF2; the files live in public/fonts/letter/.
+ * The browser fetches them by URL; the server (invoices sent by the hourly
+ * job, ADR-0073) reads them from disk.
  */
+const base =
+  typeof window === "undefined" ? `${process.cwd()}/public/fonts/letter` : "/fonts/letter";
 
 Font.register({
   family: "Geist",
   fonts: [
-    { src: "/fonts/letter/geist-latin-400-normal.woff", fontWeight: 400 },
-    { src: "/fonts/letter/geist-latin-600-normal.woff", fontWeight: 600 },
+    { src: `${base}/geist-latin-400-normal.woff`, fontWeight: 400 },
+    { src: `${base}/geist-latin-600-normal.woff`, fontWeight: 600 },
   ],
 });
 // Words are never split with hyphens the reader would not expect.
 Font.registerHyphenationCallback((word) => [word]);
 
 // Headline faces of the exposé styles.
-Font.register({ family: "AqSerif", src: "/fonts/letter/instrument-serif-latin-400-normal.woff" });
-Font.register({ family: "AqAnton", src: "/fonts/letter/anton-latin-400-normal.woff" });
+Font.register({ family: "AqSerif", src: `${base}/instrument-serif-latin-400-normal.woff` });
+Font.register({ family: "AqAnton", src: `${base}/anton-latin-400-normal.woff` });
 Font.register({
   family: "AqNunito",
-  src: "/fonts/letter/nunito-latin-800-normal.woff",
+  src: `${base}/nunito-latin-800-normal.woff`,
   fontWeight: 800,
 });
 

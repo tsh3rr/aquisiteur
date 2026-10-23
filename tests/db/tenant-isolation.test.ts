@@ -63,6 +63,7 @@ const tenantTables = {
   invoice_payments: schema.invoicePayments,
   invoice_shares: schema.invoiceShares,
   outbound_emails: schema.outboundEmails,
+  maintenance_contracts: schema.maintenanceContracts,
   number_series: schema.numberSeries,
 } satisfies Record<string, PgTable>;
 
@@ -199,6 +200,19 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
     const sent = await sendOffer(tx, actor, offerId!);
     if (!sent.ok) throw new Error(`offer seed failed: ${sent.error}`);
   });
+  // A maintenance contract billing its first month (7c-3).
+  const [contract] = await db
+    .insert(schema.maintenanceContracts)
+    .values({
+      workspaceId,
+      prospectId: chat.prospectId,
+      title: `Wartung ${tag}`,
+      interval: "monthly",
+      lines: [],
+      startDate: "2026-10-01",
+      billedUntil: "2026-10-31",
+    })
+    .returning();
   // An issued invoice with a payment: immutable, yet gone with its workspace.
   const [invoice] = await db
     .insert(schema.invoices)
@@ -209,6 +223,8 @@ async function seedWorkspaceData(workspaceId: string, tag: string, userId: strin
       number: `RE-2026-${tag}`,
       issueDate: "2026-10-01",
       document: invoiceDocumentSchema.parse({}),
+      contractId: contract!.id,
+      contractPeriodFrom: "2026-10-01",
     })
     .returning();
   await db

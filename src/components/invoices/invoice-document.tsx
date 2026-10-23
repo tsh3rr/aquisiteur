@@ -12,7 +12,8 @@ import type { PrintableInvoice } from "./types";
 /**
  * The invoice PDF (§7.10, phase 7b): A4, address field for a DL window
  * envelope like the letters, every § 11 UStG item, the EPC QR code to pay
- * with a banking app. Rendered in the browser (ADR-0037).
+ * with a banking app. Rendered in the browser (ADR-0037), and on the server
+ * for invoices the hourly job sends by itself (ADR-0073).
  */
 
 const mm = (value: number) => value * 2.8346;
@@ -351,19 +352,27 @@ export function InvoicePages({ invoice }: { invoice: PrintableInvoice }) {
 export async function renderInvoicePdf(input: PrintableInvoice): Promise<Blob> {
   // react-pdf cannot read WebP; the logo goes through a canvas like the letters' images.
   const logo = input.brand.logo ? await printableImage(input.brand.logo) : null;
-  const invoice = { ...input, brand: { ...input.brand, logo } };
+  const bytes = await invoicePdfBytes({ ...input, brand: { ...input.brand, logo } });
+  return new Blob([bytes as BlobPart], { type: "application/pdf" });
+}
+
+/**
+ * The PDF itself, in the browser and on the server (ADR-0073). The logo must
+ * already be a PNG or JPEG (URL or data URL) or null.
+ */
+export async function invoicePdfBytes(invoice: PrintableInvoice): Promise<Uint8Array> {
   const title = `${INVOICE_KIND_LABELS[invoice.kind]} ${invoice.number ?? "Entwurf"}`;
   const blob = await pdf(
     <Document title={title} author={invoice.issuer.name} language="de">
       <InvoicePages invoice={invoice} />
     </Document>,
   ).toBlob();
+  const plain = await blob.arrayBuffer();
   // Issued invoices carry the e-invoice (ZUGFeRD / Factur-X); a draft stays a plain preview.
-  if (!invoice.number) return blob;
+  if (!invoice.number) return new Uint8Array(plain);
   const xml = facturXml({ ...invoice, number: invoice.number });
-  const bytes = await embedFacturX(await blob.arrayBuffer(), xml, {
+  return embedFacturX(plain, xml, {
     title,
     author: invoice.issuer.name,
   });
-  return new Blob([bytes as BlobPart], { type: "application/pdf" });
 }

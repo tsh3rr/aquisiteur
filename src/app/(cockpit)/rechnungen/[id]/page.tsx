@@ -102,6 +102,16 @@ export default async function InvoicePage({ params }: { params: Params }) {
             .filter(Boolean)
             .join(" · ")}
         </p>
+        {invoice.contractId ? (
+          <p className="text-sm">
+            <Link
+              href={`/rechnungen/vertraege/${invoice.contractId}`}
+              className="text-accent underline underline-offset-4"
+            >
+              Zum Wartungsvertrag
+            </Link>
+          </p>
+        ) : null}
         {loaded.cancelledBy ? (
           <p className="text-sm" role="status">
             Storniert durch{" "}

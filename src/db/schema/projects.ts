@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   date,
@@ -14,7 +15,14 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { InvoiceDocument, InvoiceIssuer, InvoiceParty } from "../../domain/invoices/schema";
+import type { InvoiceSendMode } from "../../domain/invoices/email";
+import type { ContractTiming } from "../../domain/invoices/maintenance";
+import type {
+  InvoiceDocument,
+  InvoiceIssuer,
+  InvoiceLine,
+  InvoiceParty,
+} from "../../domain/invoices/schema";
 import type { InvoiceTotals } from "../../domain/invoices/totals";
 import type { OfferAcceptance } from "../../domain/offers/acceptance";
 import type { OfferDocument } from "../../domain/offers/schema";
@@ -218,6 +226,64 @@ export const numberSeries = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * Maintenance contracts (§7.10, phase 7c-3, ADR-0073): the recurring lines of
+ * an accepted offer with their interval. The hourly job bills each calendar
+ * period (prorated at start and end) and moves `billed_until` forward, so a
+ * draft the owner deletes is not created again.
+ */
+export const maintenanceContracts = pgTable(
+  "maintenance_contracts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    prospectId: uuid("prospect_id").notNull(),
+    projectId: uuid("project_id"),
+    offerId: uuid("offer_id"),
+    title: text("title").notNull(),
+    interval: billingInterval("interval").notNull(),
+    timing: text("timing").$type<ContractTiming>().notNull().default("advance"),
+    /** Price per full period, as invoice lines. */
+    lines: jsonb("lines").$type<InvoiceLine[]>().notNull(),
+    /** Null while the start is open (offer said „ab Go-live“). */
+    startDate: date("start_date", { mode: "string" }),
+    minimumMonths: integer("minimum_months").notNull().default(0),
+    noticeMonths: integer("notice_months").notNull().default(0),
+    noticeReceivedOn: date("notice_received_on", { mode: "string" }),
+    /** Last day of service once the contract is given notice. */
+    endDate: date("end_date", { mode: "string" }),
+    /** Null: the workspace's setting. */
+    sendMode: text("send_mode").$type<InvoiceSendMode>(),
+    billedUntil: date("billed_until", { mode: "string" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: "maintenance_contracts_prospect_fk",
+      columns: [t.workspaceId, t.prospectId],
+      foreignColumns: [prospects.workspaceId, prospects.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "maintenance_contracts_project_fk",
+      columns: [t.workspaceId, t.projectId],
+      foreignColumns: [projects.workspaceId, projects.id],
+    }),
+    foreignKey({
+      name: "maintenance_contracts_offer_fk",
+      columns: [t.workspaceId, t.offerId],
+      foreignColumns: [offers.workspaceId, offers.id],
+    }),
+    unique("maintenance_contracts_workspace_id_id_key").on(t.workspaceId, t.id),
+    uniqueIndex("maintenance_contracts_offer_interval_idx").on(t.offerId, t.interval),
+    index("maintenance_contracts_prospect_idx").on(t.workspaceId, t.prospectId),
+    index("maintenance_contracts_project_idx").on(t.workspaceId, t.projectId),
+    workspaceIsolation(t.workspaceId),
+  ],
+).enableRLS();
+
 export const invoiceKind = pgEnum("invoice_kind", ["standard", "deposit", "final", "cancellation"]);
 export const invoiceStatus = pgEnum("invoice_status", ["draft", "issued", "cancelled"]);
 
@@ -256,6 +322,9 @@ export const invoices = pgTable(
     sha256: text("sha256"),
     /** For a cancellation: the invoice it cancels. */
     cancelsInvoiceId: uuid("cancels_invoice_id").references((): AnyPgColumn => invoices.id),
+    /** The maintenance contract and the first day of the period this invoice bills (7c-3). */
+    contractId: uuid("contract_id"),
+    contractPeriodFrom: date("contract_period_from", { mode: "string" }),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
     issuedBy: text("issued_by").references(() => users.id, { onDelete: "set null" }),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
@@ -277,8 +346,17 @@ export const invoices = pgTable(
       columns: [t.workspaceId, t.offerId],
       foreignColumns: [offers.workspaceId, offers.id],
     }),
+    foreignKey({
+      name: "invoices_contract_fk",
+      columns: [t.workspaceId, t.contractId],
+      foreignColumns: [maintenanceContracts.workspaceId, maintenanceContracts.id],
+    }),
     unique("invoices_workspace_id_id_key").on(t.workspaceId, t.id),
     uniqueIndex("invoices_workspace_number_idx").on(t.workspaceId, t.number),
+    // One invoice per contract period; a cancellation repeats the period of the invoice it cancels.
+    uniqueIndex("invoices_contract_period_idx")
+      .on(t.contractId, t.contractPeriodFrom)
+      .where(sql`${t.kind} <> 'cancellation'`),
     index("invoices_prospect_idx").on(t.workspaceId, t.prospectId),
     index("invoices_project_idx").on(t.workspaceId, t.projectId),
     index("invoices_offer_idx").on(t.workspaceId, t.offerId),

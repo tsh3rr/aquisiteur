@@ -9,14 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { exposes, workspaces } from "@/db/schema";
 import { can } from "@/domain/authz";
 import { taxNote } from "@/domain/billing";
+import { CONTRACT_STATE_LABELS, CONTRACT_STATE_TONES } from "@/domain/invoices/maintenance";
 import { BILLING_LABELS, OFFER_STATUS_LABELS, OFFER_STATUS_TONES } from "@/domain/offers/schema";
 import { formatCents } from "@/domain/offers/totals";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
+import { listContracts } from "@/server/invoices/contracts";
 import { listInvoices } from "@/server/invoices/manage";
 import { listCatalog, loadOffer } from "@/server/offers/manage";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteOfferAction, duplicateOfferAction } from "../actions";
+import { CreateContractsButton } from "../../rechnungen/vertraege/contract-forms";
 import { CreateInvoicesButton } from "./create-invoices";
 import { OfferEditorLazy } from "./offer-editor-lazy";
 
@@ -54,11 +57,14 @@ export default async function OfferPage({ params }: { params: Params }) {
       origin: await workspacePublicOrigin(tx, ws),
       catalog: await listCatalog(tx, workspace.id),
       hasExpose: (exposeCount?.count ?? 0) > 0,
-      invoices: await listInvoices(tx, workspace.id, { offerId: id }),
+      invoices: (await listInvoices(tx, workspace.id, { offerId: id })).filter(
+        (invoice) => !invoice.contractId,
+      ),
+      contracts: await listContracts(tx, workspace.id, { offerId: id }),
     };
   });
   if (!loaded) notFound();
-  const { offer, origin, catalog, hasExpose, invoices } = loaded;
+  const { offer, origin, catalog, hasExpose, invoices, contracts } = loaded;
   const canManage = can(actor, "prospects.manage", { workspaceId: workspace.id });
   const editable = canManage && offer.status !== "accepted" && offer.status !== "withdrawn";
   const acceptance = offer.acceptance;
@@ -141,6 +147,36 @@ export default async function OfferPage({ params }: { params: Params }) {
               )}
               {canManage ? <CreateInvoicesButton offerId={offer.id} /> : null}
             </div>
+            {acceptance.recurring.length > 0 ? (
+              <div className="grid gap-3 border-t border-border pt-4">
+                <h3 className="font-medium">Wartungsverträge</h3>
+                {contracts.length > 0 ? (
+                  <ul className="grid gap-1">
+                    {contracts.map((contract) => (
+                      <li key={contract.id}>
+                        <Link
+                          href={`/rechnungen/vertraege/${contract.id}`}
+                          className="flex min-h-11 flex-wrap items-center justify-between gap-2 hover:text-accent"
+                        >
+                          {contract.title}
+                          <Badge tone={CONTRACT_STATE_TONES[contract.state]}>
+                            {CONTRACT_STATE_LABELS[contract.state]}
+                          </Badge>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-foreground-muted">
+                    Die wiederkehrenden Positionen werden über einen Wartungsvertrag abgerechnet,
+                    einer pro Intervall. Der stündliche Job legt jede fällige Rechnung an.
+                  </p>
+                )}
+                {canManage && contracts.length < acceptance.recurring.length ? (
+                  <CreateContractsButton offerId={offer.id} />
+                ) : null}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
