@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { niceMaxCents, type MonthRevenue } from "@/domain/analytics/business";
 import { formatEuro } from "@/domain/analytics/format";
+import { ScrollRegion } from "@/components/ui/misc";
 import { cn } from "@/lib/cn";
 
 const monthShort = new Intl.DateTimeFormat("de-DE", { month: "short", timeZone: "UTC" });
@@ -152,7 +153,7 @@ export function RevenueChart({ months, label }: { months: MonthRevenue[]; label:
         <summary className="inline-flex min-h-11 cursor-pointer items-center text-accent underline-offset-4 hover:underline">
           Werte als Tabelle
         </summary>
-        <div className="max-h-72 overflow-y-auto">
+        <ScrollRegion label={`${label} als Tabelle`} className="max-h-72 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{label}</caption>
             <thead>
@@ -187,7 +188,7 @@ export function RevenueChart({ months, label }: { months: MonthRevenue[]; label:
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       </details>
     </figure>
   );
