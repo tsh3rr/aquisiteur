@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { loadInvoicePdfAction } from "../actions";
 import {
+  discardReminderAction,
   prepareReminderAction,
   sendReminderAction,
   type DunningActionState,
@@ -42,6 +43,36 @@ export function PrepareReminderButton({ invoiceId, label }: { invoiceId: string;
   );
 }
 
+/** Sets the draft aside; the level waits one payment deadline before the job drafts it again. */
+export function DiscardReminderButton({
+  reminderId,
+  deadlineDays,
+}: {
+  reminderId: string;
+  deadlineDays: number;
+}) {
+  const [pending, start] = useTransition();
+  const [state, setState] = useState<DunningActionState>({ ok: false });
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-foreground-muted">
+        Hat der Kunde etwa eine Zahlung zugesagt? Verwerfen pausiert diese Stufe für {deadlineDays}{" "}
+        Tage.
+      </p>
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={pending}
+        onClick={() => start(async () => setState(await discardReminderAction(reminderId)))}
+        className="justify-self-start"
+      >
+        {pending ? "Wird verworfen …" : "Entwurf verwerfen"}
+      </Button>
+      <Status state={state} />
+    </div>
+  );
+}
+
 /**
  * Sends the waiting reminder with the invoice PDF attached. Like the invoice
  * mail, the PDF is rendered here only when none is stored yet (ADR-0037).
@@ -52,10 +83,12 @@ export function SendReminder({
   label,
   filename,
   pdfStored,
+  claimKey,
   draft,
 }: {
   invoiceId: string;
   reminderId: string;
+  claimKey: string;
   label: string;
   filename: string;
   pdfStored: boolean;
@@ -97,6 +130,7 @@ export function SendReminder({
     <form onSubmit={submit} className="grid gap-4">
       <input type="hidden" name="invoiceId" value={invoiceId} />
       <input type="hidden" name="reminderId" value={reminderId} />
+      <input type="hidden" name="claimKey" value={claimKey} />
       <Field label="An" error={e("to")}>
         <Input name="to" type="email" required defaultValue={draft.to} autoComplete="off" />
       </Field>

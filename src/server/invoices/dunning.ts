@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { serverEnv } from "@/config/env";
 import { withTenant, type Database, type Transaction } from "@/db";
 import {
@@ -10,13 +10,15 @@ import {
   outboundEmails,
   prospects,
   tasks,
+  workspaceSettings,
 } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
-import { domainOf, messageIdFor, senderAddress } from "@/domain/email";
+import { EMAIL_PROBLEMS, domainOf, messageIdFor, senderAddress } from "@/domain/email";
 import {
   DUNNING_EMAIL_BODIES,
   DUNNING_EMAIL_SUBJECTS,
   DUNNING_LEVEL_LABELS,
+  claimKey,
   dunningClaim,
   dunningEmailValues,
   nextReminder,
@@ -31,13 +33,13 @@ import {
   type InvoiceParty,
 } from "@/domain/invoices/schema";
 import type { InvoiceTotals } from "@/domain/invoices/totals";
-import { localDateString } from "@/domain/tasks";
+import { addDays, localDateString } from "@/domain/tasks";
 import type { WorkspaceSettings } from "@/domain/workspace-settings";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { publish, workspaceTopic } from "@/server/realtime";
 import { loadWorkspaceSettings, workspaceOwner } from "@/server/workspaces";
 import { renderInvoicePdfOnServer } from "./pdf";
-import { dropSettledReminders, paidCents } from "./reminder-drafts";
+import { dropSettledReminders, paidCents, skipReminderDrafts } from "./reminder-drafts";
 import {
   ensureInvoiceShare,
   invoicePath,
@@ -170,8 +172,20 @@ export async function prepareReminder(
       interestRateBp: claim.interestRateBp,
       feeCents: claim.feeCents,
     })
-    // Another run drafted the same level a moment ago.
-    .onConflictDoNothing({ target: [invoiceReminders.invoiceId, invoiceReminders.level] })
+    // A discarded level comes back as a draft; a level another run drafted a moment ago does not.
+    .onConflictDoUpdate({
+      target: [invoiceReminders.invoiceId, invoiceReminders.level],
+      set: {
+        status: "draft",
+        asOf: context.today,
+        deadline: claim.deadline,
+        openCents: claim.openCents,
+        interestCents: claim.interestCents,
+        interestRateBp: claim.interestRateBp,
+        feeCents: claim.feeCents,
+      },
+      setWhere: eq(invoiceReminders.status, "skipped"),
+    })
     .returning({ id: invoiceReminders.id });
   if (!created) return { ok: false, error: "waiting" };
   await publish([workspaceTopic(actor.workspaceId)], "invoice.changed", {
@@ -217,6 +231,8 @@ export interface InvoiceDunning {
   draft: {
     reminder: InvoiceReminder;
     claim: DunningClaim;
+    /** Sent back with the form; the send refuses when the claim has changed since. */
+    claimKey: string;
     mail: { to: string; subject: string; body: string };
     pdfStored: boolean;
     openApproval: boolean;
@@ -272,6 +288,7 @@ export async function loadInvoiceDunning(
     draft = {
       reminder: waiting,
       claim: mail.claim,
+      claimKey: claimKey(mail.claim),
       mail: { to: mail.to, subject: mail.subject, body: mail.body },
       pdfStored: share.pdfKey !== null,
       openApproval: Boolean(approval),
@@ -290,23 +307,61 @@ export async function loadInvoiceDunning(
   };
 }
 
-/** Deletes a waiting draft (and with it its approval task). */
+/**
+ * Discards a waiting draft: the level pauses for one payment deadline (the
+ * customer may have promised to pay) before the hourly job drafts it again.
+ */
 export async function discardReminder(
   tx: Transaction,
   actor: Actor,
   reminderId: string,
-): Promise<{ invoiceId: string } | null> {
-  const [removed] = await tx
-    .delete(invoiceReminders)
+  now = new Date(),
+): Promise<{ invoiceId: string; until: string } | null> {
+  const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
+  const until = addDays(
+    localDateString(now, settings.notifications.timezone),
+    settings.billing.dunningDeadlineDays,
+  );
+  const [skipped] = await skipReminderDrafts(tx, actor.workspaceId, { reminderId }, now, until);
+  if (!skipped) return null;
+  await tx.insert(auditLog).values({
+    workspaceId: actor.workspaceId,
+    actorUserId: actor.userId,
+    action: "invoice.reminder_discarded",
+    targetType: "invoice",
+    targetId: skipped.invoiceId,
+    meta: { reminderId, until },
+  });
+  return { invoiceId: skipped.invoiceId, until };
+}
+
+/**
+ * A mail of this reminder that went out or may still be going: everything but
+ * a problem (failed, bounced, complained), and "sending" only while fresh, so
+ * a crash cannot block the reminder for good.
+ */
+async function mailUnderway(
+  tx: Transaction,
+  workspaceId: string,
+  reminderId: string,
+  now: Date,
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: outboundEmails.id })
+    .from(outboundEmails)
     .where(
       and(
-        eq(invoiceReminders.workspaceId, actor.workspaceId),
-        eq(invoiceReminders.id, reminderId),
-        eq(invoiceReminders.status, "draft"),
+        eq(outboundEmails.workspaceId, workspaceId),
+        eq(outboundEmails.reminderId, reminderId),
+        notInArray(outboundEmails.status, [...EMAIL_PROBLEMS]),
+        or(
+          ne(outboundEmails.status, "sending"),
+          gt(outboundEmails.createdAt, new Date(now.getTime() - 10 * 60_000)),
+        ),
       ),
     )
-    .returning({ invoiceId: invoiceReminders.invoiceId });
-  return removed ?? null;
+    .limit(1);
+  return Boolean(row);
 }
 
 export type SendReminderResult =
@@ -318,6 +373,7 @@ export type SendReminderResult =
         | "settled"
         | "restricted"
         | "sending"
+        | "changed"
         | "pdf_missing"
         | "pdf_invalid"
         | "send_failed";
@@ -330,7 +386,15 @@ export type SendReminderResult =
 export async function sendReminderEmail(
   tenant: Tenant,
   actor: Actor,
-  input: { reminderId: string; to: string; subject: string; body: string; pdf: Uint8Array | null },
+  input: {
+    reminderId: string;
+    to: string;
+    subject: string;
+    body: string;
+    pdf: Uint8Array | null;
+    /** The claim the text was written for; null skips the check. */
+    claimKey: string | null;
+  },
   now = new Date(),
 ): Promise<SendReminderResult> {
   const env = serverEnv();
@@ -354,23 +418,17 @@ export async function sendReminderEmail(
       await dropSettledReminders(tx, actor.workspaceId, reminder.invoiceId);
       return { ok: false as const, error: "settled" as const };
     }
-    const [inFlight] = await tx
-      .select({ id: outboundEmails.id })
-      .from(outboundEmails)
-      .where(
-        and(
-          eq(outboundEmails.workspaceId, actor.workspaceId),
-          eq(outboundEmails.reminderId, reminder.id),
-          eq(outboundEmails.status, "sending"),
-          // A row left "sending" by a crash must not block the reminder for good.
-          gt(outboundEmails.createdAt, new Date(now.getTime() - 10 * 60_000)),
-        ),
-      );
-    if (inFlight) return { ok: false as const, error: "sending" as const };
+    if (await mailUnderway(tx, actor.workspaceId, reminder.id, now)) {
+      return { ok: false as const, error: "sending" as const };
+    }
     const stored = await storeInvoicePdf(tx, actor.workspaceId, reminder.invoiceId, input.pdf);
     if (!stored.ok) return stored;
     const draft = await reminderDraft(tx, context, reminder.level);
     const claim = draft.claim;
+    // The text carries amounts and the deadline as written; a payment or a new day since changes them.
+    if (input.claimKey !== null && input.claimKey !== claimKey(claim)) {
+      return { ok: false as const, error: "changed" as const };
+    }
     await tx
       .update(invoiceReminders)
       .set({
@@ -500,8 +558,15 @@ export async function requestReminderApproval(
         eq(invoices.id, invoiceReminders.invoiceId),
       ),
     )
-    .where(and(eq(invoiceReminders.workspaceId, workspaceId), eq(invoiceReminders.id, reminderId)));
-  if (!row) return false;
+    .where(
+      and(
+        eq(invoiceReminders.workspaceId, workspaceId),
+        eq(invoiceReminders.id, reminderId),
+        eq(invoiceReminders.status, "draft"),
+      ),
+    );
+  // An automatic send that failed after the provider took the mail needs no approval.
+  if (!row || (await mailUnderway(tx, workspaceId, reminderId, now))) return false;
   const settings = await loadWorkspaceSettings(tx, workspaceId);
   await tx.insert(tasks).values({
     workspaceId,
@@ -574,7 +639,7 @@ async function sendAutomatically(
   const sent = await sendReminderEmail(
     tenant,
     actor,
-    { reminderId, ...ready.mail, pdf: ready.pdf },
+    { reminderId, ...ready.mail, pdf: ready.pdf, claimKey: null },
     now,
   );
   return sent.ok ? { ok: true } : { ok: false, reason: "Der E-Mail-Versand ist fehlgeschlagen." };
@@ -586,8 +651,9 @@ async function sendAutomatically(
  * dunning mode. "off" leaves everything to the owner.
  */
 export async function runDunning(db: Database, now = new Date()) {
-  // A day of slack for time zones ahead of UTC; prepareReminder checks the local date.
-  const horizon = now.toISOString().slice(0, 10);
+  // Tomorrow in UTC: a superset for time zones ahead of UTC; prepareReminder checks the local date.
+  const horizon = addDays(now.toISOString().slice(0, 10), 1);
+  const sentLevels = sql`(select count(*)::int from ${invoiceReminders} s where s.workspace_id = ${invoices.workspaceId} and s.invoice_id = ${invoices.id} and s.status = 'sent')`;
   const candidates = await db
     .select({ id: invoices.id, workspaceId: invoices.workspaceId })
     .from(invoices)
@@ -595,15 +661,19 @@ export async function runDunning(db: Database, now = new Date()) {
       prospects,
       and(eq(prospects.workspaceId, invoices.workspaceId), eq(prospects.id, invoices.prospectId)),
     )
+    .leftJoin(workspaceSettings, eq(workspaceSettings.workspaceId, invoices.workspaceId))
     .where(
       and(
         eq(invoices.status, "issued"),
         ne(invoices.kind, "cancellation"),
         isNull(prospects.restrictedAt),
-        sql`${invoices.dueDate} <= ${horizon}`,
+        // Only rows the run can act on, so waiting ones never crowd out the rest of the 500.
+        sql`coalesce(${workspaceSettings.billing}->>'dunningMode', 'approval') <> 'off'`,
+        // The next level's day after the due date has come (levels go strictly in order).
+        sql`${invoices.dueDate} + coalesce((${workspaceSettings.billing}->'dunningDays'->>${sentLevels})::int, (array[3, 14, 28])[${sentLevels} + 1]) <= ${horizon}::date`,
         sql`(${invoices.totals}->>'dueCents')::int > coalesce((select sum(p.amount_cents) from ${invoicePayments} p where p.workspace_id = ${invoices.workspaceId} and p.invoice_id = ${invoices.id}), 0)`,
         // Nothing waits, the last letter is not out, and no deadline is still running.
-        sql`not exists (select 1 from ${invoiceReminders} r where r.workspace_id = ${invoices.workspaceId} and r.invoice_id = ${invoices.id} and (r.status = 'draft' or r.level = 3 or r.deadline >= ${horizon}))`,
+        sql`not exists (select 1 from ${invoiceReminders} r where r.workspace_id = ${invoices.workspaceId} and r.invoice_id = ${invoices.id} and (r.status = 'draft' or (r.status = 'sent' and r.level = 3) or r.deadline >= ${horizon}))`,
       ),
     )
     .orderBy(asc(invoices.dueDate))
@@ -629,14 +699,23 @@ export async function runDunning(db: Database, now = new Date()) {
       const actor = { userId: owner, role: "owner" as const, workspaceId: candidate.workspaceId };
       const tenant: Tenant = (fn) =>
         withTenant(db, { userId: owner, workspaceId: candidate.workspaceId }, fn);
-      const prepared = await tenant((tx) =>
-        prepareReminder(tx, actor, candidate.id, now, { scheduled: true }),
-      );
+      // With approval, draft and task in one transaction: a draft without its task would wait unseen.
+      const prepared = await tenant(async (tx) => {
+        const draft = await prepareReminder(tx, actor, candidate.id, now, { scheduled: true });
+        if (draft.ok && mode === "approval") {
+          await requestReminderApproval(tx, candidate.workspaceId, draft.reminderId, now);
+        }
+        return draft;
+      });
       if (!prepared.ok) continue;
       result.drafted++;
       if (mode === "manual") continue;
+      if (mode === "approval") {
+        result.approvals++;
+        continue;
+      }
       let reason: string | undefined;
-      if (mode === "auto") {
+      {
         const auto = await sendAutomatically(db, actor, prepared.reminderId, now).catch(
           (error: unknown): AutoResult => {
             console.error("automatic reminder send failed", prepared.reminderId, error);
@@ -649,10 +728,10 @@ export async function runDunning(db: Database, now = new Date()) {
         }
         reason = `Nicht automatisch gesendet: ${auto.reason}`;
       }
-      await tenant((tx) =>
+      const asked = await tenant((tx) =>
         requestReminderApproval(tx, candidate.workspaceId, prepared.reminderId, now, reason),
       );
-      result.approvals++;
+      if (asked) result.approvals++;
     } catch (error) {
       console.error("dunning failed", candidate.id, error);
     }

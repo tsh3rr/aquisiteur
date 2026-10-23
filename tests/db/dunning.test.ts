@@ -16,12 +16,14 @@ import {
 } from "@/server/invoices/dunning";
 import {
   addPayment,
+  cancelInvoice,
   createInvoice,
   issueInvoice,
   listInvoices,
   saveInvoiceDraft,
 } from "@/server/invoices/manage";
 import { loadInvoiceDelivery, sendInvoiceEmail } from "@/server/invoices/send";
+import { restrictProspect } from "@/server/prospects/mutations";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
 
@@ -44,6 +46,7 @@ let actor: Actor;
 let prospectId = "";
 let invoiceId = "";
 let second = "";
+let third = "";
 
 const send = vi.spyOn(getInfra().email, "send");
 vi.spyOn(getInfra().push, "send");
@@ -186,7 +189,7 @@ describe("dunning", () => {
     expect(draft.mail.body).toContain("Offener Betrag: 1.200,00 €");
     expect(draft.mail.body).toContain("bis 26.03.2026");
     expect(draft.mail.body).toMatch(/\/r\/[0-9A-Za-z]{22}/);
-    const input = { reminderId: draft.reminder.id, ...draft.mail };
+    const input = { reminderId: draft.reminder.id, ...draft.mail, claimKey: draft.claimKey };
 
     expect(
       await sendReminderEmail(tenant, actor, { ...input, pdf: null }, at("2026-03-19")),
@@ -248,9 +251,13 @@ describe("dunning", () => {
     await asMona((tx) =>
       addPayment(tx, actor, invoiceId, { amountCents: 100_000, paidOn: "2026-04-01" }),
     );
-    expect((await remindersOf(invoiceId)).map((reminder) => reminder.level)).toEqual([1]);
+    // Set aside, not deleted: its log stays, and the task is done.
+    expect((await remindersOf(invoiceId)).map((reminder) => reminder.status)).toEqual([
+      "sent",
+      "skipped",
+    ]);
     const tasks = await reminderTasks(invoiceId);
-    expect(tasks.some((task) => task.reminderId === letter!.id)).toBe(false);
+    expect(tasks.find((task) => task.reminderId === letter!.id)!.doneAt).not.toBeNull();
     expect(await runDunning(db, at("2026-05-01"))).toMatchObject({ drafted: 0 });
   });
 
@@ -287,10 +294,15 @@ describe("dunning", () => {
       error: "waiting",
     });
     if (!early.ok) throw new Error("unreachable");
-    expect(await asMona((tx) => discardReminder(tx, actor, early.reminderId))).toEqual({
-      invoiceId: second,
-    });
-    expect(await remindersOf(second)).toHaveLength(1);
+    // Discarding pauses the level for one payment deadline instead of drafting it again within the hour.
+    expect(
+      await asMona((tx) => discardReminder(tx, actor, early.reminderId, at("2026-04-20"))),
+    ).toEqual({ invoiceId: second, until: "2026-04-27" });
+    expect((await remindersOf(second)).map((reminder) => reminder.status)).toEqual([
+      "sent",
+      "skipped",
+    ]);
+    expect(await runDunning(db, at("2026-04-27"))).toMatchObject({ drafted: 0 });
   });
 
   it("charges consumers nothing, drafts without a task in manual mode and nothing when off", async () => {
@@ -299,7 +311,7 @@ describe("dunning", () => {
       .update(schema.prospects)
       .set({ billing: billingProfileSchema.parse({ customerType: "consumer" }) })
       .where(eq(schema.prospects.id, prospectId));
-    const third = await issuedInvoice(at("2026-05-04"), 30_000);
+    third = await issuedInvoice(at("2026-05-04"), 30_000);
     // The second invoice's next level is due too (deadline 25.04. passed, 14 days after due).
     expect(await runDunning(db, at("2026-05-21"))).toEqual({ drafted: 2, sent: 0, approvals: 0 });
     const [letter] = (await remindersOf(second)).filter((reminder) => reminder.level === 2);
@@ -311,5 +323,77 @@ describe("dunning", () => {
     expect(await runDunning(db, at("2026-05-22"))).toMatchObject({ drafted: 0 });
     const dunning = await asMona((tx) => loadInvoiceDunning(tx, ws, third, at("2026-05-22")));
     expect(dunning).toMatchObject({ mode: "off", next: { level: 1 }, draft: null });
+  });
+
+  it("refuses a stale text and a second send, and stops for cancelled or restricted invoices", async () => {
+    await setBilling({ dunningMode: "approval" });
+    await db
+      .update(schema.prospects)
+      .set({ billing: billingProfileSchema.parse({ customerType: "business" }) })
+      .where(eq(schema.prospects.id, prospectId));
+    // The third invoice's reminder came back (it was cleared above); the second one's letter waits.
+    expect(await runDunning(db, at("2026-05-22"))).toEqual({ drafted: 1, sent: 0, approvals: 1 });
+    const dunning = await asMona((tx) => loadInvoiceDunning(tx, ws, third, at("2026-05-22")));
+    const draft = dunning!.draft!;
+    await asMona((tx) =>
+      addPayment(tx, actor, third, { amountCents: 10_000, paidOn: "2026-05-22" }),
+    );
+    const input = { reminderId: draft.reminder.id, ...draft.mail, pdf, claimKey: draft.claimKey };
+    expect(await sendReminderEmail(tenant, actor, input, at("2026-05-22"))).toEqual({
+      ok: false,
+      error: "changed",
+    });
+
+    // A mail of this reminder that already went out blocks another one.
+    const fresh = await asMona((tx) => loadInvoiceDunning(tx, ws, third, at("2026-05-22")));
+    await db.insert(schema.outboundEmails).values({
+      workspaceId: ws,
+      kind: "reminder",
+      prospectId,
+      invoiceId: third,
+      reminderId: draft.reminder.id,
+      toAddress: "chef@tischlerei.test",
+      subject: "Zahlungserinnerung",
+      messageId: "<earlier@mail.test>",
+      status: "delivered",
+    });
+    expect(
+      await sendReminderEmail(
+        tenant,
+        actor,
+        { ...input, claimKey: fresh!.draft!.claimKey },
+        at("2026-05-22"),
+      ),
+    ).toEqual({ ok: false, error: "sending" });
+
+    // A cancellation sets the waiting draft aside and closes its task.
+    const cancelled = await asMona((tx) => cancelInvoice(tx, actor, third, at("2026-05-22")));
+    expect(cancelled.ok).toBe(true);
+    expect((await remindersOf(third)).map((reminder) => reminder.status)).toEqual(["skipped"]);
+    expect(
+      (await reminderTasks(third)).every((task) => !task.reminderId || task.doneAt !== null),
+    ).toBe(true);
+
+    // Sperrvermerk: no more reminders, and the waiting letter of the second invoice cannot go out.
+    const [letter] = (await remindersOf(second)).filter((reminder) => reminder.status === "draft");
+    expect(await asMona((tx) => restrictProspect(tx, actor, prospectId, at("2026-05-22")))).toBe(
+      true,
+    );
+    expect(
+      await sendReminderEmail(
+        tenant,
+        actor,
+        {
+          reminderId: letter!.id,
+          to: "x@tischlerei.test",
+          subject: "Mahnung",
+          body: "Bitte zahlen Sie.",
+          pdf,
+          claimKey: null,
+        },
+        at("2026-05-22"),
+      ),
+    ).toEqual({ ok: false, error: "restricted" });
+    expect(await runDunning(db, at("2026-06-30"))).toMatchObject({ drafted: 0 });
   });
 });

@@ -1213,13 +1213,21 @@ Mahnungen, vom stündlichen Job vorbereitet und mit derselben Freigabe-Logik wie
   letzte Mahnung, und legt die fällige Stufe an. Modus pro Workspace: aus (der Job legt nichts an),
   manuell (Entwurf an der Rechnung), Freigabe (Standard, zusätzlich die Aufgabe „Zahlungserinnerung zur
   Rechnung … freigeben“) oder automatisch (sofort senden, bei jedem Hindernis Rückfall auf die Aufgabe
-  mit Grund). Im Cockpit lässt sich die nächste Stufe auch früher von Hand vorbereiten und ein Entwurf
-  verwerfen.
+  mit Grund). Im Cockpit lässt sich die nächste Stufe auch früher von Hand vorbereiten. Ein verworfener
+  Entwurf (etwa nach einer Zahlungszusage) pausiert die Stufe für eine Zahlungsfrist, sonst legte der
+  Job sie in der nächsten Stunde wieder an oder sendete sie im Automatikmodus gleich. Die Abfrage des
+  Jobs filtert Modus „aus“ und den Tag der nächsten Stufe schon in SQL, damit wartende Rechnungen die
+  500 Plätze eines Laufs nicht dauerhaft belegen; mit Freigabe entstehen Entwurf und Aufgabe in einer
+  Transaktion.
 - **Versand**: E-Mail mit dem gespeicherten PDF der Rechnung im Anhang und dem Link zur Rechnungsseite,
   an die Adresse, an die die Rechnung zuletzt ging. Wurde die Rechnung nie gemailt, rendert der Browser
   das PDF beim ersten Senden (ADR-0072), im Automatikmodus der Server (nur Node-Profil, ADR-0073). Eine
   eigene PDF-Mahnung gibt es nicht; die Texte je Stufe sind fest hinterlegt und vor dem Senden
-  editierbar, mit Platzhaltern wie `{aufstellung}` und `{frist}`.
-- **Aufräumen**: Eine Zahlung, die die Rechnung ganz begleicht, und ein Storno löschen wartende
-  Entwürfe samt Aufgabe; beim Senden wird erneut geprüft. Kunden mit Sperrvermerk bekommen keine
+  editierbar; das Formular kommt mit ausgefüllten Beträgen und Frist. Weil der Text sie festhält,
+  schickt das Formular einen Fingerabdruck der Forderung mit: Hat sich seither etwas geändert (eine
+  Zahlung, ein neuer Tag), lehnt der Versand ab und die Seite zeigt den neuen Text. Eine zweite Mail
+  derselben Stufe ist gesperrt, solange eine frühere nicht gescheitert ist.
+- **Aufräumen**: Eine Zahlung, die die Rechnung ganz begleicht, und ein Storno legen wartende
+  Entwürfe beiseite (Status `skipped`) und erledigen ihre Aufgabe; gelöscht wird keine Stufe, damit
+  das Versand-Log einer Mail erhalten bleibt. Beim Senden wird erneut geprüft. Kunden mit Sperrvermerk bekommen keine
   Mahnungen; ihre versendeten Stufen bleiben als Beleg ohne Personendaten.

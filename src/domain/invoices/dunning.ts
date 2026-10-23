@@ -46,16 +46,19 @@ export interface DunningTerms {
   baseRatePercent: number;
 }
 
+export type ReminderStatus = "draft" | "sent" | "skipped";
+
 export interface ReminderState {
   level: DunningLevel;
-  status: "draft" | "sent";
+  /** "skipped": the owner discarded the draft; the level waits until `deadline` has passed. */
+  status: ReminderStatus;
   deadline: string;
 }
 
 /**
  * The next level and the first day it may go out, or null when a draft is
  * waiting or the last level is out. A level never comes before the deadline
- * of the previous one has passed.
+ * of the previous one has passed, and a discarded one not before its pause ends.
  */
 export function nextReminder(
   dueDate: string,
@@ -63,15 +66,26 @@ export function nextReminder(
   terms: Pick<DunningTerms, "days">,
 ): { level: DunningLevel; dueOn: string } | null {
   if (reminders.some((reminder) => reminder.status === "draft")) return null;
-  const last = reminders.reduce<ReminderState | null>(
-    (highest, reminder) => (!highest || reminder.level > highest.level ? reminder : highest),
-    null,
-  );
+  const last = reminders
+    .filter((reminder) => reminder.status === "sent")
+    .reduce<ReminderState | null>(
+      (highest, reminder) => (!highest || reminder.level > highest.level ? reminder : highest),
+      null,
+    );
   const level = ((last?.level ?? 0) + 1) as DunningLevel;
   if (level > 3) return null;
-  const byAge = addDays(dueDate, terms.days[level - 1]!);
-  const afterDeadline = last ? addDays(last.deadline, 1) : byAge;
-  return { level, dueOn: byAge > afterDeadline ? byAge : afterDeadline };
+  const candidates = [addDays(dueDate, terms.days[level - 1]!)];
+  if (last) candidates.push(addDays(last.deadline, 1));
+  const skipped = reminders.find(
+    (reminder) => reminder.level === level && reminder.status === "skipped",
+  );
+  if (skipped) candidates.push(addDays(skipped.deadline, 1));
+  return { level, dueOn: candidates.sort().at(-1)! };
+}
+
+/** A fingerprint of the claim a mail was written for; sending refuses when it changed. */
+export function claimKey(claim: DunningClaim): string {
+  return [claim.openCents, claim.interestCents, claim.feeCents, claim.deadline].join("|");
 }
 
 /** Whole days from `from` to `to`; 0 when `to` is not later. */

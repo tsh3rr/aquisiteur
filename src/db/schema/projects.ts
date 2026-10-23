@@ -16,7 +16,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import type { DunningLevel } from "../../domain/invoices/dunning";
+import type { DunningLevel, ReminderStatus } from "../../domain/invoices/dunning";
 import type { InvoiceSendMode } from "../../domain/invoices/email";
 import type { ContractTiming } from "../../domain/invoices/maintenance";
 import type {
@@ -407,7 +407,7 @@ export const invoiceReminders = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     invoiceId: uuid("invoice_id").notNull(),
     level: smallint("level").$type<DunningLevel>().notNull(),
-    status: text("status").$type<"draft" | "sent">().notNull().default("draft"),
+    status: text("status").$type<ReminderStatus>().notNull().default("draft"),
     /** The day the claim is computed for: drafting, then sending. */
     asOf: date("as_of", { mode: "string" }).notNull(),
     deadline: date("deadline", { mode: "string" }).notNull(),

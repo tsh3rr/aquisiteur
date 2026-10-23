@@ -51,12 +51,18 @@ export async function prepareReminderAction(invoiceId: string): Promise<DunningA
   return { ok: false, message: messages[result.error] };
 }
 
-export async function discardReminderAction(formData: FormData): Promise<void> {
+/** „Entwurf verwerfen“: the level pauses for one payment deadline. */
+export async function discardReminderAction(reminderId: string): Promise<DunningActionState> {
   const { actor, tenant } = await manager();
-  const parsed = id.safeParse(text(formData, "reminderId"));
-  if (!parsed.success) return;
-  const removed = await tenant((tx) => discardReminder(tx, actor, parsed.data));
-  if (removed) revalidateInvoice(removed.invoiceId);
+  const parsed = id.safeParse(reminderId);
+  if (!parsed.success) return { ok: false, message: "Mahnung nicht gefunden." };
+  const skipped = await tenant((tx) => discardReminder(tx, actor, parsed.data));
+  if (!skipped) return { ok: false, message: "Dieser Entwurf ist schon versendet oder verworfen." };
+  revalidateInvoice(skipped.invoiceId);
+  return {
+    ok: true,
+    message: `Verworfen. Der stündliche Job legt die Stufe frühestens nach dem ${skipped.until.split("-").reverse().join(".")} wieder an.`,
+  };
 }
 
 const sendSchema = z.object({
@@ -94,6 +100,7 @@ export async function sendReminderAction(formData: FormData): Promise<DunningAct
     reminderId: reminderId.data,
     ...parsed.data,
     pdf,
+    claimKey: text(formData, "claimKey") || null,
   });
   revalidateInvoice(invoiceId.data);
   if (result.ok) {
@@ -106,7 +113,9 @@ export async function sendReminderAction(formData: FormData): Promise<DunningAct
     not_found: "Diese Mahnung ist schon versendet oder verworfen.",
     settled: "Die Rechnung ist inzwischen bezahlt oder storniert; der Entwurf ist verworfen.",
     restricted: "Für diesen Kunden gilt ein Sperrvermerk.",
-    sending: "Diese Mahnung wird gerade gesendet.",
+    sending: "Diese Mahnung ist schon unterwegs.",
+    changed:
+      "Betrag oder Frist haben sich geändert, etwa durch eine Zahlung. Bitte den neuen Text prüfen und erneut senden.",
     pdf_missing: "Das PDF fehlt. Bitte erneut senden.",
     pdf_invalid: "Das PDF ist ungültig oder größer als 4 MB.",
     send_failed: "Die E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.",

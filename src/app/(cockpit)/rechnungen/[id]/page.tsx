@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InvoicePdfButton } from "@/components/invoices/pdf-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { can } from "@/domain/authz";
 import { formatIban } from "@/domain/invoices/epc";
@@ -23,12 +22,12 @@ import { DUNNING_LEVEL_LABELS, formatRate, type DunningClaim } from "@/domain/in
 import { loadInvoice } from "@/server/invoices/manage";
 import { loadInvoiceDunning } from "@/server/invoices/dunning";
 import { loadInvoiceDelivery } from "@/server/invoices/send";
+import { localDateString } from "@/domain/tasks";
 import { requireCockpit } from "@/server/session";
 import { LiveRefresh } from "../../chat/live-refresh";
 import { deleteInvoiceDraftAction, deletePaymentAction, loadInvoicePdfAction } from "../actions";
 import { CancelInvoice, PaymentForm } from "./invoice-actions";
-import { discardReminderAction } from "../dunning-actions";
-import { PrepareReminderButton, SendReminder } from "./invoice-dunning";
+import { DiscardReminderButton, PrepareReminderButton, SendReminder } from "./invoice-dunning";
 import { SendInvoice } from "./invoice-send";
 import { InvoiceEditorLazy } from "./invoice-editor-lazy";
 
@@ -506,7 +505,7 @@ export default async function InvoicePage({ params }: { params: Params }) {
                       <p>
                         <span className="font-medium">{DUNNING_LEVEL_LABELS[reminder.level]}</span>
                         {reminder.sentAt
-                          ? ` · gesendet am ${germanDate(reminder.sentAt.toISOString().slice(0, 10))}`
+                          ? ` · gesendet am ${germanDate(localDateString(reminder.sentAt, loaded.settings.notifications.timezone))}`
                           : ""}
                         {` · Frist bis ${germanDate(reminder.deadline)}`}
                       </p>
@@ -546,19 +545,20 @@ export default async function InvoicePage({ params }: { params: Params }) {
                 {canManage && !prospect.restrictedAt ? (
                   <>
                     <SendReminder
+                      // A payment or a new day changes the text; the form starts over with it.
+                      key={dunning.draft.claimKey}
                       invoiceId={invoice.id}
                       reminderId={dunning.draft.reminder.id}
                       label={DUNNING_LEVEL_LABELS[dunning.draft.reminder.level]}
                       filename={filename}
                       pdfStored={dunning.draft.pdfStored}
+                      claimKey={dunning.draft.claimKey}
                       draft={dunning.draft.mail}
                     />
-                    <form action={discardReminderAction}>
-                      <input type="hidden" name="reminderId" value={dunning.draft.reminder.id} />
-                      <Button type="submit" variant="ghost">
-                        Entwurf verwerfen
-                      </Button>
-                    </form>
+                    <DiscardReminderButton
+                      reminderId={dunning.draft.reminder.id}
+                      deadlineDays={loaded.settings.billing.dunningDeadlineDays}
+                    />
                   </>
                 ) : null}
               </section>

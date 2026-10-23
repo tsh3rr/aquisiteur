@@ -34,6 +34,19 @@ describe("nextReminder", () => {
     ).toEqual({ level: 2, dueOn: "2026-10-15" });
   });
 
+  it("waits out the pause of a discarded draft", () => {
+    expect(
+      nextReminder(
+        "2026-10-01",
+        [
+          { level: 1, status: "sent", deadline: "2026-10-11" },
+          { level: 2, status: "skipped", deadline: "2026-10-22" },
+        ],
+        terms,
+      ),
+    ).toEqual({ level: 2, dueOn: "2026-10-23" });
+  });
+
   it("stops while a draft waits and after the last letter", () => {
     expect(
       nextReminder("2026-10-01", [{ level: 1, status: "draft", deadline: "2026-10-11" }], terms),
