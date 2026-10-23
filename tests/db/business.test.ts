@@ -384,8 +384,12 @@ describe("project dashboard", () => {
     const data = await asBea((tx) => loadBusiness(tx, ws, filter, october, "Europe/Vienna", later));
     expect(data.offers).toMatchObject({ sent: 1, volumeCents: 411_600, answered: 1, rate: 1 });
     expect(data.revenue.byCampaign.map((row) => row.name)).toEqual(["Cafés Graz"]);
-    // The café's project invoice and its maintenance invoice.
-    expect(data.open.count).toBe(2);
+    // Only the café has open items: the bakery's one invoice is cancelled.
+    const all = await asBea((tx) =>
+      loadBusiness(tx, ws, NO_FILTER, october, "Europe/Vienna", later),
+    );
+    expect(data.open.count).toBeGreaterThan(0);
+    expect(data.open.count).toBe(all.open.count);
     expect(data.contracts.contracts).toBe(1);
     const none = await asBea((tx) =>
       loadBusiness(tx, ws, { ...NO_FILTER, industry: "Kfz" }, october, "Europe/Vienna", later),

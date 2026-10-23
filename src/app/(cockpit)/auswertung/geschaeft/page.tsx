@@ -128,7 +128,7 @@ export default async function BusinessAnalyticsPage({
             <CardDescription>
               Was aus den im Zeitraum versendeten Angeboten wurde
               {o.sent > o.viewed
-                ? `; ${count(o.sent - o.viewed, "Angebot wurde", "Angebote wurden")} noch nicht online angesehen`
+                ? `; ${count(o.sent - o.viewed, "Angebot wurde", "Angebote wurden")} noch weder angesehen noch beantwortet`
                 : ""}
               .
             </CardDescription>

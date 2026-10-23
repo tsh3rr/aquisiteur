@@ -1312,10 +1312,12 @@ Der Reiter „Geschäft“ (ADR-0076) bekommt drei Diagramme, auf Wunsch des Own
   Ein Monat, in dem Stornos überwiegen, zeigt keinen Balken; die Tabelle darunter zeigt jeden Wert.
   Die MRR bleibt eine Kachel: als Linie auf derselben Achse läge sie am Boden, eine zweite Achse wäre
   irreführend.
-- **Angebots-Funnel**: Versendet → online angesehen → angenommen für die im Zeitraum versendeten
-  Angebote, mit derselben Darstellung wie der Kampagnen-Funnel. Eine Antwort zählt als angesehen, auch
-  wenn sie im Cockpit erfasst wurde.
+- **Angebots-Funnel**: Versendet → angesehen oder beantwortet → angenommen für die im Zeitraum
+  versendeten Angebote, mit derselben Darstellung wie der Kampagnen-Funnel. Eine im Cockpit erfasste
+  Antwort zählt mit, auch ohne Aufruf der Angebotsseite, damit die Stufen nie steigen.
 - **Offene Posten nach Alter**: noch nicht fällig, 1–30, 31–60 und über 60 Tage überfällig, mit Symbol,
   Betrag und Anzahl als Text, damit die Statusfarbe nie allein trägt.
+- Der CSV-Export enthält auch die Monatswerte, den Funnel und die Altersstruktur. Der Tooltip im
+  Umsatzdiagramm schließt mit Escape (WCAG 1.4.13).
 - Zwei neue Farbtokens `chart1` (Indigo) und `chart2` (Orange) je Schema; das Paar ist für
   Farbsehschwächen geprüft (ΔE über 24 in hell und dunkel) und erreicht 3:1 gegen die Fläche.

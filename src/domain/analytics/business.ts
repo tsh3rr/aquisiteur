@@ -81,6 +81,14 @@ export function monthsUntil(lastDay: string, count = 12): string[] {
   });
 }
 
+/** A round axis ceiling in cents: 1, 2 or 5 times a power of ten euros, at least 100 €. */
+export function niceMaxCents(cents: number): number {
+  const euros = Math.max(cents / 100, 100);
+  const magnitude = 10 ** Math.floor(Math.log10(euros));
+  for (const factor of [1, 2, 5]) if (euros <= factor * magnitude) return factor * magnitude * 100;
+  return 10 * magnitude * 100;
+}
+
 export interface MonthRevenue {
   month: string;
   /** Project invoices: standard, deposit and final, less their cancellations. */
@@ -158,7 +166,7 @@ export interface StageRow {
   dropOff: number | null;
 }
 
-/** Offers sent in the period: sent → viewed online → accepted. */
+/** Offers sent in the period: sent → seen (opened online or answered) → accepted. */
 export function offerFunnel(counts: {
   sent: number;
   viewed: number;
@@ -166,7 +174,7 @@ export function offerFunnel(counts: {
 }): StageRow[] {
   const stages = [
     { stage: "sent", label: "Versendet", count: counts.sent },
-    { stage: "viewed", label: "Online angesehen", count: counts.viewed },
+    { stage: "viewed", label: "Angesehen oder beantwortet", count: counts.viewed },
     { stage: "accepted", label: "Angenommen", count: counts.accepted },
   ];
   return stages.map((row, index) => {
@@ -184,6 +192,8 @@ interface OfferFigures {
   volumeCents: number;
   rate: number | null;
   avgDays: number | null;
+  viewed: number;
+  acceptedOfSent: number;
 }
 
 export interface BusinessFigures {
@@ -191,8 +201,9 @@ export interface BusinessFigures {
   previousOffers: OfferFigures;
   revenue: { netCents: number; byCampaign: CampaignRevenue[] };
   previousRevenue: { netCents: number };
-  open: { openCents: number; overdueCents: number };
+  open: { openCents: number; overdueCents: number; aging: AgingRow[] };
   contracts: { mrrCents: number };
+  byMonth: MonthRevenue[];
 }
 
 type Cell = string | number | null;
@@ -225,6 +236,30 @@ export function businessCsvRows(data: BusinessFigures): Cell[][] {
       row.name,
       euro(row.netCents),
       row.invoices,
+    ]),
+    [],
+    ["Umsatz je Monat", "Monat", "Projekte (EUR)", "Wartung (EUR)"],
+    ...data.byMonth.map((row) => [
+      "Umsatz je Monat",
+      row.month,
+      euro(row.oneOffCents),
+      euro(row.recurringCents),
+    ]),
+    [],
+    ["Angebots-Funnel", "Stufe", "Anzahl", "Anteil (%)"],
+    ...offerFunnel({ sent: o.sent, viewed: o.viewed, accepted: o.acceptedOfSent }).map((row) => [
+      "Angebots-Funnel",
+      row.label,
+      row.count,
+      percent(row.rate),
+    ]),
+    [],
+    ["Offene Posten nach Alter", "Alter", "Offen (EUR)", "Rechnungen"],
+    ...data.open.aging.map((row) => [
+      "Offene Posten nach Alter",
+      row.label,
+      euro(row.openCents),
+      row.count,
     ]),
   ];
 }

@@ -185,6 +185,16 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   if (process.env.SCREENSHOT_DIR) {
     await shipping.screenshot({ path: `${process.env.SCREENSHOT_DIR}/invoice-shipping.png` });
   }
+  // While the deposit is unpaid, the project dashboard shows it among the open items (7c-5).
+  const board = await page.context().newPage();
+  await board.goto("/auswertung/geschaeft");
+  await expect(board.getByRole("list", { name: "Offene Posten nach Alter" })).toContainText(
+    "Noch nicht fällig",
+  );
+  await board.getByText("Werte als Tabelle").click();
+  await expect(board.getByRole("table", { name: "Umsatz je Monat" })).toBeVisible();
+  await expectAccessible(board, "business dashboard with open items and table");
+  await board.close();
   const mail = readFileSync(E2E.mailLog, "utf8")
     .trim()
     .split("\n")
@@ -359,7 +369,10 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   await expect(page.getByRole("region", { name: "Umsatz je Kampagne" })).toBeVisible();
   await expectAccessible(page, "business dashboard");
   const businessCsv = await page.request.get("/auswertung/export?teil=geschaeft");
-  expect(await businessCsv.text()).toContain("Umsatz je Kampagne;Kampagne;Umsatz netto (EUR)");
+  const csvText = await businessCsv.text();
+  expect(csvText).toContain("Umsatz je Kampagne;Kampagne;Umsatz netto (EUR)");
+  expect(csvText).toContain("Umsatz je Monat;Monat;Projekte (EUR);Wartung (EUR)");
+  expect(csvText).toContain("Angebots-Funnel;Versendet;1;100");
   await expect(page.getByRole("img", { name: /^Umsatz je Monat: / })).toBeVisible();
   await expect(page.getByRole("list", { name: "Angebots-Funnel" })).toContainText("Angenommen");
   // Everything is paid by now: the aging card shows its empty state.

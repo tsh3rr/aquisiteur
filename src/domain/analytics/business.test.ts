@@ -7,6 +7,7 @@ import {
   businessCsvRows,
   fillMonths,
   monthsUntil,
+  niceMaxCents,
   offerFunnel,
   formatDays,
   monthlyCents,
@@ -96,24 +97,49 @@ describe("sortRevenue", () => {
 
 describe("businessCsvRows", () => {
   it("rounds the days and gives revenue per campaign its own header", () => {
-    const offers = { sent: 2, volumeCents: 411_600, rate: 2 / 3, avgDays: 3.4583 };
+    const offers = {
+      sent: 2,
+      volumeCents: 411_600,
+      rate: 2 / 3,
+      avgDays: 3.4583,
+      viewed: 2,
+      acceptedOfSent: 1,
+    };
     const rows = businessCsvRows({
       offers,
-      previousOffers: { sent: 0, volumeCents: 0, rate: null, avgDays: null },
+      previousOffers: {
+        sent: 0,
+        volumeCents: 0,
+        rate: null,
+        avgDays: null,
+        viewed: 0,
+        acceptedOfSent: 0,
+      },
       revenue: {
         netCents: 300_000,
         byCampaign: [{ campaignId: "a", name: "Cafés", netCents: 300_000, invoices: 3 }],
       },
       previousRevenue: { netCents: 0 },
-      open: { openCents: 260_000, overdueCents: 0 },
+      open: {
+        openCents: 260_000,
+        overdueCents: 0,
+        aging: buildAging([{ daysOverdue: 3, openCents: 260_000 }]),
+      },
       contracts: { mrrCents: 9_300 },
+      byMonth: [{ month: "2026-10", oneOffCents: 300_000, recurringCents: 9_300 }],
     });
     expect(rows).toContainEqual(["Kennzahl", "Ø Tage bis zur Annahme", 3.5, null]);
     expect(rows).toContainEqual(["Kennzahl", "Annahmequote (%)", 66.7, null]);
-    expect(rows.slice(-2)).toEqual([
-      ["Umsatz je Kampagne", "Kampagne", "Umsatz netto (EUR)", "Rechnungen"],
-      ["Umsatz je Kampagne", "Cafés", 3_000, 3],
+    expect(rows).toContainEqual([
+      "Umsatz je Kampagne",
+      "Kampagne",
+      "Umsatz netto (EUR)",
+      "Rechnungen",
     ]);
+    expect(rows).toContainEqual(["Umsatz je Kampagne", "Cafés", 3_000, 3]);
+    expect(rows).toContainEqual(["Umsatz je Monat", "2026-10", 3_000, 93]);
+    expect(rows).toContainEqual(["Angebots-Funnel", "Angenommen", 1, 50]);
+    expect(rows).toContainEqual(["Offene Posten nach Alter", "1–30 Tage überfällig", 2_600, 1]);
   });
 });
 
@@ -171,8 +197,16 @@ describe("offerFunnel", () => {
   it("gives each stage its share of the sent offers and the drop-off", () => {
     expect(offerFunnel({ sent: 4, viewed: 3, accepted: 1 })).toEqual([
       { stage: "sent", label: "Versendet", count: 4, rate: 1, dropOff: null },
-      { stage: "viewed", label: "Online angesehen", count: 3, rate: 0.75, dropOff: 0.25 },
+      { stage: "viewed", label: "Angesehen oder beantwortet", count: 3, rate: 0.75, dropOff: 0.25 },
       { stage: "accepted", label: "Angenommen", count: 1, rate: 0.25, dropOff: 2 / 3 },
+    ]);
+  });
+});
+
+describe("niceMaxCents", () => {
+  it("rounds up to 1, 2 or 5 times a power of ten euros", () => {
+    expect([0, 10_000, 100_000, 100_001, 350_000, 999_999_900].map(niceMaxCents)).toEqual([
+      10_000, 10_000, 100_000, 200_000, 500_000, 1_000_000_000,
     ]);
   });
 });

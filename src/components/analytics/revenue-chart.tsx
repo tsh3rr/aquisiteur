@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { MonthRevenue } from "@/domain/analytics/business";
+import { useEffect, useState } from "react";
+import { niceMaxCents, type MonthRevenue } from "@/domain/analytics/business";
 import { formatEuro } from "@/domain/analytics/format";
 import { cn } from "@/lib/cn";
 
@@ -18,14 +18,6 @@ const SERIES = [
   { key: "recurringCents", label: "Wartung", swatch: "bg-chart-2" },
 ] as const;
 
-/** A round euro ceiling for the axis: 1, 2 or 5 times a power of ten. */
-function niceMax(cents: number) {
-  const euros = Math.max(cents / 100, 100);
-  const magnitude = 10 ** Math.floor(Math.log10(euros));
-  const step = [1, 2, 5, 10].find((factor) => euros <= factor * magnitude)!;
-  return step * magnitude * 100;
-}
-
 /**
  * Net revenue per month as stacked bars (projects below, maintenance on
  * top) with a hover tooltip. A month whose cancellations outweigh it shows
@@ -35,11 +27,21 @@ function niceMax(cents: number) {
 export function RevenueChart({ months, label }: { months: MonthRevenue[]; label: string }) {
   const [active, setActive] = useState<number | null>(null);
   const positive = (cents: number) => Math.max(0, cents);
-  const max = niceMax(
+  const max = niceMaxCents(
     Math.max(0, ...months.map((m) => positive(m.oneOffCents) + positive(m.recurringCents))),
   );
   const total = months.reduce((sum, m) => sum + m.oneOffCents + m.recurringCents, 0);
   const current = active === null ? null : months[active];
+
+  // WCAG 1.4.13: the tooltip covers other bars, so Escape dismisses it.
+  useEffect(() => {
+    if (active === null) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActive(null);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [active]);
 
   /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-static-element-interactions -- hover is a pointer extra; the table below carries every value */
   return (
