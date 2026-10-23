@@ -251,7 +251,7 @@ test("an offer goes from the catalogue to an online acceptance", async ({ page, 
   ).toBeVisible();
   await expect(page.getByText("Beginn offen")).toBeVisible();
   const today = new Date().toISOString().slice(0, 10);
-  await page.getByLabel("Beginn").fill(today);
+  await page.getByLabel("Beginn", { exact: true }).fill(today);
   await page.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Gespeichert.")).toBeVisible();
   const job = await page.request.post("/api/jobs/hourly", {

@@ -310,6 +310,21 @@ describe("maintenance contracts", () => {
       .where(eq(schema.workspaceSettings.workspaceId, ws));
   });
 
+  it("leaves a task when the automatic send throws after issuing", async () => {
+    const put = vi
+      .spyOn(getInfra().storage, "put")
+      .mockRejectedValueOnce(new Error("storage timeout"));
+    const february = new Date("2027-02-01T08:00:00Z");
+    expect(await runContractBilling(db, february)).toEqual({ drafted: 1, sent: 0, approvals: 1 });
+    put.mockRestore();
+    const monthly = await contractByInterval("monthly");
+    const invoice = (await invoicesOf(monthly.id)).at(-1)!;
+    expect(invoice.contractPeriodFrom).toBe("2027-02-01");
+    expect(invoice.status).toBe("issued");
+    const [task] = await approvalTasks(invoice.id);
+    expect(task!.note).toMatch(/^Nicht automatisch gesendet: Beim automatischen Versand/);
+  });
+
   it("ends after the notice period and the minimum term, prorating the last period", async () => {
     const monthly = await contractByInterval("monthly");
     expect(
@@ -325,12 +340,12 @@ describe("maintenance contracts", () => {
         }),
       ),
     ).toMatchObject({ ok: false, error: "invalid" });
-    // Catch up February to the end in one run (manual mode: drafts only).
+    // Catch up March to the end in one run (manual mode: drafts only).
     await asWanda((tx) =>
       saveContract(tx, actor, monthly.id, { startDate: "2026-10-15", sendMode: "manual" }),
     );
     const later = new Date("2027-12-01T08:00:00Z");
-    expect(await runContractBilling(db, later)).toMatchObject({ drafted: 9, approvals: 0 });
+    expect(await runContractBilling(db, later)).toMatchObject({ drafted: 8, approvals: 0 });
     const last = (await invoicesOf(monthly.id)).at(-1)!;
     expect(last.document.servicePeriod).toEqual({ from: "2027-10-01", to: "2027-10-14" });
     expect(last.document.lines[0]!.unitPriceCents).toBe(4_200);
@@ -346,6 +361,13 @@ describe("maintenance contracts", () => {
       .where(eq(schema.prospects.id, prospectId));
     const yearly = await contractByInterval("yearly");
     expect(yearly.billedUntil).toBe("2027-12-31");
+    expect(
+      await asWanda((tx) =>
+        saveContract(tx, actor, yearly.id, { startDate: yearly.startDate, sendMode: "auto" }),
+      ),
+    ).toMatchObject({ ok: false, error: "locked" });
+    const [listed] = await asWanda((tx) => listContracts(tx, ws, { offerId }));
+    expect(listed!.nextBilling).toBeNull();
     await runContractBilling(db, new Date("2028-01-02T08:00:00Z"));
     expect((await contractByInterval("yearly")).billedUntil).toBe("2027-12-31");
   });

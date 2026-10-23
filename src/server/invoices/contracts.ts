@@ -30,7 +30,7 @@ import { invoiceDocumentSchema, type InvoiceLine } from "@/domain/invoices/schem
 import { invoiceTotals } from "@/domain/invoices/totals";
 import { BILLING_LABELS, offerDocumentSchema } from "@/domain/offers/schema";
 import { offerTotals } from "@/domain/offers/totals";
-import { localDateString } from "@/domain/tasks";
+import { addDays, localDateString } from "@/domain/tasks";
 import { serverEnv } from "@/config/env";
 import { loadWorkspaceSettings, workspaceOwner } from "@/server/workspaces";
 import { changed, emptyDocument, issueInvoice, loadProspect } from "./manage";
@@ -184,6 +184,7 @@ export async function listContracts(
     .select({
       contract: maintenanceContracts,
       companyName: prospects.companyName,
+      restrictedAt: prospects.restrictedAt,
       projectName: projects.name,
     })
     .from(maintenanceContracts)
@@ -209,9 +210,10 @@ export async function listContracts(
       ),
     )
     .orderBy(asc(prospects.companyName), asc(maintenanceContracts.createdAt));
-  return rows.map(({ contract, companyName, projectName }) => {
+  return rows.map(({ contract, companyName, restrictedAt, projectName }) => {
     const terms = termsOf(contract);
-    const next = nextPeriod(terms);
+    // A customer with a Sperrvermerk is never billed again (the job skips them).
+    const next = restrictedAt ? null : nextPeriod(terms);
     return {
       id: contract.id,
       title: contract.title,
@@ -220,7 +222,7 @@ export async function listContracts(
       projectName,
       interval: terms.interval,
       periodNetCents: periodNet(contract.lines),
-      state: contractState(terms, today),
+      state: restrictedAt ? "ended" : contractState(terms, today),
       startDate: contract.startDate,
       endDate: contract.endDate,
       nextBilling: next ? billingDate(next, terms.timing) : null,
@@ -304,6 +306,16 @@ async function lockContract(tx: Transaction, workspaceId: string, contractId: st
   return contract ?? null;
 }
 
+const RESTRICTED = {
+  ok: false,
+  error: "locked",
+  message: "Für diesen Kunden gilt ein Sperrvermerk.",
+} as const;
+
+async function isRestricted(tx: Transaction, workspaceId: string, prospectId: string) {
+  return Boolean((await loadProspect(tx, workspaceId, prospectId))?.restrictedAt);
+}
+
 /** Start date (only before the first invoice) and send mode. */
 export async function saveContract(
   tx: Transaction,
@@ -319,6 +331,7 @@ export async function saveContract(
   }
   const contract = await lockContract(tx, actor.workspaceId, contractId);
   if (!contract) return { ok: false, error: "not_found" };
+  if (await isRestricted(tx, actor.workspaceId, contract.prospectId)) return RESTRICTED;
   const startChanged = input.startDate !== contract.startDate;
   if (startChanged && contract.billedUntil) {
     return {
@@ -358,6 +371,7 @@ export async function setContractEnd(
 ): Promise<ContractResult & { endDate?: string | null }> {
   const contract = await lockContract(tx, actor.workspaceId, contractId);
   if (!contract) return { ok: false, error: "not_found" };
+  if (await isRestricted(tx, actor.workspaceId, contract.prospectId)) return RESTRICTED;
   let endDate: string | null = null;
   if (input.noticeReceivedOn !== null) {
     if (
@@ -534,6 +548,8 @@ export async function runContractBilling(db: Database, now = new Date()) {
       and(
         isNotNull(maintenanceContracts.startDate),
         isNull(prospects.restrictedAt),
+        // The first unbilled day has come (a day of slack for time zones ahead of UTC).
+        sql`coalesce(${maintenanceContracts.billedUntil} + 1, ${maintenanceContracts.startDate}) <= ${addDays(now.toISOString().slice(0, 10), 1)}`,
         or(
           isNull(maintenanceContracts.endDate),
           isNull(maintenanceContracts.billedUntil),
@@ -541,7 +557,9 @@ export async function runContractBilling(db: Database, now = new Date()) {
         ),
       ),
     )
-    .orderBy(asc(maintenanceContracts.billedUntil))
+    .orderBy(
+      sql`coalesce(${maintenanceContracts.billedUntil} + 1, ${maintenanceContracts.startDate})`,
+    )
     .limit(500);
 
   const result = { drafted: 0, sent: 0, approvals: 0 };
@@ -575,7 +593,19 @@ export async function runContractBilling(db: Database, now = new Date()) {
         if (mode === "manual") continue;
         let reason: string | undefined;
         if (mode === "auto") {
-          const auto = await sendAutomatically(db, actor, invoiceId, contract.id, period, now);
+          // A throw (storage, database, provider) must still end in a task, or an
+          // issued invoice could stay unsent without anyone knowing.
+          const auto = await sendAutomatically(
+            db,
+            actor,
+            invoiceId,
+            contract.id,
+            period,
+            now,
+          ).catch((error: unknown): AutoResult => {
+            console.error("automatic invoice send failed", invoiceId, error);
+            return { ok: false, reason: "Beim automatischen Versand ist ein Fehler aufgetreten." };
+          });
           if (auto.ok) {
             result.sent++;
             continue;
