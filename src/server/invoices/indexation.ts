@@ -116,6 +116,13 @@ export async function saveIndexation(
   const adjustments = await listAdjustments(tx, actor.workspaceId, contractId);
   const baseChanged =
     input.baseMonth !== contract.indexBaseMonth || input.baseTenths !== contract.indexBaseTenths;
+  if (!input.indexed && pending(adjustments)) {
+    return {
+      ok: false,
+      error: "locked",
+      message: "Bitte zuerst die angekündigte Anpassung zurückziehen.",
+    };
+  }
   if (baseChanged && pending(adjustments)) {
     return {
       ok: false,
@@ -371,6 +378,7 @@ export async function announceAdjustment(
           and(
             eq(contractAdjustments.workspaceId, actor.workspaceId),
             eq(contractAdjustments.id, prepared.adjustmentId),
+            eq(contractAdjustments.status, "announced"),
           ),
         );
       return;
@@ -561,4 +569,30 @@ export async function runIndexReminders(db: Database, now = new Date()) {
     }
   }
   return { created };
+}
+
+/**
+ * The announcement did not reach the customer (bounce or complaint, from the
+ * delivery webhook on the system connection): a change that no invoice has
+ * applied yet is withdrawn, so the higher price never applies unannounced.
+ */
+export async function withdrawUndelivered(
+  tx: Transaction | Database,
+  workspaceId: string,
+  contractId: string,
+  sentAt: Date,
+): Promise<boolean> {
+  const withdrawn = await tx
+    .update(contractAdjustments)
+    .set({ status: "withdrawn" })
+    .where(
+      and(
+        eq(contractAdjustments.workspaceId, workspaceId),
+        eq(contractAdjustments.contractId, contractId),
+        eq(contractAdjustments.status, "announced"),
+        lte(contractAdjustments.announcedAt, sentAt),
+      ),
+    )
+    .returning({ id: contractAdjustments.id });
+  return withdrawn.length > 0;
 }

@@ -1,8 +1,9 @@
 import "server-only";
-import { and, asc, desc, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { withTenant, type Database, type Transaction } from "@/db";
 import {
   auditLog,
+  contractAdjustments,
   invoices,
   maintenanceContracts,
   offers,
@@ -43,7 +44,7 @@ import {
   requestInvoiceApproval,
   sendInvoiceEmail,
 } from "./send";
-import { currentUsage, listTimeEntries, overageFor } from "./time-entries";
+import { currentUsage, hoursLockedUntil, listTimeEntries, overageFor } from "./time-entries";
 
 /**
  * Maintenance contracts (§7.10, phase 7c-3, ADR-0073). Created from the
@@ -306,6 +307,7 @@ export async function loadContract(
     recipient: await defaultRecipient(tx, row.prospect),
     timeEntries: await listTimeEntries(tx, workspaceId, contractId),
     usage: await currentUsage(tx, row.contract, today),
+    hoursLockedUntil: await hoursLockedUntil(tx, row.contract),
   };
 }
 
@@ -419,6 +421,20 @@ export async function setContractEnd(
     .update(maintenanceContracts)
     .set({ noticeReceivedOn: input.noticeReceivedOn, endDate })
     .where(eq(maintenanceContracts.id, contractId));
+  if (endDate) {
+    // A price that would only apply after the end never comes (7c-3b).
+    await tx
+      .update(contractAdjustments)
+      .set({ status: "withdrawn" })
+      .where(
+        and(
+          eq(contractAdjustments.workspaceId, actor.workspaceId),
+          eq(contractAdjustments.contractId, contractId),
+          eq(contractAdjustments.status, "announced"),
+          gt(contractAdjustments.effectiveFrom, endDate),
+        ),
+      );
+  }
   await tx.insert(auditLog).values({
     workspaceId: actor.workspaceId,
     actorUserId: actor.userId,
@@ -467,7 +483,16 @@ async function billPeriod(
     .returning({ id: invoices.id });
   await tx
     .update(maintenanceContracts)
-    .set({ billedUntil: period.to, ...(overage ? { overageBilledUntil: overage.span.to } : {}) })
+    .set({
+      billedUntil: period.to,
+      ...(overage
+        ? {
+            overageBilledFrom: overage.span.from,
+            overageBilledUntil: overage.span.to,
+            overageInvoiceId: invoice!.id,
+          }
+        : {}),
+    })
     .where(eq(maintenanceContracts.id, contractId));
   await changed(actor.workspaceId, invoice!.id, contract.prospectId);
   return invoice!.id;
@@ -671,7 +696,11 @@ async function billFinalOverage(
   if (!overage) return null;
   await tx
     .update(maintenanceContracts)
-    .set({ overageBilledUntil: overage.span.to })
+    .set({
+      overageBilledFrom: overage.span.from,
+      overageBilledUntil: overage.span.to,
+      overageInvoiceId: null,
+    })
     .where(eq(maintenanceContracts.id, contractId));
   if (!overage.line) return null;
   const settings = await loadWorkspaceSettings(tx, actor.workspaceId);
@@ -691,6 +720,10 @@ async function billFinalOverage(
       createdBy: actor.userId,
     })
     .returning({ id: invoices.id });
+  await tx
+    .update(maintenanceContracts)
+    .set({ overageInvoiceId: invoice!.id })
+    .where(eq(maintenanceContracts.id, contractId));
   await changed(actor.workspaceId, invoice!.id, contract.prospectId);
   return invoice!.id;
 }

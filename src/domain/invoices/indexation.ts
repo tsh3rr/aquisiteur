@@ -237,7 +237,8 @@ export function nextCycle(
     );
   const dueOn = nextIndexDate(
     { startDate: contract.startDate, indexMonth: contract.indexMonth },
-    last ? (last.effectiveFrom ?? last.dueOn) : null,
+    // One cycle a year in the index month, even when the last price came late.
+    last ? last.dueOn : null,
   );
   return contract.endDate && dueOn > contract.endDate ? null : dueOn;
 }

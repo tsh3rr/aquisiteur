@@ -273,8 +273,14 @@ export const maintenanceContracts = pgTable(
     /** Stundenkontingent (7c-3b): hours included per period and the rate for more. */
     includedMinutes: integer("included_minutes").notNull().default(0),
     hourlyRateCents: integer("hourly_rate_cents"),
-    /** Last day whose extra hours are billed; entries up to it are locked. */
+    /**
+     * The span of extra hours on the latest invoice and that invoice. Entries up to
+     * the end are locked, except those of this span while the invoice is a draft:
+     * adding one there updates the draft.
+     */
+    overageBilledFrom: date("overage_billed_from", { mode: "string" }),
     overageBilledUntil: date("overage_billed_until", { mode: "string" }),
+    overageInvoiceId: uuid("overage_invoice_id"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     ...timestamps,
   },

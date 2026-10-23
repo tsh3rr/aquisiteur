@@ -1,6 +1,6 @@
 {
-  "id": "81f91942-5222-40c2-b7d3-80c5f7634b74",
-  "prevId": "7a74c244-6a87-4f88-bc3c-32f324ad968f",
+  "id": "306899b4-569b-4ff6-8142-9b4223798120",
+  "prevId": "f8db3be6-361f-4f10-b848-f454c01583bb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7410,9 +7410,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "overage_billed_from": {
+          "name": "overage_billed_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "overage_billed_until": {
           "name": "overage_billed_until",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overage_invoice_id": {
+          "name": "overage_invoice_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },

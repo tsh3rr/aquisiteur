@@ -36,6 +36,7 @@ import type { EmailEvent } from "@/infra";
 import { workspacePublicOrigin } from "@/server/exposes/urls";
 import { publish, workspaceTopic } from "@/server/realtime";
 import { loadWorkspaceSettings } from "@/server/workspaces";
+import { withdrawUndelivered } from "./indexation";
 
 /**
  * Invoices by e-mail (§7.10, phase 7c-2, ADR-0072). The PDF is rendered in
@@ -543,7 +544,42 @@ export async function recordEmailEvents(
         .where(
           and(eq(outboundEmails.workspaceId, mail.workspaceId), eq(outboundEmails.id, mail.id)),
         );
-      if (!EMAIL_PROBLEMS.has(next) || !mail.invoiceId) return;
+      if (!EMAIL_PROBLEMS.has(next)) return;
+      if (mail.kind === "contract_notice" && mail.contractId) {
+        const withdrawn = await withdrawUndelivered(
+          tx,
+          mail.workspaceId,
+          mail.contractId,
+          mail.createdAt,
+        );
+        const settings = await loadWorkspaceSettings(tx, mail.workspaceId);
+        await tx.insert(tasks).values({
+          workspaceId: mail.workspaceId,
+          prospectId: mail.prospectId,
+          contractId: mail.contractId,
+          title: `Ankündigung der Wertsicherung nicht zugestellt: Adresse ${mail.toAddress} prüfen`,
+          note: [
+            withdrawn
+              ? "Die Anpassung wurde zurückgezogen; bitte mit der richtigen Adresse neu ankündigen."
+              : null,
+            event.detail,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          dueDate: localDateString(now, settings.notifications.timezone),
+          reminder: "at_due",
+        });
+        await tx.insert(auditLog).values({
+          workspaceId: mail.workspaceId,
+          actorUserId: null,
+          action: "contract.notice_undelivered",
+          targetType: "prospect",
+          targetId: mail.prospectId,
+          meta: { contractId: mail.contractId, status: next, withdrawn },
+        });
+        return;
+      }
+      if (!mail.invoiceId) return;
       const [invoice] = await tx
         .select({ number: invoices.number })
         .from(invoices)

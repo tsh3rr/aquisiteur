@@ -43,7 +43,9 @@ ALTER TABLE "maintenance_contracts" ADD COLUMN "index_base_tenths" integer;--> s
 ALTER TABLE "maintenance_contracts" ADD COLUMN "index_threshold_percent" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "maintenance_contracts" ADD COLUMN "included_minutes" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "maintenance_contracts" ADD COLUMN "hourly_rate_cents" integer;--> statement-breakpoint
+ALTER TABLE "maintenance_contracts" ADD COLUMN "overage_billed_from" date;--> statement-breakpoint
 ALTER TABLE "maintenance_contracts" ADD COLUMN "overage_billed_until" date;--> statement-breakpoint
+ALTER TABLE "maintenance_contracts" ADD COLUMN "overage_invoice_id" uuid;--> statement-breakpoint
 ALTER TABLE "outbound_emails" ADD COLUMN "contract_id" uuid;--> statement-breakpoint
 ALTER TABLE "contract_adjustments" ADD CONSTRAINT "contract_adjustments_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contract_adjustments" ADD CONSTRAINT "contract_adjustments_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

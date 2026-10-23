@@ -12,6 +12,8 @@ import { germanDate, servicePeriodLabel } from "./totals";
  * Unused hours expire with their period.
  */
 
+export const OVERAGE_LINE_ID = "extra-hours";
+
 export interface TimeEntry {
   workDate: string;
   minutes: number;
@@ -116,7 +118,7 @@ export function overageLine(input: {
     description += `\n${line}`;
   }
   return {
-    id: "extra-hours",
+    id: OVERAGE_LINE_ID,
     title: "Zusätzliche Stunden",
     description,
     quantity: minutes / 60,

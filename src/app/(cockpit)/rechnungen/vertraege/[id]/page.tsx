@@ -356,8 +356,7 @@ export default async function ContractPage({ params }: { params: Params }) {
               <ul className="grid gap-1 text-sm" aria-label="Erfasste Zeiten">
                 {loaded.timeEntries.map((entry) => {
                   const billed =
-                    contract.overageBilledUntil !== null &&
-                    entry.workDate <= contract.overageBilledUntil;
+                    loaded.hoursLockedUntil !== null && entry.workDate <= loaded.hoursLockedUntil;
                   const label = `${germanDate(entry.workDate)} ${formatHours(entry.minutes)} ${entry.description}`;
                   return (
                     <li key={entry.id} className="flex items-start justify-between gap-3">

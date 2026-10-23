@@ -271,21 +271,46 @@ export function WithdrawAdjustmentButton({
   adjustmentId: string;
 }) {
   const [pending, start] = useTransition();
+  const [confirming, setConfirming] = useState(false);
   const [state, setState] = useState<ContractActionState>({ ok: false });
   return (
     <div className="grid gap-2">
-      <Button
-        type="button"
-        variant="secondary"
-        disabled={pending}
-        className="justify-self-start"
-        onClick={() =>
-          start(async () => setState(await withdrawAdjustmentAction(contractId, adjustmentId)))
-        }
-      >
-        <Undo2 aria-hidden className="size-4" />
-        {pending ? "Wird zurückgezogen …" : "Ankündigung zurückziehen"}
-      </Button>
+      {confirming ? (
+        <div className="grid gap-2" role="group" aria-labelledby={`withdraw-${adjustmentId}`}>
+          <p id={`withdraw-${adjustmentId}`} className="text-sm">
+            Der Kunde kennt die Ankündigung schon. Nach dem Zurückziehen gelten die alten Preise
+            weiter; bitte informieren Sie ihn selbst.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="danger"
+              disabled={pending}
+              onClick={() =>
+                start(async () =>
+                  setState(await withdrawAdjustmentAction(contractId, adjustmentId)),
+                )
+              }
+            >
+              <Undo2 aria-hidden className="size-4" />
+              {pending ? "Wird zurückgezogen …" : "Ja, zurückziehen"}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setConfirming(false)}>
+              Abbrechen
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          className="justify-self-start"
+          onClick={() => setConfirming(true)}
+        >
+          <Undo2 aria-hidden className="size-4" />
+          Ankündigung zurückziehen
+        </Button>
+      )}
       <Status state={state} />
     </div>
   );

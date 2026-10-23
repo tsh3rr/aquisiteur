@@ -151,6 +151,14 @@ describe("nextCycle", () => {
     ).toBe("2027-01-01");
   });
 
+  it("stays yearly after a late announcement", () => {
+    expect(
+      nextCycle({ ...contract, startDate: "2026-01-01" }, [
+        { status: "applied", dueOn: "2027-01-01", effectiveFrom: "2027-04-01" },
+      ]),
+    ).toBe("2028-01-01");
+  });
+
   it("is null when not indexed or ended before", () => {
     expect(nextCycle({ ...contract, indexed: false }, [])).toBeNull();
     expect(nextCycle({ ...contract, endDate: "2026-12-31" }, [])).toBeNull();

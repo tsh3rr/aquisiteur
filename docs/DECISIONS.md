@@ -1244,9 +1244,9 @@ Stundensatz.
   und einen Schwellenwert in ganzen Prozent (Standard 0). Die Rechenlogik ist rein
   (`src/domain/invoices/indexation.ts`).
 - **Zyklus**: Die erste Anpassung frühestens zwölf Monate nach Beginn am Ersten des Anpassungsmonats,
-  danach einmal im Jahr, nie näher als elf Monate an der letzten. Wirksam wird sie mit dem ersten
-  Zeitraum, der nach der Ankündigungsfrist beginnt (Einstellung, Standard 30 Tage) und noch nicht
-  abgerechnet ist; ein Zeitraum hat nie zwei Preise.
+  danach einmal im Jahr im selben Monat, auch wenn eine Ankündigung spät kam. Wirksam wird sie mit dem
+  ersten Zeitraum, der nach der Ankündigungsfrist beginnt (Einstellung, Standard 30 Tage) und noch
+  nicht abgerechnet ist; ein Zeitraum hat nie zwei Preise.
 - **Zweiseitig**: Die Klausel wirkt nach oben und unten, wie es § 6 Abs. 1 Z 5 KSchG für Verbraucher
   verlangt; ein sinkender Index senkt den Preis. Liegt die Änderung unter dem Schwellenwert, wird der
   Zyklus als „keine Anpassung“ festgehalten, die Basis bleibt und Änderungen summieren sich.
@@ -1254,7 +1254,10 @@ Stundensatz.
   Die Mail (Art `contract_notice`, ohne Anhang, Text editierbar mit Platzhaltern) geht an die
   Rechnungsadresse; erst wenn der Provider sie angenommen hat, gilt die Anpassung als angekündigt,
   sonst bleibt der Zyklus offen. Eine Ankündigung lässt sich zurückziehen, solange keine Rechnung sie
-  angewendet hat; den Kunden informiert dann der Owner selbst. `contract_adjustments` hält je Zyklus
+  angewendet hat (mit Rückfrage); den Kunden informiert dann der Owner selbst. Meldet der
+  Zustell-Webhook die Mail als unzustellbar, wird eine noch nicht angewendete Anpassung zurückgezogen
+  und eine Aufgabe am Vertrag angelegt, damit nie ein unangekündigter Preis gilt. Abschalten der
+  Wertsicherung verlangt erst das Zurückziehen; eine Kündigung vor dem Stichtag zieht sie zurück. `contract_adjustments` hält je Zyklus
   alte und neue Positionen, Werte und Status (keine Anpassung, angekündigt, angewendet, zurückgezogen).
 - **Anwendung**: Die Abrechnung des ersten Zeitraums ab dem Stichtag übernimmt die neuen Positionen in
   den Vertrag und setzt die Basis auf den neuen Wert, unter der Sperre des Vertrags. Weil sich die
@@ -1267,7 +1270,9 @@ Stundensatz.
   (`contract_time_entries`). Was über das Kontingent geht, wird auf die Viertelstunde aufgerundet und als
   Position „Zusätzliche Stunden“ mit der Liste der Tätigkeiten berechnet: im Voraus mit der Rechnung des
   folgenden Zeitraums, nachträglich mit der des Zeitraums selbst. Angebrochene Zeiträume bekommen das
-  Kontingent anteilig nach Tagen; nicht genutzte Stunden verfallen. Abgerechnete Einträge
-  (`overage_billed_until`) sind gesperrt. Nach dem Ende eines im Voraus abgerechneten Vertrags legt der
+  Kontingent anteilig nach Tagen; nicht genutzte Stunden verfallen. Einträge bis `overage_billed_until`
+  sind gesperrt, außer im zuletzt abgerechneten Zeitraum, solange dessen Rechnung ein Entwurf ist: ein
+  nachgetragener oder gelöschter Eintrag aktualisiert dann die Position im Entwurf. Ohne Stundensatz
+  sperren die Einträge genauso, sobald ihr Zeitraum abgerechnet ist. Nach dem Ende eines im Voraus abgerechneten Vertrags legt der
   Job für die Stunden des letzten Zeitraums eine eigene Rechnung an. Ohne Stundensatz wird Zeit nur
   dokumentiert.

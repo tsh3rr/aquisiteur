@@ -15,6 +15,8 @@ import {
   withdrawAdjustment,
 } from "@/server/invoices/indexation";
 import { addTimeEntry, deleteTimeEntry } from "@/server/invoices/time-entries";
+import { issueInvoice } from "@/server/invoices/manage";
+import { recordEmailEvents } from "@/server/invoices/send";
 import { createWorkspace } from "@/server/workspaces";
 import { minimalExpose } from "../support/expose";
 
@@ -288,6 +290,50 @@ describe("Wertsicherung", () => {
   });
 });
 
+describe("undelivered announcement", () => {
+  it("withdraws the change and leaves a task", async () => {
+    const bounced = await contract({
+      title: "Wartung Bounce",
+      indexed: true,
+      indexBaseMonth: "2025-09",
+      indexBaseTenths: 1287,
+      billedUntil: "2026-11-30",
+    });
+    const now = new Date("2026-11-20T09:00:00Z");
+    expect(await announce(bounced.id, "2026-09", 1326, now)).toMatchObject({
+      status: "announced",
+    });
+    const [mail] = await db
+      .select()
+      .from(schema.outboundEmails)
+      .where(eq(schema.outboundEmails.contractId, bounced.id));
+    await db
+      .update(schema.outboundEmails)
+      .set({ providerId: `bounce-${bounced.id}` })
+      .where(eq(schema.outboundEmails.id, mail!.id));
+    await recordEmailEvents(db, [
+      {
+        providerId: `bounce-${bounced.id}`,
+        status: "bounced",
+        at: new Date("2026-11-20T09:05:00Z"),
+        detail: "mailbox unknown",
+      },
+    ]);
+    const [adjustment] = await db
+      .select()
+      .from(schema.contractAdjustments)
+      .where(eq(schema.contractAdjustments.contractId, bounced.id));
+    expect(adjustment!.status).toBe("withdrawn");
+    const [task] = await db
+      .select()
+      .from(schema.tasks)
+      .where(and(eq(schema.tasks.contractId, bounced.id), isNull(schema.tasks.doneAt)));
+    expect(task!.title).toBe(
+      "Ankündigung der Wertsicherung nicht zugestellt: Adresse buchhaltung@gaertnerei.test prüfen",
+    );
+  });
+});
+
 describe("Stundenkontingent", () => {
   it("bills hours beyond the quota with the next invoice and locks them", async () => {
     const quota = await contract({
@@ -322,7 +368,17 @@ describe("Stundenkontingent", () => {
       "05.11.2026 1,5 Std. Plugin-Updates",
     );
     expect((await reload(quota.id)).overageBilledUntil).toBe("2026-11-30");
-    expect(await add("2026-11-25", 30, "Nachgetragen")).toMatchObject({ error: "locked" });
+    // Logged late while the invoice is a draft: the draft follows.
+    expect(await add("2026-11-25", 30, "Nachgetragen")).toEqual({ ok: true });
+    const draft = async () =>
+      (await db.select().from(schema.invoices).where(eq(schema.invoices.id, december!.id)))[0]!;
+    expect((await draft()).document.lines[1]).toMatchObject({ quantity: 1.75 });
+    expect(await add("2026-10-30", 30, "Zu alt")).toMatchObject({ error: "locked" });
+    // Issued, the span is locked.
+    expect(
+      await asIda((tx) => issueInvoice(tx, actor, december!.id, new Date("2026-12-02T09:00:00Z"))),
+    ).toMatchObject({ ok: true });
+    expect(await add("2026-11-26", 30, "Nachgetragen")).toMatchObject({ error: "locked" });
     const [entry] = await db
       .select()
       .from(schema.contractTimeEntries)
@@ -330,6 +386,36 @@ describe("Stundenkontingent", () => {
     expect(await asIda((tx) => deleteTimeEntry(tx, actor, quota.id, entry!.id))).toMatchObject({
       error: "locked",
     });
+  });
+
+  it("bills an arrears period's extra hours on its own invoice", async () => {
+    const arrears = await contract({
+      title: "Wartung nachträglich",
+      timing: "arrears",
+      billedUntil: "2026-10-31",
+      hourlyRateCents: 8_500,
+    });
+    await db.insert(schema.contractTimeEntries).values({
+      workspaceId: ws,
+      contractId: arrears.id,
+      workDate: "2026-11-03",
+      minutes: 20,
+      description: "Backup geprüft",
+    });
+    await runContractBilling(db, new Date("2026-12-01T09:00:00Z"));
+    const [november] = await db
+      .select()
+      .from(schema.invoices)
+      .where(
+        and(
+          eq(schema.invoices.contractId, arrears.id),
+          eq(schema.invoices.contractPeriodFrom, "2026-11-01"),
+        ),
+      );
+    expect(november!.document.lines.map((line) => [line.id, line.quantity])).toEqual([
+      ["care", 1],
+      ["extra-hours", 0.5],
+    ]);
   });
 
   it("drafts a final invoice for the last period's hours after the end", async () => {

@@ -1,9 +1,10 @@
 import "server-only";
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import type { Transaction } from "@/db";
-import { auditLog, contractTimeEntries, maintenanceContracts } from "@/db/schema";
+import { auditLog, contractTimeEntries, invoices, maintenanceContracts } from "@/db/schema";
 import type { Actor } from "@/domain/authz";
 import {
+  OVERAGE_LINE_ID,
   includedForSpan,
   overageLine,
   overagePeriod,
@@ -11,6 +12,8 @@ import {
 } from "@/domain/invoices/hour-quota";
 import { calendarPeriod, type ContractInterval } from "@/domain/invoices/maintenance";
 import type { InvoiceLine } from "@/domain/invoices/schema";
+import { addDays } from "@/domain/tasks";
+import { changed } from "./manage";
 
 /**
  * Stundenkontingent of maintenance contracts (§7.10, phase 7c-3b, ADR-0075):
@@ -92,8 +95,53 @@ export async function saveQuota(
   return { ok: true };
 }
 
-function lockedUntil(contract: ContractRow): string | null {
+/** The draft invoice that carries the latest extra hours, if it is still a draft. */
+async function openOverageDraft(tx: Transaction, contract: ContractRow) {
+  if (!contract.overageInvoiceId || !contract.overageBilledFrom) return null;
+  const [invoice] = await tx
+    .select({ id: invoices.id, document: invoices.document })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.workspaceId, contract.workspaceId),
+        eq(invoices.id, contract.overageInvoiceId),
+        eq(invoices.status, "draft"),
+      ),
+    );
+  return invoice ?? null;
+}
+
+/**
+ * Entries up to this day are billed and locked. While the invoice with the
+ * latest extra hours is a draft, their span stays open (work logged late).
+ */
+export async function hoursLockedUntil(
+  tx: Transaction,
+  contract: ContractRow,
+): Promise<string | null> {
+  if (!contract.overageBilledUntil) return null;
+  if (contract.overageBilledFrom && (await openOverageDraft(tx, contract))) {
+    return addDays(contract.overageBilledFrom, -1);
+  }
   return contract.overageBilledUntil;
+}
+
+/** After a change inside the open span: the draft's extra-hours line follows. */
+async function refreshOverageDraft(tx: Transaction, contract: ContractRow, workDate: string) {
+  if (!contract.overageBilledFrom || !contract.overageBilledUntil) return;
+  if (workDate < contract.overageBilledFrom || workDate > contract.overageBilledUntil) return;
+  const draft = await openOverageDraft(tx, contract);
+  if (!draft) return;
+  const line = await spanLine(tx, contract, {
+    from: contract.overageBilledFrom,
+    to: contract.overageBilledUntil,
+  });
+  const lines = draft.document.lines.filter((existing) => existing.id !== OVERAGE_LINE_ID);
+  await tx
+    .update(invoices)
+    .set({ document: { ...draft.document, lines: line ? [...lines, line] : lines } })
+    .where(and(eq(invoices.workspaceId, contract.workspaceId), eq(invoices.id, draft.id)));
+  await changed(contract.workspaceId, draft.id, contract.prospectId);
 }
 
 export async function addTimeEntry(
@@ -124,7 +172,7 @@ export async function addTimeEntry(
   if (contract.endDate && input.workDate > contract.endDate) {
     return { ok: false, error: "invalid", message: "Das Datum liegt nach dem Vertragsende." };
   }
-  const locked = lockedUntil(contract);
+  const locked = await hoursLockedUntil(tx, contract);
   if (locked && input.workDate <= locked) {
     return {
       ok: false,
@@ -140,6 +188,7 @@ export async function addTimeEntry(
     description,
     createdBy: actor.userId,
   });
+  await refreshOverageDraft(tx, contract, input.workDate);
   return { ok: true };
 }
 
@@ -162,11 +211,12 @@ export async function deleteTimeEntry(
       ),
     );
   if (!entry) return { ok: false, error: "not_found" };
-  const locked = lockedUntil(contract);
+  const locked = await hoursLockedUntil(tx, contract);
   if (locked && entry.workDate <= locked) {
     return { ok: false, error: "locked", message: "Dieser Eintrag ist schon abgerechnet." };
   }
   await tx.delete(contractTimeEntries).where(eq(contractTimeEntries.id, entryId));
+  await refreshOverageDraft(tx, contract, entry.workDate);
   return { ok: true };
 }
 
@@ -192,34 +242,46 @@ async function entriesIn(
     );
 }
 
+async function spanLine(
+  tx: Transaction,
+  contract: ContractRow,
+  span: { from: string; to: string },
+): Promise<InvoiceLine | null> {
+  if (!contract.hourlyRateCents) return null;
+  return overageLine({
+    entries: await entriesIn(tx, contract, span),
+    includedMinutes: includedForSpan(
+      contract.interval as ContractInterval,
+      span,
+      contract.includedMinutes,
+    ),
+    hourlyRateCents: contract.hourlyRateCents,
+    span,
+    vatRate: contract.lines[0]?.vatRate ?? 20,
+  });
+}
+
 /**
- * The extra hours the invoice for `period` carries, and the span they
- * cover; null when the contract bills no extra hours or none are due.
+ * The extra hours the invoice for `period` carries and the span they cover;
+ * null when no span is due. Without an hourly rate the line is null, yet the
+ * span still counts as done, so documented hours lock like billed ones.
  */
 export async function overageFor(
   tx: Transaction,
   contract: ContractRow,
   period: { from: string; to: string },
 ): Promise<{ line: InvoiceLine | null; span: { from: string; to: string } } | null> {
-  if (!contract.hourlyRateCents) return null;
-  const interval = contract.interval as ContractInterval;
   const span = overagePeriod(
-    { interval, timing: contract.timing, startDate: contract.startDate },
+    {
+      interval: contract.interval as ContractInterval,
+      timing: contract.timing,
+      startDate: contract.startDate,
+    },
     period,
     contract.overageBilledUntil,
   );
   if (!span) return null;
-  const entries = await entriesIn(tx, contract, span);
-  return {
-    line: overageLine({
-      entries,
-      includedMinutes: includedForSpan(interval, span, contract.includedMinutes),
-      hourlyRateCents: contract.hourlyRateCents,
-      span,
-      vatRate: contract.lines[0]?.vatRate ?? 20,
-    }),
-    span,
-  };
+  return { line: await spanLine(tx, contract, span), span };
 }
 
 /** Hours of the calendar period around `today`, for the contract page. */
