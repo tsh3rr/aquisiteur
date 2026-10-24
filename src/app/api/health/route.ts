@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 export const dynamic = "force-dynamic";
 
 /**
- * Health check for the server's deployment (Coolify, ADR-0047), reached as
+ * Health check for the server's deployment (Docker Compose, ADR-0054), reached as
  * `/healthz` on any host (src/middleware.ts). 200 only when the database
  * answers, so a new version goes live only once it can serve.
  */

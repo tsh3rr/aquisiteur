@@ -1,7 +1,7 @@
-# App image for servers too small to build on (ADR-0053). Built by
-# .github/workflows/image.yml and pulled by Coolify; Nixpacks stays the
-# alternative for servers with enough memory (nixpacks.toml).
-FROM node:22-bookworm-slim AS base
+# App image, built by .github/workflows/image.yml and pulled by Docker Compose
+# on the server (docs/DEPLOY.md, ADR-0053, ADR-0079). The Node major here is the
+# one production runs; keep it in step with ci.yml and package.json engines.
+FROM node:26-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm COREPACK_HOME=/corepack NEXT_TELEMETRY_DISABLED=1
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
@@ -22,7 +22,7 @@ RUN rm -rf .next/cache && CI=true pnpm prune --prod
 
 FROM base AS runtime
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
-# curl for Coolify's health check (/healthz).
+# curl for the Compose health check (/healthz, deploy/compose.yml).
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/* && chmod -R a+rX /corepack \
   && mkdir -p /data/files && chown node:node /data/files
@@ -30,5 +30,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 COPY --from=build --chown=node:node /app /app
 USER node
 EXPOSE 3000
-# Migrations first, so new code never runs against an old schema (as in nixpacks.toml).
+# Migrations first, so new code never runs against an old schema.
 CMD ["sh", "-c", "node_modules/.bin/tsx scripts/migrate.ts && exec node_modules/.bin/next start"]

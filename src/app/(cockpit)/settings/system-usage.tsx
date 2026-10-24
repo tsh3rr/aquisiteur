@@ -131,7 +131,7 @@ export function PlatformUsageList({ usage }: { usage: PlatformUsage }) {
         <p className="text-sm text-foreground-muted">
           {usage.metricsConfigured
             ? "Anfragen und CPU-Zeit sind gerade nicht abrufbar."
-            : "Anfragen und CPU-Zeit erscheinen hier, sobald CLOUDFLARE_ACCOUNT_ID und CLOUDFLARE_ANALYTICS_TOKEN gesetzt sind (docs/DEPLOY.md)."}
+            : "Anfragen und CPU-Zeit erscheinen hier, sobald CLOUDFLARE_ACCOUNT_ID und CLOUDFLARE_ANALYTICS_TOKEN gesetzt sind (docs/DEPLOY_CLOUDFLARE.md)."}
         </p>
       )}
     </div>

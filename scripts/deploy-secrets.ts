@@ -1,6 +1,6 @@
 /**
- * Prints fresh secrets for a deployment, ready to paste into the Cloudflare
- * dashboard (docs/DEPLOY.md). Nothing is stored; run it once and keep the
+ * Prints fresh secrets for a deployment, ready to paste into the server's
+ * `.env` (docs/DEPLOY.md). Nothing is stored; run it once and keep the
  * output in a password manager.
  */
 import { b64url } from "../src/infra/webpush/push";

@@ -96,14 +96,15 @@ only (portable via `pg_dump`). Migrations must keep the previous app version wor
 
 ## Working notes (for new threads)
 
-- As of 2026-10-21 the owner runs Docker Compose on Mikrus behind Mikrus' own HTTPS proxy, **without
-  Coolify and without an own Cloudflare** (`docs/DEPLOY_COMPOSE.md`, ADR-0054). Client IPs come only
+- The owner runs Docker Compose on Mikrus behind Mikrus' own HTTPS proxy, **no Coolify, no Nixpacks,
+  no own Cloudflare** (`docs/DEPLOY.md`, ADR-0054, ADR-0079). GitHub Actions builds the image from the
+  `Dockerfile` (`image.yml`) and deploys staging over SSH; production gets releases (`release.yml`).
+  The Node major lives in the `Dockerfile`, `ci.yml` and `package.json` engines; change all three together. Client IPs come only
   from `x-aquisiteur-client-ip`, set by the middleware (ADR-0064); never read `cf-*` or
   `x-forwarded-for` elsewhere.
-- The planned production setup is a Mikrus 3.5 with Coolify behind Cloudflare (`HOSTING_PROFILE=node`, ADR-0047,
-  ADR-0052): IPv6 only, so Cloudflare proxies every domain; files and DB backups live in R2
-  (`STORAGE_PROVIDER=s3`), mail via Resend. Cloudflare stays a buildable fallback, so the CI bundle job
-  must stay green. `docs/DEPLOY.md` is the runbook.
+- `HOSTING_PROFILE=node`, one instance. Before go-live: mail via Resend, DB backups off the server (R2),
+  files optionally in R2 (`STORAGE_PROVIDER=s3`). Cloudflare Workers stays a buildable fallback, so the
+  CI bundle job must stay green. `docs/DEPLOY.md` is the runbook.
 - One feature per branch and PR; after a merge, restart the working branch from `origin/main`.
   Screenshots for the owner go to `/mnt/project-files/screenshots/<topic>/`.
 - Lighthouse CI (median ≥ 0.9 over 5 runs on two exposés) is TBT-bound. Keep exposé client code lean:

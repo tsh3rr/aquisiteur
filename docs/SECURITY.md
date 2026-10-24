@@ -159,7 +159,7 @@ Sitzungsdauer, Magic-Link-Allowlist, CSP mit Nonce, HSTS, Container läuft als `
 
 1. Heute (Mikrus-Proxy, Docker Compose): `ORIGIN_SECRET` leer lassen. Nur wer später ein eigenes
    Cloudflare davorschaltet: erst die Transform Rule „Origin-Schutz“ anlegen, dann `ORIGIN_SECRET`
-   setzen (`docs/DEPLOY.md` Schritt 4 und 8); dann ergibt ein direkter Aufruf des Servers 403.
+   setzen (`docs/DEPLOY.md`, „Für den echten Betrieb“); dann ergibt ein direkter Aufruf des Servers 403.
 2. `EMAIL_PROVIDER=resend`, `ALLOW_LOG_EMAIL` gelöscht.
 3. Alle Secrets frisch aus `pnpm deploy:secrets`, nicht vom Testserver übernommen; Staging und
    Produktion mit verschiedenen Secrets.

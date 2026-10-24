@@ -1,7 +1,7 @@
 name: Deploy to a Compose server
 description: >
   Logs into a Docker Compose server over SSH, pulls the app image and restarts
-  the app (docs/DEPLOY_COMPOSE.md). Does nothing when key or host is empty.
+  the app (docs/DEPLOY.md). Does nothing when key or host is empty.
 
 inputs:
   ssh-key:

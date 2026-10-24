@@ -81,9 +81,9 @@ Fertig, wenn: Beispiel-Exposé per CLI veröffentlicht, Lighthouse ≥ 95, axe 0
 - [x] Retention-Jobs (inkl. `rate_limits`), Datenexport/-löschung pro Prospect und Workspace (ADR-0043)
 - [x] Security-Checkliste (`docs/SECURITY.md`), Monitoring (Sentry EU, ADR-0044), Datenschutzseiten, `docs/PRIVACY.md` vollständig
 - [x] Einstellungen → System mit Limits (ADR-0045)
-- [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server mit Coolify (ADR-0047), auf Mikrus hinter Cloudflare (ADR-0052)
+- [x] CPU-Grenze des Free-Plans gemessen (ADR-0046); Betrieb auf eigenem Server (ADR-0047), heute per Docker Compose mit Image aus GitHub Actions auf Mikrus (ADR-0054, ADR-0079)
 - [x] Aufgaben & Wiedervorlagen mit Fälligkeit und Erinnerung, „Heute“ und eigene Liste (ZIELPROMPT §7.8, ADR-0060)
-- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen und Folgebriefe) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY_COMPOSE.md` §9)
+- [ ] Vor dem Go-live: stündlicher Job (`/api/jobs/hourly`, auch für Aufgaben-Erinnerungen und Folgebriefe) per Cron und tägliche Datenbank-Backups, extern in R2 statt nur auf dem Server; auf dem Mikrus-Testserver mit Docker Compose bewusst noch nicht eingerichtet (ZIELPROMPT §14, `docs/DEPLOY.md` §8)
 
 ## Phase 7 · Projekte, Angebote, Rechnungen (ZIELPROMPT §7.10)
 

@@ -1,4 +1,4 @@
-# Aquisiteur on a small server without Coolify (docs/DEPLOY_COMPOSE.md, ADR-0054):
+# Aquisiteur on the server with Docker Compose (docs/DEPLOY.md, ADR-0054):
 # Postgres plus the app image built on GitHub. Mikrus terminates HTTPS and
 # forwards plain HTTP to port 80, so no reverse proxy is needed.
 name: aquisiteur
