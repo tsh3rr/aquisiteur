@@ -2,9 +2,9 @@
 # on the server (docs/DEPLOY.md, ADR-0053, ADR-0079). The Node major here is the
 # one production runs; keep it in step with ci.yml and package.json engines.
 FROM node:26-bookworm-slim AS base
-ENV PNPM_HOME=/pnpm COREPACK_HOME=/corepack NEXT_TELEMETRY_DISABLED=1
-ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+ENV NEXT_TELEMETRY_DISABLED=1
+# Node 25+ no longer ships Corepack, so pnpm comes from npm (same version as packageManager).
+RUN npm install -g pnpm@10.28.0 && npm cache clean --force
 WORKDIR /app
 
 FROM base AS build
@@ -24,7 +24,7 @@ FROM base AS runtime
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 # curl for the Compose health check (/healthz, deploy/compose.yml).
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/* && chmod -R a+rX /corepack \
+  && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /data/files && chown node:node /data/files
 # /data/files belongs to the app user, so a volume mounted there (STORAGE_PROVIDER=local) is writable.
 COPY --from=build --chown=node:node /app /app
