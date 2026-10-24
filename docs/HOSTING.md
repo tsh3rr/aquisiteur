@@ -1,6 +1,6 @@
 # Hosting-Portabilität und Umzug
 
-Betrieben wird Aquisiteur auf einem eigenen Server (Mikrus 3.5) mit Coolify hinter Cloudflare (ADR-0047, ADR-0052, Anleitung in
+Betrieben wird Aquisiteur auf einem eigenen Server (Mikrus) mit Docker Compose und einem Image aus GitHub Actions (ADR-0054, ADR-0079, Anleitung in
 [DEPLOY.md](./DEPLOY.md)). Die Cloudflare-Variante ist im Code vollständig erhalten
 ([DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md)). Ein Umzug ist ein Konfigurationswechsel (ZIELPROMPT §5a).
 
@@ -19,24 +19,21 @@ Betrieben wird Aquisiteur auf einem eigenen Server (Mikrus 3.5) mit Coolify hint
 Fachcode importiert Anbieter-SDKs nie direkt; die ESLint-Regel in `eslint.config.mjs` erzwingt das
 außerhalb von `src/infra/` (getestet in `tests/unit/infra-boundary.test.ts`).
 
-## Variante A: eigener Server (Mikrus oder Hetzner + Coolify), Standard
+## Variante A: eigener Server mit Docker Compose, Standard
 
 Ausführlich in [DEPLOY.md](./DEPLOY.md). Umzug von Supabase auf den Server:
 
-1. Server (Mikrus 3.5, oder ein Server mit eigener IPv4 wie Hetzner) mit Coolify aufsetzen.
-2. Postgres 16 als Coolify-Ressource anlegen, Daten übertragen:
+1. Server mit Docker aufsetzen, `deploy/compose.yml` und `.env` nach `/opt/aquisiteur` (DEPLOY.md
+   Schritt 1 bis 4), nur die Datenbank starten: `docker compose up -d db`.
+2. Daten übertragen (die neue Datenbank ist der Container `db`):
    ```bash
    pg_dump --no-owner --no-privileges -Fc "$ALTE_DATABASE_URL" > aquisiteur.dump
-   psql "$NEUE_DATABASE_URL" -c "create role aquisiteur_app nologin noinherit"
-   pg_restore --no-owner -d "$NEUE_DATABASE_URL" aquisiteur.dump
-   DATABASE_URL="$NEUE_DATABASE_URL" pnpm db:migrate   # stellt Rolle, Grants und Funktionen sicher
+   docker compose exec -T db psql -U aquisiteur -d aquisiteur -c "create role aquisiteur_app nologin noinherit"
+   docker compose exec -T db pg_restore -U aquisiteur -d aquisiteur --no-owner < aquisiteur.dump
    ```
-3. In Coolify eine Anwendung aus dem GitHub-Repo anlegen (Nixpacks, Node 22):
-   Build `pnpm install --frozen-lockfile && pnpm build`, Start `pnpm start`, Port 3000.
-4. Env-Variablen aus `.env.example` setzen, dabei `HOSTING_PROFILE=node`.
-5. Domains: `app.<domain>` und `*.<domain>` auf den Server zeigen lassen. Auf Mikrus als AAAA mit
-   Cloudflare-Proxy und Origin-Zertifikat; mit eigener IPv4 holt Coolify (Traefik) die Zertifikate, für
-   Wildcard-Zertifikate DNS-Challenge konfigurieren.
+3. `docker compose up -d`: die App spielt beim Start die Migrationen ein (stellt Rolle, Grants und
+   Funktionen sicher).
+4. Domains auf den Server zeigen lassen; auf Mikrus über die Subdomains im Panel (DEPLOY.md Schritt 1).
 
 ## Variante B: Vercel
 

@@ -1349,3 +1349,22 @@ ruhiger Tage (Standard 60) zeigt sein Link deshalb eine Kurzseite (ZIELPROMPT §
   ablenken; wer den Link trotzdem weitergibt, erscheint als direkter Besuch.
 - Die Kurzseite trägt nicht mehr das Theming des Prospects, sondern die Akzentfarbe der Agentur im Stil
   `editorial`; die Bilder des Sliders bleiben.
+
+## ADR-0079 · Betrieb nur per Docker Compose, Node 26 im Image (2026-10-24, ersetzt die Coolify-Teile von ADR-0047, ADR-0052, ADR-0053 und ADR-0054)
+
+Auf dem Server läuft kein Coolify. Der einzige Weg in den Betrieb ist das Image, das GitHub Actions aus
+dem `Dockerfile` baut (`image.yml`, ADR-0053), auf dem Server per Docker Compose gestartet
+(`deploy/compose.yml`, ADR-0054); Staging bekommt jeden Merge per SSH, Produktion nur Freigaben
+(`release.yml`, ADR-0057). Entfernt sind deshalb `nixpacks.toml`, der Coolify-Webhook im Workflow
+„Image“ (Secrets `COOLIFY_WEBHOOK`, `COOLIFY_TOKEN`) und die Coolify-Anleitung. `docs/DEPLOY.md` ist
+jetzt die Compose-Anleitung (vorher `docs/DEPLOY_COMPOSE.md`), ergänzt um „Für den echten Betrieb“
+(Resend, Backups nach R2, Dateien in R2, Sentry, optional eigenes Cloudflare). Weiter gilt aus den
+alten ADRs: `HOSTING_PROFILE=node`, eine Instanz, Postgres 16 auf demselben Server, R2 für Backups
+außer Haus.
+
+Die Node-Version steht an drei Stellen und wird gemeinsam angehoben: `FROM node:<major>-bookworm-slim`
+im `Dockerfile` (das, was im Betrieb läuft), `node-version` in `.github/workflows/ci.yml` (womit
+getestet wird) und `engines.node` in `package.json`. Gewählt ist **Node 26**: die neueste Hauptversion,
+die Ende Oktober 2026 zur LTS-Linie wird (Active LTS bis Oktober 2027, Wartung bis April 2029), statt
+Node 24, dessen aktive Phase dann endet. Das Basis-Image bleibt Debian Bookworm, damit sich mit der
+Node-Version nicht zugleich das Betriebssystem ändert.

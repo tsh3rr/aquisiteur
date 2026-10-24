@@ -1,7 +1,7 @@
 # Deployment-Variante: Cloudflare Workers + Supabase
 
 > Nicht die Standard-Variante. Betrieben wird Aquisiteur auf einem eigenen Server, siehe
-> [DEPLOY.md](./DEPLOY.md) (ADR-0047). Diese Anleitung bleibt für einen späteren Umzug zu Cloudflare.
+> [DEPLOY.md](./DEPLOY.md) (ADR-0054, ADR-0079). Diese Anleitung bleibt für einen späteren Umzug zu Cloudflare.
 
 Schritt-für-Schritt-Anleitung, um Aquisiteur produktiv zu betreiben, **komplett über die
 Weboberflächen** von Cloudflare, Supabase, Resend und GitHub. Ein Terminal brauchst du nicht; die

@@ -31,9 +31,6 @@ jobs:
     env:
       IMAGE: ghcr.io/${{ github.repository }}
       PUSH: ${{ github.event_name != 'pull_request' }}
-      # Optional: Coolify's deploy webhook, so a new image goes live without a click.
-      COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
-      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -52,10 +49,6 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Deploy in Coolify
-        if: env.PUSH == 'true' && env.COOLIFY_WEBHOOK != ''
-        run: |
-          curl -fsS -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK"
 
   deploy:
     name: Deploy to staging

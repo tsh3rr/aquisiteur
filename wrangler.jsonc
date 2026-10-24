@@ -14,7 +14,7 @@
   ],
   "hyperdrive": [
     {
-      // Supabase Postgres (EU). See docs/DEPLOY.md, step "Hyperdrive".
+      // Supabase Postgres (EU). See docs/DEPLOY_CLOUDFLARE.md, step "Hyperdrive".
       "binding": "HYPERDRIVE",
       "id": "REPLACE_WITH_HYPERDRIVE_ID",
       "localConnectionString": "postgres://aquisiteur:aquisiteur@localhost:5432/aquisiteur",
@@ -23,7 +23,7 @@
   "vars": {
     "HOSTING_PROFILE": "cloudflare",
   },
-  // Everything else is set in the Cloudflare dashboard; deploys must not wipe it (docs/DEPLOY.md).
+  // Everything else is set in the Cloudflare dashboard; deploys must not wipe it (docs/DEPLOY_CLOUDFLARE.md).
   "keep_vars": true,
   // Hourly jobs, e.g. the daily digest (worker.mjs → /api/jobs/hourly).
   "triggers": { "crons": ["5 * * * *"] },
