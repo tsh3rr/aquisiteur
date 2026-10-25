@@ -15,7 +15,7 @@ const outDir = fileURLToPath(new URL("../public/icons/", import.meta.url));
 
 const ACCENT_TOP = "#5c48e8";
 const ACCENT_BOTTOM = "#4330c7";
-const GLYPH = "M8 12.5 16 18l8-5.5M8 12v9.5h16V12M16 6.5v6M13.2 9 16 6.2 18.8 9";
+const GLYPH = "M8 21.5V12l8 6 8-6v9.5ZM16 6.5v6M13.2 9 16 6.2 18.8 9";
 
 /** The envelope-with-arrow glyph, centred on the 32×32 canvas. */
 function glyph(scale: number, strokeWidth: number, color = "#fff") {

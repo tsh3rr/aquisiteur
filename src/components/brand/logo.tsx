@@ -7,7 +7,7 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
       <svg viewBox="0 0 32 32" aria-hidden className="size-7 shrink-0">
         <rect width="32" height="32" rx="9" className="fill-accent" />
         <path
-          d="M8 12.5 16 18l8-5.5M8 12v9.5h16V12"
+          d="M8 21.5V12l8 6 8-6v9.5Z"
           fill="none"
           className="stroke-accent-foreground"
           strokeWidth="2.2"
